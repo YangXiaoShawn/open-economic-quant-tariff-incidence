@@ -1,0 +1,25 @@
+{
+  "run": {
+    "run_id": "20260808T224044Z-55c15b82",
+    "created_utc": "2026-08-08T22:40:44.135172+00:00",
+    "git_commit": "NO_COMMIT",
+    "config_name": "sample_slice.yaml",
+    "config_sha256": "55c15b82b4e1bdd1697f82c0fa9dbcdb690a23b4c1ecae6ffd57dcdd3287f988",
+    "data_provenance": "MIXED",
+    "data_period_start": "2017",
+    "data_period_end": "2017",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "notes": "BEA 2017 summary IO; concordance status COARSE_APPROXIMATION"
+  },
+  "concordance": {
+    "concordance_method": "configured HS-to-BEA-commodity map",
+    "concordance_level": "HS6 -> BEA summary commodity",
+    "n_mapped_products": 90,
+    "n_unmapped_products": 0,
+    "aggregation_loss": "BEA summary commodities are far broader than HS6 lines. A summary commodity that contains both tariffed and untariffed HS6 products receives an import-weighted average rate, so industry-level exposure is attenuated relative to the true product-level shock, and heterogeneity within a commodity is lost entirely.",
+    "concordance_source": "config/io_concordance.yaml",
+    "warnings": ""
+  },
+  "concordance_config_status": "COARSE_APPROXIMATION"
+}

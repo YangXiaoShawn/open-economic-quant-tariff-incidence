@@ -1,0 +1,30 @@
+{
+  "run": {
+    "run_id": "20260808T224043Z-55c15b82",
+    "created_utc": "2026-08-08T22:40:43.805399+00:00",
+    "git_commit": "NO_COMMIT",
+    "config_name": "sample_slice.yaml",
+    "config_sha256": "55c15b82b4e1bdd1697f82c0fa9dbcdb690a23b4c1ecae6ffd57dcdd3287f988",
+    "data_provenance": "MIXED",
+    "data_period_start": "2017-01",
+    "data_period_end": "2019-08",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "notes": ""
+  },
+  "counterfactual_adjusted_summary": {
+    "treated_country_excess_change": -22004573.257693592,
+    "alternative_countries_excess_change": 101975001.40362038,
+    "net_excess_change": 79970428.14592679,
+    "adjusted_replacement_ratio": 4.634263987281201,
+    "counterfactual": "country-specific growth of never-treated products over the same calendar months",
+    "identifying_assumption": "absent the tariff, treated and never-treated products would have grown at the same rate within each partner country"
+  },
+  "warnings": [
+    "The RAW pre-versus-post decomposition attributes ordinary trade growth to the tariff and its replacement ratio is not interpretable on its own. Use the counterfactual-adjusted figures.",
+    "An increase in imports from a third country is not evidence of production relocation. Rerouting of treated-origin goods, transshipment, and origin misdeclaration produce the same pattern in customs data.",
+    "The replacement ratio compares value flows only. It says nothing about whether the replacing goods are the same quality or the same variety.",
+    "Domestic substitution is invisible in import data. A fall in imports that is not matched by third-country gains may reflect domestic production, lower final demand, or inventory drawdown, and these cannot be separated without domestic output data.",
+    "The supplier set is the configured comparison group, not the world. Concentration measures are within-sample."
+  ]
+}

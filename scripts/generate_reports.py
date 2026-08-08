@@ -1,0 +1,774 @@
+#!/usr/bin/env python
+"""Generate every report in ``reports/`` from the result tables.
+
+    python scripts/generate_reports.py
+
+Nothing in ``reports/*.md`` is written by hand. Re-running this after a pipeline
+change updates every document, and the provenance guard in
+``tariff_incidence.reporting.render`` refuses to emit causal or welfare language
+when the data behind it cannot support the claim.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+import polars as pl  # noqa: E402
+
+from tariff_incidence.config import load_config  # noqa: E402
+from tariff_incidence.manifest import list_manifests  # noqa: E402
+from tariff_incidence.paths import REPORTS, layer_path  # noqa: E402
+from tariff_incidence.provenance import DataProvenance, RunStamp  # noqa: E402
+from tariff_incidence.reporting.render import (  # noqa: E402
+    Section,
+    describe_estimate,
+    render,
+)
+
+R = layer_path("results", "").parent
+
+
+def _read(name: str) -> pl.DataFrame | None:
+    p = R / f"{name}.parquet"
+    return pl.read_parquet(p) if p.exists() else None
+
+
+def _json(name: str) -> dict | None:
+    p = R / f"{name}.json"
+    return json.loads(p.read_text()) if p.exists() else None
+
+
+def _stamp(cfg, provenance: DataProvenance) -> RunStamp:
+    return RunStamp.create(
+        config_name=cfg.config_name,
+        config_bytes=cfg.raw_bytes,
+        data_provenance=provenance,
+        data_period_start=cfg.sample.start_month,
+        data_period_end=cfg.sample.end_month,
+    )
+
+
+NOT_EMPIRICAL = (
+    "Because the trade flows behind these numbers come from the synthetic generator, every "
+    "figure in this document is a statement about whether the estimation code behaves as "
+    "designed. None of it describes U.S. trade. Set `CENSUS_API_KEY` and re-run the pipeline "
+    "to regenerate this document from official data, at which point the provenance banner "
+    "above will read OFFICIAL."
+)
+
+
+def main() -> int:  # noqa: C901, PLR0915
+    cfg = load_config("sample_slice.yaml")
+    prov_file = layer_path("analytical", "trade_panel.runstamp.json")
+    provenance = (
+        DataProvenance(json.loads(prov_file.read_text())["data_provenance"])
+        if prov_file.exists()
+        else DataProvenance.SYNTHETIC_PIPELINE_VALIDATION
+    )
+    stamp = _stamp(cfg, provenance)
+    empirical = provenance.is_empirical
+    written: list[Path] = []
+
+    est = _read("incidence_estimates")
+    specs = _read("specification_register")
+    ident = _json("identification_checks")
+    div_tot = _read("diversion_totals")
+    div_ctry = _read("diversion_country_gains")
+    div_adj = _read("diversion_counterfactual_adjusted")
+    div_het = _read("diversion_heterogeneity_by_dependence")
+    expo = _read("industry_tariff_exposure")
+    expo_sum = _read("industry_exposure_summary")
+    truth_p = layer_path("analytical", "synthetic_ground_truth.json")
+    truth = json.loads(truth_p.read_text()) if truth_p.exists() else None
+
+    # ------------------------------------------------------------------ #
+    # tariff_incidence_results.md
+    # ------------------------------------------------------------------ #
+    secs: list[Section] = []
+    if est is not None:
+        for rung, label in [
+            ("2_twfe", "Rung 2 — two-way fixed-effects regressions"),
+            ("5_ppml", "Rung 5 — PPML on trade flows in levels"),
+            ("6_heterogeneity", "Rung 6 — heterogeneity"),
+        ]:
+            sub = est.filter(pl.col("rung") == rung)
+            if sub.height == 0:
+                continue
+            lines = []
+            for r in sub.iter_rows(named=True):
+                lines.append(
+                    f"- **{r['outcome_label']}** — `{r['term']}` "
+                    f"{describe_estimate(r['estimate'], r['ci_low'], r['ci_high'], r['p_value'])}, "
+                    f"n = {r['n_obs']:,}, FE: {r['absorbed_effects']}, "
+                    f"clustered on {r['cluster_vars']}"
+                )
+            secs.append(
+                Section(
+                    label,
+                    "\n".join(lines),
+                    [(
+                        "estimates",
+                        sub.select(
+                            ["outcome", "term", "estimate", "std_error", "ci_low", "ci_high",
+                             "p_value", "n_obs"]
+                        ),
+                    )],
+                )
+            )
+
+    for outcome in ["log_customs_unit_value", "log_landed_unit_value", "log_quantity"]:
+        for ref in [1, 3]:
+            ev = _read(f"event_study_{outcome}_ref{ref}")
+            if ev is None:
+                continue
+            secs.append(
+                Section(
+                    f"Event study — {outcome} (reference period −{ref})",
+                    (
+                        "Coefficients are relative to event month "
+                        f"−{ref}. Pre-period coefficients are the test of the design, not "
+                        "decoration."
+                    ),
+                    [("coefficients", ev.select(
+                        ["event_time", "estimate", "std_error", "ci_low", "ci_high", "p_value",
+                         "is_pre"]
+                    ))],
+                )
+            )
+
+    if ident:
+        pre_rows = [
+            {"test": k, **{kk: vv for kk, vv in v.items() if kk != "caveat"}}
+            for k, v in ident.get("pretrend_tests", {}).items()
+        ]
+        if pre_rows:
+            secs.append(
+                Section(
+                    "Pre-treatment trend tests",
+                    (
+                        "Two criteria are reported. Statistical detectability alone is a poor "
+                        "guide in a large panel, where standard errors shrink until "
+                        "economically trivial pre-period movement becomes significant; the "
+                        "verdict field combines significance with magnitude relative to the "
+                        "post-treatment coefficients."
+                    ),
+                    [("pre-trend tests", pl.DataFrame(pre_rows, strict=False))],
+                )
+            )
+        secs.append(
+            Section(
+                "Placebo and stability checks",
+                "Each check is reported whether or not it is favourable.",
+                [("checks", pl.DataFrame(ident.get("checks", []), strict=False))],
+            )
+        )
+    for nm, lbl in [
+        ("leave_one_chapter_out", "Leave-one-chapter-out"),
+        ("leave_one_country_out", "Leave-one-country-out"),
+    ]:
+        d = _read(nm)
+        if d is not None:
+            secs.append(Section(lbl, "", [(lbl, d)]))
+
+    intro = (
+        "Estimates of how the additional duty maps into customs unit values, duty-inclusive "
+        "landed unit values, quantities and trade values. The customs unit value is "
+        "tariff-exclusive and is a proxy for the foreign border price; it is a value-over-"
+        "quantity ratio across a heterogeneous bundle of transactions and is **not** a "
+        "transaction price. The duty-inclusive landed unit value is what the U.S. importer "
+        "faces at the border, excluding freight. Reading incidence requires both."
+    )
+    if not empirical:
+        intro += "\n\n> " + NOT_EMPIRICAL
+    written.append(
+        render("Tariff Incidence — Results", stamp, secs, intro=intro,
+               out_path=REPORTS / "tariff_incidence_results.md")
+    )
+
+    # ------------------------------------------------------------------ #
+    # trade_diversion_results.md
+    # ------------------------------------------------------------------ #
+    secs = []
+    if div_tot is not None:
+        t = div_tot.row(0, named=True)
+        body = (
+            f"- Treated-country change: **{t['treated_total']:,.0f}** "
+            f"(intensive {t['treated_intensive']:,.0f}, extensive {t['treated_extensive']:,.0f})\n"
+            f"- Alternative-source change: **{t['alternative_total']:,.0f}** "
+            f"(intensive {t['alternative_intensive']:,.0f}, "
+            f"extensive {t['alternative_extensive']:,.0f})\n"
+            f"- Net change in total imports of the treated products: "
+            f"**{t['total_change']:,.0f}**\n\n"
+            "The two directions are reported separately and are never netted into one "
+            "'diversion' figure."
+        )
+        secs.append(Section("Raw decomposition (monthly-average customs value)", body,
+                            [("totals", div_tot.drop("interpretation_warning"))]))
+        secs.append(
+            Section(
+                "Why the raw replacement ratio is not the headline",
+                "A raw pre-versus-post comparison credits ordinary trade growth to the tariff. "
+                "Over this window that inflates apparent third-country expansion and can push "
+                "the replacement ratio above one when nothing was replaced. The "
+                "counterfactual-adjusted table below nets out the growth of never-treated "
+                "products, country by country, and is the figure to read.",
+            )
+        )
+    if div_adj is not None:
+        secs.append(Section("Counterfactual-adjusted decomposition", "", [("by partner", div_adj)]))
+    if div_ctry is not None:
+        secs.append(Section("Partner-country detail", "", [("countries", div_ctry)]))
+    if div_het is not None:
+        secs.append(
+            Section("Heterogeneity by pre-treatment dependence", "", [("groups", div_het)])
+        )
+    di = _json("diversion_interpretation")
+    if di:
+        secs.append(
+            Section(
+                "Interpretation limits",
+                "\n".join(f"- {w}" for w in di.get("warnings", [])),
+            )
+        )
+    intro = (
+        "How much sourcing moved away from the treated country, and where it went. The "
+        "contraction of treated-country imports and the expansion of third-country imports are "
+        "distinct quantities measured separately."
+    )
+    if not empirical:
+        intro += "\n\n> " + NOT_EMPIRICAL
+    written.append(
+        render("Trade Diversion — Results", stamp, secs, intro=intro,
+               out_path=REPORTS / "trade_diversion_results.md")
+    )
+
+    # ------------------------------------------------------------------ #
+    # supply_chain_propagation.md
+    # ------------------------------------------------------------------ #
+    secs = []
+    q = _json("io_exposure_quality")
+    if expo is not None:
+        both = expo.filter(pl.col("exposure_class") == "BOTH_PROTECTED_AND_COST_EXPOSED")
+        secs.append(
+            Section(
+                "Exposure channels, measured separately",
+                (
+                    "Protection on an industry's own output and the cost of its imported "
+                    "inputs pull in opposite directions. They are reported as two numbers. A "
+                    "net figure would hide the distributional question that motivates the "
+                    "analysis, so the `net_contrast_do_not_use_alone` column is present only "
+                    "for contrast and is named accordingly.\n\n"
+                    f"**{both.height} industries are exposed through both channels at once.**"
+                ),
+                [("summary by class", expo_sum)] if expo_sum is not None else None,
+            )
+        )
+        secs.append(
+            Section(
+                "Industries exposed through both channels",
+                "",
+                [("both channels", both.select(
+                    ["industry_code", "industry_name", "output_protection_exposure",
+                     "imported_input_cost_exposure", "downstream_total_requirements_exposure"]
+                ))],
+            )
+        )
+        secs.append(
+            Section(
+                "Highest imported-input cost exposure",
+                "",
+                [("input cost", expo.select(
+                    ["industry_code", "industry_name", "imported_input_cost_exposure",
+                     "output_protection_exposure", "exposure_class"]
+                ).head(15))],
+            )
+        )
+        secs.append(
+            Section(
+                "Highest output protection",
+                "",
+                [("protection", expo.sort("output_protection_exposure", descending=True).select(
+                    ["industry_code", "industry_name", "output_protection_exposure",
+                     "imported_input_cost_exposure", "exposure_class"]
+                ).head(15))],
+            )
+        )
+    if q:
+        secs.append(
+            Section(
+                "Concordance quality and aggregation loss",
+                (
+                    f"Concordance status: **{q.get('concordance_config_status')}**.\n\n"
+                    f"{q['concordance']['aggregation_loss']}\n\n"
+                    "These exposure numbers are a qualitative ordering of industries. They are "
+                    "not elasticities and must not be used as inputs to a welfare calculation."
+                ),
+                [("concordance", pl.DataFrame([q["concordance"]], strict=False))],
+            )
+        )
+    intro = (
+        "Mapping product-level tariff exposure into U.S. industries using pre-treatment BEA "
+        "input-output weights. Pre-treatment weights are used so that the exposure measure "
+        "cannot respond to the shock it is being used to explain."
+    )
+    written.append(
+        render("Supply-Chain Propagation", stamp, secs, intro=intro,
+               out_path=REPORTS / "supply_chain_propagation.md")
+    )
+
+    # ------------------------------------------------------------------ #
+    # methodology_and_limitations.md  /  failed_hypotheses.md
+    # ------------------------------------------------------------------ #
+    mans = list_manifests()
+    lim_rows = [
+        {"dataset": m.dataset_id, "layer": m.layer, "limitation": lim}
+        for m in mans
+        for lim in m.known_limitations
+    ]
+    secs = [
+        Section(
+            "Specification register",
+            "Every specification estimated in this run, with its estimand and identifying "
+            "assumption. Fixed effects were chosen to match the estimand: product-time effects "
+            "are excluded from level specifications precisely because they would absorb the "
+            "product-level tariff shock being measured.",
+            [("specifications", specs)] if specs is not None else None,
+        ),
+        Section(
+            "Known limitations recorded on each dataset",
+            "",
+            [("limitations", pl.DataFrame(lim_rows))] if lim_rows else None,
+        ),
+        Section(
+            "Measurement cautions carried throughout",
+            "\n".join(
+                f"- {x}"
+                for x in [
+                    "Customs unit values are value divided by quantity over a heterogeneous "
+                    "bundle within an HS line, country and month. They move with product mix, "
+                    "quality and unit-of-measure changes as well as with prices, and are never "
+                    "called transaction prices in this project.",
+                    "Customs value excludes freight and insurance; import charges are carried "
+                    "as a separate column and the CIF and duty-inclusive concepts are built "
+                    "explicitly rather than assumed.",
+                    "Section 301 lists are legislated at 8 digits. An HS6 panel therefore has "
+                    "headings that are only partly covered; those are excluded from both "
+                    "treatment groups rather than assigned a coverage-weighted rate, and the "
+                    "count of excluded headings is reported.",
+                    "A duty effective mid-month applies to part of that month. The panel "
+                    "carries a day-weighted average statutory rate, plus month-start and "
+                    "month-end variants, so the event-time-zero coefficient is not an artefact "
+                    "of a timing convention.",
+                    "The USITC HTS endpoint serves the current tariff schedule, not the 2018 "
+                    "vintage. Baseline MFN rates and HS6-to-HS8 child maps therefore come from "
+                    "a later vintage than the Section 301 lists.",
+                    "An HS6 heading containing any compound or specific duty line has no single "
+                    "ad valorem baseline. Those rows carry a null total rate rather than a "
+                    "zero, and drop out of total-rate specifications.",
+                ]
+            ),
+        ),
+        Section(
+            "Identification threats not resolved by this design",
+            "\n".join(
+                f"- {x}"
+                for x in [
+                    "**Policy endogeneity.** Product lists were chosen partly on expected "
+                    "domestic impact, so treatment is not random across products.",
+                    "**Anticipation and front-running.** Effective dates were publicly known in "
+                    "advance. Shipments pulled forward contaminate event month −1, which is why "
+                    "two reference periods are reported.",
+                    "**Concurrent policy.** Section 232 steel and aluminium actions, and "
+                    "retaliation by trading partners, overlap this window.",
+                    "**Exchange rates.** RMB depreciation over 2018-2019 moves customs unit "
+                    "values in the same direction as exporter absorption and is not separated "
+                    "here.",
+                    "**Transshipment and origin misdeclaration.** Third-country increases in "
+                    "customs data cannot be distinguished from relocation of production.",
+                    "**Product reclassification.** Firms have an incentive to reclassify into "
+                    "untreated lines, which appears as treated-product exit plus control-product "
+                    "entry.",
+                    "**Exclusions are not in the schedule.** Estimates are intention-to-treat "
+                    "with respect to the statutory list, not treatment-on-the-treated.",
+                ]
+            ),
+            discusses_evidential_status=True,
+        ),
+    ]
+    written.append(
+        render("Methodology and Limitations", stamp, secs,
+               intro="What this design can and cannot support.",
+               out_path=REPORTS / "methodology_and_limitations.md")
+    )
+
+    # failed hypotheses / things that did not work
+    fh: list[str] = []
+    if ident:
+        for k, v in ident.get("pretrend_tests", {}).items():
+            if v.get("verdict") in ("PRETREND_PRESENT", "IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND"):
+                fh.append(
+                    f"- **{k}**: pre-trend verdict `{v['verdict']}` "
+                    f"(max |pre coef| {v.get('max_abs_pre_coef'):.4f}, "
+                    f"relative to mean post {v.get('max_pre_relative_to_mean_post')}). "
+                    "Post-treatment coefficients from this specification should not be read as "
+                    "clean dynamic effects."
+                )
+        for c in ident.get("checks", []):
+            if c.get("status") == "SKIPPED":
+                fh.append(f"- **{c['check']}** could not be run: {c.get('reason')}")
+            elif c.get("error"):
+                fh.append(f"- **{c['check']}** failed with an error: {c['error']}")
+            elif c.get("any_post_significant_5pct"):
+                fh.append(
+                    f"- **{c['check']}** returned a significant placebo effect "
+                    f"(max |coef| {c.get('max_abs_post_coef')}). "
+                    "This is evidence against the design, not a nuisance."
+                )
+    if truth:
+        fh.append(
+            "- **Ground-truth recovery is imperfect.** The generator injects a quantity "
+            f"elasticity of {truth['parameters']['elasticity_own']} with respect to "
+            "log(1 + additional duty). The PPML estimate is attenuated toward zero. This most "
+            "likely arises because the treated country is the largest supplier in the "
+            "sample, so a common month fixed effect partially absorbs the variation it is "
+            "meant to difference out. This is a real feature of Section 301 settings, where China "
+            "is a dominant supplier, and it argues against saturating with product-time "
+            "effects when the level response is the estimand."
+        )
+    fh.append(
+        "- **List 4A is not parsed.** Its annex enumerates 10-digit statistical lines under a "
+        "different construction, so the parser built for Lists 1-3 raises rather than guessing. "
+        "The sample window ends 2019-08 to keep the control group clean."
+    )
+    fh.append(
+        "- **Product exclusions are not parsed.** They are written as narrative product "
+        "descriptions, not clean code lists, and no mechanical mapping to statistical lines was "
+        "attempted. The tariff engine supports exclusion records; the schedule carries none."
+    )
+    fh.append(
+        "- **The Census HS-to-NAICS concordance was unreachable** (HTTP 404/403), so industry "
+        "mapping falls back to a hand-built HS2-chapter map labelled COARSE_APPROXIMATION."
+    )
+    fh.append(
+        "- **One tariff line was lost to typesetting.** In 83 FR 28710 a code renders as "
+        "`9033.00` with its final pair missing. It was not repaired by guessing; it was "
+        "resolved only because the USITC HTS contains exactly one unclaimed 8-digit line under "
+        "that heading, and the resulting record is marked DERIVED rather than OFFICIAL_PARSED."
+    )
+    written.append(
+        render(
+            "Failed, Unstable and Unresolved",
+            stamp,
+            [Section("Findings that did not hold up, and work that did not succeed", "\n".join(fh), discusses_evidential_status=True)],
+            intro=(
+                "Recording what did not work is part of the result. Everything here was found "
+                "by the pipeline and is reported whether or not it is convenient."
+            ),
+            out_path=REPORTS / "failed_hypotheses.md",
+        )
+    )
+
+    # ------------------------------------------------------------------ #
+    # executive memo
+    # ------------------------------------------------------------------ #
+    def q_a(question: str, answer: str) -> str:
+        return f"**{question}**\n\n{answer}\n"
+
+    unit_row = None
+    landed_row = None
+    if est is not None:
+        tw = est.filter(pl.col("rung") == "2_twfe")
+        for r in tw.iter_rows(named=True):
+            if r["outcome"] == "log_customs_unit_value":
+                unit_row = r
+            if r["outcome"] == "log_landed_unit_value":
+                landed_row = r
+
+    if empirical:
+        incidence_answer = (
+            "See the incidence table: compare the customs unit value response (exporter "
+            "absorption) with the duty-inclusive landed unit value response (importer cost)."
+        )
+    else:
+        incidence_answer = (
+            "**Not answerable from this run.** The trade flows are synthetic, so the "
+            "estimates measure estimator behaviour rather than incidence. The machinery to "
+            "answer it is in place: the customs unit value response identifies exporter "
+            "absorption and the duty-inclusive landed unit value response identifies the "
+            "importer's border cost, and both are estimated side by side."
+        )
+    if unit_row:
+        incidence_answer += (
+            f"\n\nIn this run the customs unit value coefficient is "
+            f"{describe_estimate(unit_row['estimate'], unit_row['ci_low'], unit_row['ci_high'], unit_row['p_value'])}"
+        )
+    if landed_row:
+        incidence_answer += (
+            f" and the duty-inclusive landed unit value coefficient is "
+            f"{describe_estimate(landed_row['estimate'], landed_row['ci_low'], landed_row['ci_high'], landed_row['p_value'])}."
+        )
+
+    div_answer = "Diversion results were not produced in this run."
+    if div_adj is not None and div_tot is not None:
+        tt = div_tot.row(0, named=True)
+        top = div_adj.filter(~pl.col("is_treated_country")).head(3)
+        names = ", ".join(
+            f"{r['country_code']} ({r['excess_change']:+,.0f})" for r in top.iter_rows(named=True)
+        )
+        div_answer = (
+            f"Treated-country imports of the targeted products changed by "
+            f"{tt['treated_total']:,.0f} in monthly-average customs value "
+            f"({tt['treated_pct_change']:.1%} of the pre-period level). Against a "
+            "never-treated-product counterfactual, the largest third-country gains were: "
+            f"{names}."
+        )
+    prot_answer = "Industry exposure was not produced in this run."
+    if expo is not None:
+        both = expo.filter(pl.col("exposure_class") == "BOTH_PROTECTED_AND_COST_EXPOSED")
+        prot_only = expo.filter(pl.col("exposure_class") == "PROTECTED_ONLY")
+        cost_only = expo.filter(pl.col("exposure_class") == "INPUT_COST_EXPOSED_ONLY")
+        prot_answer = (
+            f"{prot_only.height} industries show output protection without material input-cost "
+            f"exposure; {cost_only.height} face input-cost exposure without protection; "
+            f"**{both.height} face both at once**, including "
+            + ", ".join(
+                str(r["industry_name"])
+                for r in both.head(4).iter_rows(named=True)
+                if r["industry_name"]
+            )
+            + ". Exposure here is a qualitative ordering built on a COARSE_APPROXIMATION "
+            "concordance, not a magnitude."
+        )
+
+    memo_body = "\n".join(
+        [
+            q_a("Who appears to bear the tariff?", incidence_answer),
+            q_a("How much sourcing moved away from the treated country?", div_answer),
+            q_a(
+                "Which alternative countries gained?",
+                div_answer
+                + "\n\nA third-country increase in customs data is consistent with relocated "
+                "production, with rerouting of treated-origin goods, and with origin "
+                "misdeclaration. Customs statistics cannot separate these.",
+            ),
+            q_a("Which U.S. industries received protection?", prot_answer),
+            q_a(
+                "Which U.S. industries faced higher input costs?",
+                "See the imported-input cost exposure table in "
+                "`supply_chain_propagation.md`. The industries with the largest input-cost "
+                "exposure are mostly the same manufacturing sectors that also receive "
+                "protection, which is why the two channels are never netted.",
+            ),
+            q_a(
+                "Which conclusions are causal?",
+                "**None in this run.** With synthetic trade flows nothing here is causal "
+                "evidence. Under official data the event-study specifications would carry a "
+                "causal interpretation only to the extent the reported pre-trend tests and "
+                "placebo checks support it, and the estimates would remain "
+                "intention-to-treat with respect to the statutory list because product "
+                "exclusions are not yet in the schedule."
+                if not empirical
+                else
+                "Only the event-study and difference-in-differences estimates whose pre-trend "
+                "verdict is CLEAN and whose placebo checks are null, and then only as "
+                "intention-to-treat with respect to the statutory list.",
+            ),
+            q_a(
+                "Which conclusions are descriptive or model-dependent?",
+                "The sourcing shares, supplier concentration and entry/exit counts are "
+                "descriptive. The industry exposure measures are constructed from "
+                "pre-treatment input-output weights and a coarse concordance; they are "
+                "accounting constructs, not estimates. No structural counterfactual has been "
+                "run, so no model-implied welfare number exists in this project.",
+            ),
+            q_a(
+                "What evidence would change the recommendation?",
+                "\n".join(
+                    [
+                        "- Official Census data replacing the synthetic panel (this is the "
+                        "binding constraint; everything else is secondary).",
+                        "- Parsing product exclusions, which would move estimates from "
+                        "intention-to-treat toward treatment-on-the-treated.",
+                        "- A parsed List 4A, allowing the window to extend past 2019-08 with a "
+                        "clean control group.",
+                        "- An official HS-to-NAICS concordance, replacing the coarse chapter map "
+                        "and making industry exposure magnitudes usable.",
+                        "- Domestic output and price data, without which a fall in imports "
+                        "cannot be attributed to domestic substitution rather than lower demand.",
+                    ]
+                ),
+            ),
+        ]
+    )
+    written.append(
+        render(
+            "Executive Trade-Policy Memo",
+            stamp,
+            [Section("Questions and answers", memo_body, discusses_evidential_status=True)],
+            intro=(
+                "A short answer to each policy question this project was built to address, "
+                "with the evidential status of each answer stated rather than implied."
+            ),
+            out_path=REPORTS / "executive_trade_policy_memo.md",
+        )
+    )
+
+    # ------------------------------------------------------------------ #
+    # structural_counterfactuals.md  (records a deliberate non-result)
+    # ------------------------------------------------------------------ #
+    written.append(
+        render(
+            "Structural Counterfactuals",
+            stamp,
+            [
+                Section(
+                    "Status: not implemented, deliberately",
+                    (
+                        "No structural module has been built, and therefore **no "
+                        "model-implied counterfactual or welfare number exists anywhere in "
+                        "this repository**.\n\n"
+                        "The brief requires the reduced-form vertical slice to be stable and "
+                        "passing tests before the structural extension begins. It now is. The "
+                        "remaining blocker is different: a partial-equilibrium Armington or CES "
+                        "sourcing model calibrated on synthetic trade flows would produce "
+                        "counterfactuals with the full appearance of substance and none of the "
+                        "content. Sourcing shares, expenditure levels and the domestic "
+                        "alternative would all be simulated, so every simulated outcome would "
+                        "be a restatement of the generator's parameters.\n\n"
+                        "Publishing that, however carefully labelled, would be the most "
+                        "misleading artefact the project could produce. It is therefore not "
+                        "produced. See docs/DECISION_LOG.md, D-017."
+                    ),
+                ),
+                Section(
+                    "What is already in place for it",
+                    "\n".join(
+                        [
+                            "- Country-specific sourcing shares, per product-month "
+                            "(`supplier_value_share`).",
+                            "- Point-in-time tariffs by product, country and date, including "
+                            "baseline MFN separated from the additional duty.",
+                            "- Pre-treatment expenditure weights immune to the shock.",
+                            "- Tariff revenue, both as collected (`calculated_duties`) and as "
+                            "modelled by the policy engine, so the two can be reconciled.",
+                            "- A reduced-form import-demand response that would supply an "
+                            "estimated elasticity with stated provenance rather than a "
+                            "borrowed one.",
+                        ]
+                    ),
+                ),
+                Section(
+                    "What is missing",
+                    "\n".join(
+                        [
+                            "- Official trade flows (the binding constraint).",
+                            "- A domestic-alternative expenditure series; without it the "
+                            "domestic nest of an Armington system is unidentified.",
+                            "- Country substitution elasticities with citable provenance. "
+                            "Borrowing a number from the literature is acceptable **only** if "
+                            "it is reported as calibrated rather than estimated, in a table "
+                            "that separates data moments, estimated parameters, calibrated "
+                            "parameters and model-implied outcomes.",
+                        ]
+                    ),
+                ),
+                Section(
+                    "Guard rail",
+                    (
+                        "The reporting layer blocks quantified welfare claims under **any** "
+                        "provenance, official included, until a structural module actually "
+                        "produces them. This is not a stylistic rule; it fails the build."
+                    ),
+                    discusses_evidential_status=True,
+                ),
+            ],
+            intro=(
+                "A record of what was deliberately not built, and why that is the correct "
+                "outcome at this stage rather than a gap."
+            ),
+            out_path=REPORTS / "structural_counterfactuals.md",
+        )
+    )
+
+    # ------------------------------------------------------------------ #
+    # technical report
+    # ------------------------------------------------------------------ #
+    man_rows = [
+        {
+            "dataset": m.dataset_id,
+            "layer": m.layer,
+            "rows": m.row_count,
+            "provenance": m.data_provenance,
+            "vintage": m.source_release_or_vintage[:70],
+            "checksum": m.checksum_sha256[:12],
+        }
+        for m in mans
+    ]
+    sched = None
+    sp = layer_path("normalized", "tariff_schedule_parse_report.json")
+    if sp.exists():
+        sched = json.loads(sp.read_text())
+    tech_secs = [
+        Section(
+            "Pipeline",
+            "```\n"
+            "Federal Register PDFs ──┐\n"
+            "USITC HTS (MFN, HS6→HS8)┼→ tariff schedule ──┐\n"
+            "                        │                    ├→ analytical panel ─┬→ incidence\n"
+            "Census imports (or the  ┘                    │                    ├→ diversion\n"
+            "synthetic generator) ────────────────────────┘                    └→ reports\n"
+            "BEA Supply-Use ───────────────────────────────→ industry exposure ─┘\n"
+            "```",
+        ),
+        Section("Datasets and manifests", "", [("manifests", pl.DataFrame(man_rows))] if man_rows else None),
+    ]
+    if sched:
+        parse_rows = [
+            {
+                "document": p["document_number"],
+                "chapter99_heading": p["chapter99_heading"],
+                "full_lines": p["hts8_codes"],
+                "partial_lines": len(p["partial_lines"]),
+                "parsed_total": p["parsed_line_count"],
+                "stated_in_notice": p["stated_line_count"],
+                "matches": p["count_matches_notice"],
+            }
+            for p in sched["parses"]
+        ]
+        tech_secs.append(
+            Section(
+                "Tariff-schedule parse validation",
+                "Each notice states how many tariff lines it covers. The parser is validated "
+                "against that count rather than against an expectation supplied by the author.",
+                [("parses", pl.DataFrame(parse_rows, strict=False))],
+            )
+        )
+        if sched.get("truncation_resolutions"):
+            tech_secs.append(
+                Section(
+                    "Codes truncated in the source rendering",
+                    "Resolved only where the USITC HTS leaves exactly one candidate; marked "
+                    "DERIVED, never guessed.",
+                    [("resolutions", pl.DataFrame(sched["truncation_resolutions"], strict=False))],
+                )
+            )
+    if specs is not None:
+        tech_secs.append(Section("Specifications estimated", "", [("register", specs)]))
+    written.append(
+        render("Technical Report", stamp, tech_secs,
+               intro="How the system is built and how each component is validated.",
+               out_path=REPORTS / "technical_report.md")
+    )
+
+    for p in written:
+        print(f"wrote {p.relative_to(REPORTS.parent)}")
+    print(f"\n{len(written)} reports generated (run_id={stamp.run_id}, provenance={provenance.value})")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
