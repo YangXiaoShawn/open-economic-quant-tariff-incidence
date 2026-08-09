@@ -361,3 +361,84 @@ which was O(n x records) and would not have completed.
 
 A regression test asserts that HS10 siblings under one HS8 parent receive
 identical rates and statuses.
+
+---
+
+### D-022 — The quantity "pre-trend" was a design artefact, not a trend; the fix is stacking
+
+**Diagnosis.** The single-wave event study flagged `log_quantity` with
+pre-period coefficients as large as its post-treatment effect (ratio 1.02).
+Inspecting the coefficient path showed it was not a trend at all: the months
+closest to treatment were near zero (−4 through 0: −0.09, 0, −0.03, −0.02,
+−0.03) while distant months oscillated between −0.05 and −0.34 with no drift.
+
+**Three hypotheses were tested and all rejected.**
+
+| Added fixed effects | max abs pre-coef | verdict |
+|---|---|---|
+| flow + month (baseline) | 0.338 | PRETREND_PRESENT |
+| + country x month | 0.370 | PRETREND_PRESENT |
+| + chapter x month | 0.349 | PRETREND_PRESENT |
+| + month-of-year x treated-group | 0.646 | PRETREND_PRESENT (worse) |
+| + month-of-year x country | 0.291 | PRETREND_PRESENT |
+
+The month-of-year interaction made it worse because it is itself collinear with
+event time.
+
+**Root cause.** With a single treatment date, **event time is calendar time**.
+Event month −12 is September 2017 and event month 0 is September 2018, exactly.
+The event-study coefficients are therefore just the treated group's month-by-
+month deviation from the comparison group, and any treated-group-specific time
+variation appears in the pre-period with nothing available to separate it from.
+No choice of fixed effects can fix this, because the confound and the object of
+interest are the same variable.
+
+**Fix.** Stack one sub-experiment per Section 301 wave. Three waves took effect
+on three dates, so event month 0 falls in three different calendar months, and
+each sub-experiment draws controls from never-treated products only.
+
+**Result.** `log_landed_unit_value` moved from IMPRECISE to **CLEAN**
+(max abs pre-coef 0.025 against a mean post-treatment effect of 0.149, ratio
+0.16). `log_quantity` improved from ratio 1.02 to 0.54 but still fails.
+`log_customs_unit_value` remains IMPRECISE because the effect itself is near
+zero (0.023), so pre-period noise of the same size cannot be ruled out — an
+honest "undetermined", not a failure.
+
+This is the first outcome in the project with a licensed causal reading.
+
+---
+
+### D-023 — The stacked design's main justification is the forbidden comparison
+
+**Correction to an earlier claim.** The first version of `build_stacked_design`
+led with calendar-time collinearity as the reason for stacking. Writing a test
+for that claim showed it is weak here: with waves only weeks apart, averaging
+event month k over three nearby calendar months barely helps, and a synthetic
+panel built to isolate that mechanism failed the test.
+
+The **primary** justification is the standard one: under staggered adoption with
+heterogeneous effects, two-way fixed effects uses already-treated units as
+controls for later-treated ones, with weights that need not be positive. Section
+301's effects are heterogeneous by construction — Lists 1 and 2 impose 25% while
+List 3 began at 10%. Each sub-experiment here draws controls from never-treated
+products only, so that comparison is never made.
+
+A regression test asserts that the naive staggered design lands further from a
+known average effect than the stacked one does. The docstring was corrected to
+lead with this and to describe the calendar-collinearity benefit as partial.
+
+---
+
+### D-024 — All three waves are kept in the panel, not just List 3
+
+**Decision.** Every 10-digit line covered by exactly one Section 301 action is
+retained and tagged with its cohort. Lines covered by more than one action would
+have no well-defined treatment date and are excluded; in this sample there are
+none, because the lists are disjoint.
+
+**Why.** The stacked design needs multiple waves. Restricting to List 3, which
+the earlier single-wave design did to avoid biased staggered TWFE, removed
+exactly the variation that makes a valid staggered design possible.
+
+**Effect on the sample.** 1,387 List 1 lines, 361 List 2, 2,303 List 3, and
+1,153 never-treated controls; the panel grows from 489,733 to 773,929 rows.

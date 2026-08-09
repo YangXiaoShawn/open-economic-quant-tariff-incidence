@@ -165,24 +165,40 @@ def main() -> int:
         # Classify the full universe with the engine, then keep treated + control.
         # Section 301 is legislated at HS8 and HS10 nests exactly within it, so
         # there is no partial-coverage problem at this level.
+        # Assign each line to the single action that covers it, or to the
+        # never-treated control group. Lines covered by more than one action are
+        # excluded: their treatment date is not well defined.
+        #
+        # All three waves are kept, not just List 3. With one wave, event time is
+        # identical to calendar time for every treated unit, and treated-group
+        # specific time variation cannot be separated from treatment dynamics.
+        # Three waves at three effective dates break that collinearity and are
+        # what the stacked design consumes.
         codes = staged_full[product_col].unique().to_list()
         as_of = date(2018, 10, 1)
-        treated, control, other = [], [], []
+        cohorts: dict[str, list[str]] = {}
+        control, other = [], []
         for c in codes:
             a = engine.assess(c, sample.treated_country_code, as_of)
-            if a.is_treated and a.active_action_ids == ("SEC301_LIST3",):
-                treated.append(c)
+            if a.is_treated and len(a.active_action_ids) == 1:
+                cohorts.setdefault(a.active_action_ids[0], []).append(c)
             elif a.coverage_share == 0.0 and not a.is_treated:
                 control.append(c)
             else:
                 other.append(c)
-        print(
-            f"{sample.hs_level} classification: {len(treated):,} treated (List 3 only), "
-            f"{len(control):,} never-treated control, {len(other):,} excluded "
-            "(other/multiple actions)"
-        )
+        treated = sorted(x for v in cohorts.values() for x in v)
+        print(f"{sample.hs_level} classification: {len(control):,} never-treated control, "
+              f"{len(other):,} excluded (covered by multiple actions)")
+        for k in sorted(cohorts):
+            print(f"    cohort {k}: {len(cohorts[k]):,} lines")
+
+        cohort_of = {c: k for k, v in cohorts.items() for c in v}
         keep = set(treated) | set(control)
-        staged = staged_full.filter(pl.col(product_col).is_in(list(keep)))
+        staged = staged_full.filter(pl.col(product_col).is_in(list(keep))).with_columns(
+            pl.col(product_col)
+            .replace_strict(cohort_of, default="NEVER_TREATED")
+            .alias("treatment_cohort")
+        )
         ambiguous = other
 
         provenance = DataProvenance.OFFICIAL

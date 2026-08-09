@@ -4,21 +4,24 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260809T194259Z-597ee5ff` · git `c53443d-dirty` · config `sample_slice.yaml` (sha256 `597ee5ffe47a`) · data period 2017-01 to 2019-08 · generated 2026-08-09T19:42:59.887758+00:00
+> run_id `20260809T211422Z-597ee5ff` · git `c64572d-dirty` · config `sample_slice.yaml` (sha256 `597ee5ffe47a`) · data period 2017-01 to 2019-08 · generated 2026-08-09T21:14:22.081053+00:00
 
 
 Recording what did not work is part of the result. Everything here was found by the pipeline and is reported whether or not it is convenient.
 
 ## Findings that did not hold up, and work that did not succeed
 
-- **pretrend_log_customs_unit_value_ref3**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0403, relative to mean post 1.6146640063120963). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **pretrend_log_customs_unit_value_ref1**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0359, relative to mean post 1.5119665434828018). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **pretrend_log_landed_unit_value_ref3**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0416, relative to mean post 0.47496071294661496). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **pretrend_log_landed_unit_value_ref1**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0453, relative to mean post 0.49984679517387276). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **pretrend_log_quantity_ref3**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.3378, relative to mean post 1.0234679992563167). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **pretrend_log_quantity_ref1**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.3223, relative to mean post 1.0155207820763543). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
-- **placebo_treatment_date_minus_12m** returned a significant placebo effect (max |coef| 0.11039377211727901). This is evidence against the design, not a nuisance.
-- **placebo_product_group** returned a significant placebo effect (max |coef| 0.2601032819454421). This is evidence against the design, not a nuisance.
+- **pretrend_log_customs_unit_value_ref3**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0249, relative to mean post 1.2375016706926862). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_log_customs_unit_value_ref1**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0303, relative to mean post 1.5553048187231757). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_log_quantity_ref3**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.1703, relative to mean post 0.4999984239685371). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_log_quantity_ref1**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.2273, relative to mean post 0.5716996849183023). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_stacked_log_customs_unit_value_never_treated_products**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0322, relative to mean post 1.299743826245319). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_stacked_log_quantity_never_treated_products**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.1884, relative to mean post 0.5376770930914714). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_stacked_log_landed_unit_value_never_treated_products_treated_country_only**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.0789, relative to mean post 0.4110454780764672). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_stacked_log_customs_unit_value_never_treated_products_treated_country_only**: pre-trend verdict `IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND` (max |pre coef| 0.0477, relative to mean post 0.7968788581356817). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **pretrend_stacked_log_quantity_never_treated_products_treated_country_only**: pre-trend verdict `PRETREND_PRESENT` (max |pre coef| 0.3674, relative to mean post 0.7186691090726848). Post-treatment coefficients from this specification should not be read as clean dynamic effects.
+- **placebo_treatment_date_minus_12m** returned a significant placebo effect (max |coef| 0.09432328599659627). This is evidence against the design, not a nuisance.
+- **placebo_product_group** returned a significant placebo effect (max |coef| 0.24978688349680117). This is evidence against the design, not a nuisance.
 - **Ground-truth recovery is imperfect.** The generator injects a quantity elasticity of -1.5 with respect to log(1 + additional duty). The PPML estimate is attenuated toward zero. This most likely arises because the treated country is the largest supplier in the sample, so a common month fixed effect partially absorbs the variation it is meant to difference out. This is a real feature of Section 301 settings, where China is a dominant supplier, and it argues against saturating with product-time effects when the level response is the estimand.
 - **List 4A is not parsed.** Its annex enumerates 10-digit statistical lines under a different construction, so the parser built for Lists 1-3 raises rather than guessing. The sample window ends 2019-08 to keep the control group clean.
 - **Product exclusions are not parsed.** They are written as narrative product descriptions, not clean code lists, and no mechanical mapping to statistical lines was attempted. The tariff engine supports exclusion records; the schedule carries none.
@@ -29,12 +32,12 @@ Recording what did not work is part of the result. Everything here was found by 
 
 ## Reproducibility
 
-- run id: `20260809T194259Z-597ee5ff`
-- git commit: `c53443d-dirty`
+- run id: `20260809T211422Z-597ee5ff`
+- git commit: `c64572d-dirty`
 - configuration: `sample_slice.yaml` (sha256 `597ee5ffe47af577cc12c18a77fbd8ceb65895fed1ca83ff18eb0e2ce7bb7338`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2019-08
-- generated: 2026-08-09T19:42:59.887758+00:00
+- generated: 2026-08-09T21:14:22.081053+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

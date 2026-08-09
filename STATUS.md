@@ -1,14 +1,41 @@
 # STATUS
 
-**Last updated:** 2026-08-09 · session 2
+**Last updated:** 2026-08-09 · session 3
 
 ## One-line state
 
-The pipeline now runs end to end on **official U.S. Census data**. The panel is
-at HS10, every observation carries an unambiguous tariff assessment, and the
-first real estimates are in. The binding constraint is no longer data access —
-it is that the **quantity outcome fails its pre-trend test**, so the sourcing
-results are descriptive rather than causal.
+Official Census data at HS10, all three Section 301 waves, and a **stacked
+multi-wave design**. `log_landed_unit_value` now passes its pre-trend test
+(**CLEAN**) — the first outcome in the project with a licensed causal reading.
+Quantity still fails and its sourcing results remain descriptive.
+
+## Session 3: diagnosing the pre-trend
+
+The quantity "pre-trend" turned out not to be a trend. The months nearest
+treatment were near zero; distant months oscillated with no drift. Root cause:
+**with a single treatment date, event time is calendar time** — event −12 is
+literally 2017-09 and event 0 is 2018-09 — so treated-group-specific time
+variation cannot be separated from treatment dynamics by any choice of fixed
+effects. Country-by-month, chapter-by-month and month-of-year-by-treated-group
+were all tried; none worked, one made it worse (D-022).
+
+The fix was a stacked design: one sub-experiment per wave, controls drawn from
+never-treated products only, flow-by-stack and month-by-stack effects. Its main
+justification is the forbidden comparison under staggered adoption, not calendar
+collinearity — a claim I corrected after a test refuted the first version
+(D-023).
+
+| Outcome | single-wave | stacked | mean post effect |
+|---|---|---|---|
+| log landed unit value | IMPRECISE (0.47) | **CLEAN (0.16)** | **+0.149** |
+| log customs unit value | IMPRECISE (1.61) | IMPRECISE (1.30) | +0.023 |
+| log quantity | PRETREND_PRESENT (1.02) | PRETREND_PRESENT (0.54) | −0.350 |
+
+Reading: the duty-inclusive landed cost of treated Chinese imports runs about
+15 log points above the never-treated counterfactual, on a design that passes
+its pre-trend test. The tariff-exclusive border price moves ~2 log points and
+cannot be distinguished from zero. That is the incidence result, and it now has
+one leg standing on a licensed design.
 
 ## What changed this session
 
@@ -102,10 +129,11 @@ tables were missing. Fixed, and reports regenerated with content.
 
 ## Next actions, in priority order
 
-1. **Diagnose the quantity pre-trend.** Candidates: front-running ahead of the
-   known effective date, the 2018 List 1/2 waves contaminating chapter-mates,
-   and composition change as HS10 lines enter and exit. Until this clears, the
-   sourcing findings are descriptive.
+1. **Quantity still fails (ratio 0.54).** Stacking halved it but did not clear
+   it. Next candidates: front-running against the *announcement* date rather
+   than the effective date (the schedule already carries both), and composition
+   change as 10-digit lines enter and exit. Until it clears, every sourcing and
+   diversion finding stays descriptive.
 2. **Parse product exclusions.** `DUTY_VS_ENGINE` flags 12,861 of 102,950
    dutiable observations (12.5%) where the realised duty departs from the
    statutory schedule — a direct, measurable floor on how much

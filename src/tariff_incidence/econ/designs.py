@@ -395,3 +395,164 @@ def ppml_trade_flow(
         falsification="event-study pre-trends; placebo dates; leave-one-sector-out instability",
     )
     return fit, spec
+
+
+# ------------------------------------------------------------------------- #
+# Rung 4: stacked multi-wave design
+# ------------------------------------------------------------------------- #
+
+
+def build_stacked_design(
+    panel: pl.DataFrame,
+    cohort_months: dict[str, int],
+    *,
+    window: tuple[int, int] = (-12, 10),
+    cohort_col: str = "treatment_cohort",
+    never_treated_label: str = "NEVER_TREATED",
+    treat_country_col: str = "is_treated_country",
+    control_definition: str = "never_treated_products",
+) -> pl.DataFrame:
+    """Build a stacked event-study dataset, one sub-experiment per treatment wave.
+
+    Why this exists
+    ---------------
+
+    **The primary reason is the forbidden comparison.** With staggered adoption,
+    two-way fixed effects uses already-treated units as controls for
+    later-treated ones. When effects differ across waves -- and Section 301's do,
+    since Lists 1 and 2 impose 25% while List 3 began at 10% -- those comparisons
+    enter with weights that need not be positive, and the pooled estimate need
+    not lie inside the range of the true effects. Each sub-experiment here draws
+    its controls from never-treated products only, so that comparison is never
+    made. There is a regression test asserting that the naive staggered design
+    lands further from a known average effect than this one does.
+
+    **A secondary reason is calendar-time collinearity.** With a single
+    treatment date, event time is identical to calendar time for every treated
+    unit, so treated-group-specific time variation cannot be separated from
+    treatment dynamics. Three waves at three dates (2018-07-06, 2018-08-23,
+    2018-09-24) weaken that, since event month k falls in a different calendar
+    month per wave -- though with waves only weeks apart the averaging is
+    partial, not a cure. On this panel the single-wave design left
+    ``log_quantity`` with pre-period coefficients as large as its post-treatment
+    effect, and country-by-month, chapter-by-month and
+    month-of-year-by-treated-group effects all failed to remove them.
+
+    Construction
+    ------------
+
+    For each wave *g* with treatment month *m_g*, take the window
+    ``[m_g + window[0], m_g + window[1]]`` and keep wave-*g* products plus
+    controls. Each sub-experiment gets its own copy of the fixed effects
+    (``stack_flow``, ``stack_month``), so no unit is ever used as a control for
+    a period in which it is itself treated -- the failure mode of two-way fixed
+    effects under staggered adoption.
+
+    A never-treated unit appears in all three sub-experiments. Clustering on the
+    product handles the repetition, since the same product carries the same
+    cluster id in every stack.
+
+    ``control_definition``
+        ``"never_treated_products"`` -- controls are never-treated products,
+        all partners. Largest comparison group.
+        ``"never_treated_products_treated_country_only"`` -- controls are
+        never-treated products imported from the treated country only. Immune to
+        the diversion spillover that makes third-country suppliers invalid
+        controls, at the cost of a weaker common-shock argument.
+    """
+    if not cohort_months:
+        raise ValueError("cohort_months is empty; nothing to stack")
+    lo, hi = window
+    frames: list[pl.DataFrame] = []
+
+    for g, m_g in sorted(cohort_months.items()):
+        sub = panel.filter(
+            pl.col("month_index").is_between(m_g + lo, m_g + hi)
+            & (pl.col(cohort_col).is_in([g, never_treated_label]))
+        )
+        if control_definition == "never_treated_products_treated_country_only":
+            sub = sub.filter(pl.col(treat_country_col))
+        elif control_definition != "never_treated_products":
+            raise ValueError(f"unknown control_definition {control_definition!r}")
+        if sub.height == 0:
+            continue
+        frames.append(
+            sub.with_columns(
+                pl.lit(g).alias("stack_id"),
+                (pl.col("month_index") - m_g).alias("event_time"),
+                ((pl.col(cohort_col) == g) & pl.col(treat_country_col)).alias("stack_treated"),
+                pl.lit(m_g).alias("stack_treatment_month"),
+            )
+        )
+    if not frames:
+        raise ValueError("stacked design is empty; check the window and cohort labels")
+
+    out = pl.concat(frames, how="diagonal_relaxed")
+    return out.with_columns(
+        pl.concat_str([pl.col("flow_id"), pl.col("stack_id")], separator="@").alias("stack_flow"),
+        pl.concat_str([pl.col("month_key"), pl.col("stack_id")], separator="@").alias("stack_month"),
+    )
+
+
+def stacked_event_study(
+    panel: pl.DataFrame,
+    outcome: str,
+    cohort_months: dict[str, int],
+    *,
+    cluster_vars: list[str],
+    window: tuple[int, int] = (-12, 10),
+    reference: int = -3,
+    control_definition: str = "never_treated_products",
+    estimator: str = "ols",
+) -> tuple[FitResult, DesignSpec, pl.DataFrame, pl.DataFrame]:
+    """Rung 4: event study on the stacked multi-wave design.
+
+    Returns ``(fit, spec, coefficients, stack_composition)``. The composition
+    table is returned rather than logged so the weight each wave carries is
+    visible in the results, not buried.
+    """
+    stacked = build_stacked_design(
+        panel, cohort_months, window=window, control_definition=control_definition
+    )
+    composition = (
+        stacked.group_by("stack_id")
+        .agg(
+            pl.len().alias("n_obs"),
+            pl.col("stack_treated").sum().alias("n_treated_obs"),
+            pl.col("hs10").n_unique().alias("n_products")
+            if "hs10" in stacked.columns
+            else pl.col("hs6").n_unique().alias("n_products"),
+            pl.col("stack_treatment_month").first().alias("treatment_month_index"),
+        )
+        .sort("stack_id")
+    )
+
+    fit, spec, coefs = event_study(
+        stacked,
+        outcome,
+        fixed_effects=["stack_flow", "stack_month"],
+        cluster_vars=cluster_vars,
+        window=window,
+        reference=reference,
+        treat_col="stack_treated",
+        estimator=estimator,
+    )
+    spec.name = f"stacked_event_study_{outcome}_{control_definition}"
+    spec.fixed_effects = ["flow x stack", "calendar month x stack"]
+    spec.sample_filter = (
+        f"stacked sub-experiments, one per wave, window [{window[0]}, {window[1]}]; "
+        f"controls = {control_definition}"
+    )
+    spec.estimand = (
+        "dynamic effect of a wave relative to event month "
+        f"{reference}, pooled across waves with wave-specific calendar-time effects"
+    )
+    spec.identifying_assumption = (
+        "within each sub-experiment, treated and control products would have followed "
+        "parallel paths absent that wave"
+    )
+    spec.notes.append(
+        "Event time is not collinear with calendar time here, because each wave's event "
+        "month 0 falls in a different calendar month."
+    )
+    return fit, spec, coefs, composition

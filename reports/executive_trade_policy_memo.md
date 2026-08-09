@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260809T194259Z-597ee5ff` · git `c53443d-dirty` · config `sample_slice.yaml` (sha256 `597ee5ffe47a`) · data period 2017-01 to 2019-08 · generated 2026-08-09T19:42:59.887758+00:00
+> run_id `20260809T211422Z-597ee5ff` · git `c64572d-dirty` · config `sample_slice.yaml` (sha256 `597ee5ffe47a`) · data period 2017-01 to 2019-08 · generated 2026-08-09T21:14:22.081053+00:00
 
 
 A short answer to each policy question this project was built to address, with the evidential status of each answer stated rather than implied.
@@ -15,21 +15,21 @@ A short answer to each policy question this project was built to address, with t
 
 See the incidence table: compare the customs unit value response (exporter absorption) with the duty-inclusive landed unit value response (importer cost).
 
-In this run the customs unit value coefficient is -0.0355 [95% CI -0.1822, +0.1112] (interval includes zero, so the sign is not resolved) and the duty-inclusive landed unit value coefficient is +0.6629 [95% CI +0.5138, +0.8120]***.
+In this run the customs unit value coefficient is +0.0884 [95% CI -0.0354, +0.2123] (interval includes zero, so the sign is not resolved) and the duty-inclusive landed unit value coefficient is +0.7969 [95% CI +0.6725, +0.9212]***.
 
 **How much sourcing moved away from the treated country?**
 
-Treated-country imports of the targeted products changed by -1,586,378,606 in monthly-average customs value (-38.0% of the pre-period level). Against a never-treated-product counterfactual, the largest third-country gains were: 5800 (+101,189,934), 5330 (+8,286,149), 5590 (-3,666,211).
+Treated-country imports of the targeted products changed by -1,940,130,697 in monthly-average customs value (-36.9% of the pre-period level). Against a never-treated-product counterfactual, the largest third-country gains were: 5800 (+304,119,017), 5880 (+65,462,283), 5330 (+25,029,963).
 
 **Which alternative countries gained?**
 
-Treated-country imports of the targeted products changed by -1,586,378,606 in monthly-average customs value (-38.0% of the pre-period level). Against a never-treated-product counterfactual, the largest third-country gains were: 5800 (+101,189,934), 5330 (+8,286,149), 5590 (-3,666,211).
+Treated-country imports of the targeted products changed by -1,940,130,697 in monthly-average customs value (-36.9% of the pre-period level). Against a never-treated-product counterfactual, the largest third-country gains were: 5800 (+304,119,017), 5880 (+65,462,283), 5330 (+25,029,963).
 
 A third-country increase in customs data is consistent with relocated production, with rerouting of treated-origin goods, and with origin misdeclaration. Customs statistics cannot separate these.
 
 **Which U.S. industries received protection?**
 
-0 industries show output protection without material input-cost exposure; 14 face input-cost exposure without protection; **9 face both at once**, including Motor vehicles, bodies and trailers, and parts, Paper products, Wood products, Furniture and related products. Exposure here is a qualitative ordering built on a COARSE_APPROXIMATION concordance, not a magnitude.
+0 industries show output protection without material input-cost exposure; 16 face input-cost exposure without protection; **9 face both at once**, including Motor vehicles, bodies and trailers, and parts, Paper products, Wood products, Furniture and related products. Exposure here is a qualitative ordering built on a COARSE_APPROXIMATION concordance, not a magnitude.
 
 **Which U.S. industries faced higher input costs?**
 
@@ -39,9 +39,9 @@ See the imported-input cost exposure table in `supply_chain_propagation.md`. The
 
 Outcome by outcome, according to each one's own pre-trend test:
 
-- `log_customs_unit_value`: pre-trend verdict **IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND** -> **a causal reading is not supported**; read as descriptive
-- `log_landed_unit_value`: pre-trend verdict **IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND** -> **a causal reading is not supported**; read as descriptive
-- `log_quantity`: pre-trend verdict **PRETREND_PRESENT** -> **a causal reading is not supported**; read as descriptive
+- `log_customs_unit_value`: **IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND** under the stacked multi-wave design -> **a causal reading is not supported**; read as descriptive
+- `log_landed_unit_value`: **CLEAN** under the stacked multi-wave design -> a causal reading is supported by this test
+- `log_quantity`: **PRETREND_PRESENT** under the stacked multi-wave design -> **a causal reading is not supported**; read as descriptive
 
 Even where the test is passed, the estimate is intention-to-treat with respect to the statutory list, because product exclusions are not parsed. The data-quality battery puts a floor under how much that matters: realised duty rates depart from the statutory schedule on a material share of dutiable observations.
 
@@ -61,12 +61,12 @@ The sourcing shares, supplier concentration and entry/exit counts are descriptiv
 
 ## Reproducibility
 
-- run id: `20260809T194259Z-597ee5ff`
-- git commit: `c53443d-dirty`
+- run id: `20260809T211422Z-597ee5ff`
+- git commit: `c64572d-dirty`
 - configuration: `sample_slice.yaml` (sha256 `597ee5ffe47af577cc12c18a77fbd8ceb65895fed1ca83ff18eb0e2ce7bb7338`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2019-08
-- generated: 2026-08-09T19:42:59.887758+00:00
+- generated: 2026-08-09T21:14:22.081053+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

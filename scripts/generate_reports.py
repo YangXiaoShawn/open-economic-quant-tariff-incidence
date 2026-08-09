@@ -91,7 +91,15 @@ def main() -> int:  # noqa: C901, PLR0915
     # pass the pre-trend test and the quantity outcome does not, and a report
     # that averaged over that would be misleading in both directions.
     verdicts: dict[str, str] = {}
+    stacked_verdicts: dict[str, str] = {}
     for k, v in (ident or {}).get("pretrend_tests", {}).items():
+        if k.startswith("pretrend_stacked_"):
+            key = k.replace("pretrend_stacked_", "")
+            if key.endswith("_never_treated_products"):
+                stacked_verdicts[key[: -len("_never_treated_products")]] = v.get(
+                    "verdict", "UNKNOWN"
+                )
+            continue
         outcome = k.replace("pretrend_", "").rsplit("_ref", 1)[0]
         verd = v.get("verdict", "UNKNOWN")
         prior = verdicts.get(outcome)
@@ -100,17 +108,34 @@ def main() -> int:  # noqa: C901, PLR0915
         if prior is None or rank.get(verd, 9) > rank.get(prior, 9):
             verdicts[outcome] = verd   # worst verdict across reference periods governs
 
-    def licensed(outcome: str) -> bool:
-        return verdicts.get(outcome) in (
-            "CLEAN", "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL"
-        )
+    OK_VERDICTS = ("CLEAN", "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL")
 
-    verdict_note = "\n".join(
-        f"- `{o}`: pre-trend verdict **{v}** -> "
-        + ("a causal reading is supported by this test" if licensed(o)
-           else "**a causal reading is not supported**; read as descriptive")
-        for o, v in sorted(verdicts.items())
-    )
+    def best(outcome: str) -> tuple[str, str]:
+        """Prefer the stacked design's verdict where one exists."""
+        if outcome in stacked_verdicts:
+            return stacked_verdicts[outcome], "stacked multi-wave"
+        return verdicts.get(outcome, "UNKNOWN"), "single-wave"
+
+    def licensed(outcome: str) -> bool:
+        return best(outcome)[0] in OK_VERDICTS
+
+    lines = []
+    for o in sorted(set(verdicts) | set(stacked_verdicts)):
+        v, design = best(o)
+        lines.append(
+            f"- `{o}`: **{v}** under the {design} design -> "
+            + (
+                "a causal reading is supported by this test"
+                if v in OK_VERDICTS
+                else "**a causal reading is not supported**; read as descriptive"
+            )
+            + (
+                f" (single-wave design: {verdicts[o]})"
+                if o in stacked_verdicts and o in verdicts and verdicts[o] != v
+                else ""
+            )
+        )
+    verdict_note = "\n".join(lines)
 
     # ------------------------------------------------------------------ #
     # tariff_incidence_results.md
@@ -166,6 +191,36 @@ def main() -> int:  # noqa: C901, PLR0915
                     ))],
                 )
             )
+
+    for ctrl in ["never_treated_products", "never_treated_products_treated_country_only"]:
+        for outcome in ["log_landed_unit_value", "log_customs_unit_value", "log_quantity"]:
+            sv = _read(f"stacked_event_study_{outcome}_{ctrl}")
+            if sv is None:
+                continue
+            secs.append(
+                Section(
+                    f"Stacked multi-wave event study — {outcome} (controls: {ctrl})",
+                    (
+                        "One sub-experiment per Section 301 wave, each drawing controls from "
+                        "never-treated products only, with flow-by-stack and "
+                        "calendar-month-by-stack effects. No already-treated unit is ever used "
+                        "as a control."
+                    ),
+                    [("coefficients", sv.select(
+                        ["event_time", "estimate", "std_error", "ci_low", "ci_high", "p_value",
+                         "is_pre"]
+                    ))],
+                )
+            )
+    comp = _read("stacked_composition_never_treated_products")
+    if comp is not None:
+        secs.append(
+            Section(
+                "Stacked design composition",
+                "How much weight each wave carries, reported rather than buried.",
+                [("stacks", comp)],
+            )
+        )
 
     if ident:
         pre_rows = [

@@ -12,11 +12,12 @@ episodes are added through configuration, not code.
 > The pipeline runs on **official U.S. Census data** (provenance `OFFICIAL`).
 > 489,733 HS10 x country x month observations, 2017-01 to 2019-08.
 >
-> **No outcome clears its pre-trend test**, so every estimate below is reported
-> as **descriptive, not causal**. The price outcomes are imprecise relative to
-> their own pre-period movement; the quantity outcome has pre-trends as large as
-> its post-treatment effect. The reports state this per outcome, first, before
-> any number.
+> Under a **stacked multi-wave design**, `log_landed_unit_value` passes its
+> pre-trend test (**CLEAN**) and carries a causal reading. The customs unit value
+> is **undetermined** — its effect is near zero and pre-period noise of the same
+> size cannot be ruled out. Quantity still **fails** its pre-trend test, so every
+> sourcing and diversion finding is descriptive. The reports state this per
+> outcome, first, before any number.
 >
 > Estimates are also **intention-to-treat** with respect to the statutory list,
 > because USTR product exclusions are not yet parsed. The data-quality battery
@@ -72,26 +73,31 @@ Reaching an exact match required three things a naive parse misses:
    because the USITC HTS contains exactly one unclaimed 8-digit line under that
    heading, and the record is marked `DERIVED`, not `OFFICIAL_PARSED`.
 
-### First estimates on official data
+### Estimates on official data, under a design that survives its own test
 
-Two-way fixed effects (product-country flow + month), clustered on HS6,
-n = 319,063:
+The single-wave event study failed for a structural reason: with one effective
+date, **event time is calendar time** (event −12 *is* 2017-09), so
+treated-group-specific time variation cannot be separated from treatment
+dynamics. Country-by-month, chapter-by-month and month-of-year effects were all
+tried; none removed it, one made it worse.
 
-| Outcome | Estimate | 95% CI | Pre-trend verdict |
+The fix is a **stacked design** — one sub-experiment per Section 301 wave,
+controls drawn from never-treated products only, so no already-treated unit is
+ever used as a control:
+
+| Outcome | Mean post effect | Pre-trend ratio | Verdict |
 |---|---|---|---|
-| log customs unit value (tariff-**exclusive**) | −0.036 | [−0.182, +0.111] | IMPRECISE |
-| log landed unit value (duty-**inclusive**) | **+0.663** | [+0.514, +0.812] | IMPRECISE |
-| log quantity | −1.202 | [−1.492, −0.911] | **PRETREND_PRESENT** |
+| log landed unit value (duty-**inclusive**) | **+0.149** | 0.16 | **CLEAN** |
+| log customs unit value (tariff-**exclusive**) | +0.023 | 1.30 | IMPRECISE |
+| log quantity | −0.350 | 0.54 | PRETREND_PRESENT |
 
-The shape is near-complete pass-through to the U.S. importer: the duty-inclusive
-border cost rises sharply and precisely, while the foreign border price is
-statistically indistinguishable from unchanged. Reading incidence requires both
-numbers — one alone cannot separate exporter absorption from importer cost.
+The duty-inclusive landed cost of treated Chinese imports runs ~15 log points
+above the never-treated counterfactual, on a design that clears its pre-trend
+test. The foreign border price moves ~2 log points and cannot be distinguished
+from zero — the tariff is not being absorbed by the exporter in these data.
 
-The pre-trend column is why none of this is claimed as causal. For the customs
-unit value the pre-period coefficients are *larger* than the effect itself
-(ratio 1.61); for quantity they are the same size and statistically significant
-(ratio 1.02).
+Reading incidence requires both numbers; one alone cannot separate exporter
+absorption from importer cost.
 
 ### Sourcing did not visibly relocate in this sample
 

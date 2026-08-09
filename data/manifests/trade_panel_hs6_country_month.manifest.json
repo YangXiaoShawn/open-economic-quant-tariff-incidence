@@ -3,14 +3,14 @@
   "layer": "analytical",
   "source": "U.S. Census Bureau timeseries/intltrade/imports/hs",
   "source_url": "https://api.census.gov/data/timeseries/intltrade/imports/hs",
-  "retrieval_timestamp_utc": "2026-08-09T19:37:55.018024+00:00",
+  "retrieval_timestamp_utc": "2026-08-09T21:08:07.752969+00:00",
   "source_release_or_vintage": "Census live API",
   "date_range_start": "2017-01",
   "date_range_end": "2019-08",
   "schema_version": "panel_v1",
   "product_code_vintage": "HTS2018",
-  "checksum_sha256": "0433227a53e1a87550a484c96a4a161d0bfb5c5f4eaecdb2f86294baa9630baa",
-  "row_count": 489733,
+  "checksum_sha256": "18fb4b528d71082d20a5aae4b399d933eb36e2c7459da2e7581718a316149e47",
+  "row_count": 773929,
   "partition_keys": [
     "hs6",
     "country_code",
@@ -44,6 +44,7 @@
     "month_date": "Date",
     "period": "String",
     "quantity_not_collected": "Boolean",
+    "treatment_cohort": "String",
     "cif_value": "Float64",
     "customs_unit_value": "Float64",
     "landed_unit_value_duty_inclusive": "Float64",
@@ -96,9 +97,9 @@
     "month_key": "String"
   },
   "extra": {
-    "n_treated_products": 2303,
+    "n_treated_products": 4051,
     "n_control_products": 1153,
-    "n_ambiguous_hs6_excluded": 1748,
+    "n_ambiguous_hs6_excluded": 0,
     "countries": [
       "5700",
       "5520",

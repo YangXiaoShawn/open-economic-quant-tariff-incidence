@@ -25,6 +25,7 @@ from tariff_incidence.econ.designs import (  # noqa: E402
     event_study,
     ppml_trade_flow,
     pretrend_test,
+    stacked_event_study,
     two_way_fe_regression,
 )
 from tariff_incidence.paths import ensure_layers, layer_path  # noqa: E402
@@ -166,6 +167,90 @@ def main() -> int:
                 f"approx p={pt.get('approx_p_value', float('nan')):.3f} "
                 f"any_pre_sig_5pct={pt.get('any_pre_significant_5pct')}"
             )
+
+    # ---------------------------------------------------------------- #
+    # Rung 4: stacked multi-wave design
+    # ---------------------------------------------------------------- #
+    # The single-wave event study above cannot separate treatment dynamics from
+    # treated-group-specific time variation, because with one effective date
+    # event time IS calendar time. Three waves at three dates break that.
+    cohort_months: dict[str, int] = {}
+    sched_path = layer_path("normalized", "tariff_schedule.parquet")
+    if sched_path.exists() and "treatment_cohort" in panel.columns:
+        sched = pl.read_parquet(sched_path)
+        eff = (
+            sched.filter(pl.col("record_type") == "ADDITIONAL_DUTY")
+            .group_by("action_id")
+            .agg(pl.col("effective_date").min())
+        )
+        cohort_months = {
+            r["action_id"]: r["effective_date"].year * 12 + r["effective_date"].month
+            for r in eff.iter_rows(named=True)
+            if r["action_id"] in set(panel["treatment_cohort"].unique().to_list())
+        }
+
+    if len(cohort_months) >= 2:
+        for ctrl in [
+            "never_treated_products",
+            "never_treated_products_treated_country_only",
+        ]:
+            for outcome in [
+                "log_landed_unit_value",
+                "log_customs_unit_value",
+                "log_quantity",
+            ]:
+                try:
+                    fit, spec, coefs, comp = stacked_event_study(
+                        panel, outcome, cohort_months, cluster_vars=cluster,
+                        window=window, reference=est.reference_event_time
+                        if est.reference_event_time <= -3 else -3,
+                        control_definition=ctrl,
+                    )
+                except (ValueError, KeyError) as exc:
+                    print(f"rung 4 [{outcome} | {ctrl}] failed: {exc}")
+                    continue
+                tag = f"{outcome}_{ctrl}"
+                _write(
+                    coefs.with_columns(
+                        pl.lit(outcome).alias("outcome"),
+                        pl.lit(ctrl).alias("control_definition"),
+                    ),
+                    f"stacked_event_study_{tag}",
+                    stamp,
+                )
+                _write(comp, f"stacked_composition_{ctrl}", stamp)
+                pt = pretrend_test(coefs, fit)
+                pt["design"] = "stacked_multi_wave"
+                pt["control_definition"] = ctrl
+                diagnostics[f"pretrend_stacked_{tag}"] = pt
+                spec_rows.append(spec.to_row() | {"rung": "4_stacked"})
+                post = coefs.filter(
+                    (pl.col("event_time") >= 0) & (pl.col("std_error") > 0)
+                )
+                mean_post = float(post["estimate"].mean()) if post.height else float("nan")
+                all_rows.append({
+                    "term": "stacked_mean_post_effect",
+                    "estimate": mean_post,
+                    "std_error": float("nan"),
+                    "t_stat": float("nan"),
+                    "p_value": float("nan"),
+                    "ci_low": float("nan"),
+                    "ci_high": float("nan"),
+                    "estimator": "OLS-HDFE",
+                    "n_obs": fit.n_obs,
+                    "absorbed_effects": "flow x stack|month x stack",
+                    "cluster_vars": "|".join(cluster),
+                    "n_clusters_min": min(fit.n_clusters.values()) if fit.n_clusters else None,
+                    "outcome": outcome,
+                    "outcome_label": f"{outcome} -- stacked, controls={ctrl}",
+                    "rung": "4_stacked",
+                })
+                print(
+                    f"rung 4 [{outcome:>22} | {ctrl[:28]:28}] n={fit.n_obs:>7,} "
+                    f"mean post={mean_post:+.4f} pre-trend {pt['verdict']}"
+                )
+    else:
+        print("rung 4: fewer than two treatment cohorts in the panel; stacked design skipped")
 
     # ---------------------------------------------------------------- #
     # Rung 5: PPML on trade flows in levels (retains zeros)

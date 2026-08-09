@@ -322,3 +322,141 @@ def test_decomposition_separates_extensive_margin_exit():
     assert t["treated_extensive"] == pytest.approx(-100.0)
     assert t["treated_intensive"] == pytest.approx(0.0)
     assert t["n_treated_flows_exited"] == 1
+
+
+# --------------------------------------------------------------------- #
+# stacked multi-wave design
+# --------------------------------------------------------------------- #
+
+
+def _multiwave_panel(seed: int = 7) -> pl.DataFrame:
+    """Three waves at three effective months, plus never-treated products.
+
+    Treatment effects differ by cohort (-0.60, -0.40, -0.20). That heterogeneity
+    is what breaks naive two-way fixed effects under staggered adoption: the
+    estimator uses already-treated units as controls for later-treated ones, and
+    the resulting "forbidden comparison" is weighted with signs that need not be
+    positive. The stacked design never makes that comparison, because each
+    sub-experiment's controls are never-treated units only.
+    """
+    rng = np.random.default_rng(seed)
+    waves = {"W1": 24218, "W2": 24224, "W3": 24230}
+    effects = {"W1": -0.60, "W2": -0.40, "W3": -0.20}
+    months = list(range(24206, 24242))
+    rows = []
+    for p in range(60):
+        cohort = ["W1", "W2", "W3"][p % 3] if p < 45 else "NEVER_TREATED"
+        pi = rng.normal(0, 0.4)
+        for c in ["5700", "5520"]:
+            ci = rng.normal(0, 0.2)
+            for m in months:
+                treated_flow = cohort != "NEVER_TREATED" and c == "5700"
+                y = 5 + pi + ci + 0.004 * (m - 24206) + rng.normal(0, 0.03)
+                if treated_flow and m >= waves[cohort]:
+                    y += effects[cohort]
+                rows.append(
+                    {
+                        "hs6": f"{p:06d}", "hs10": f"{p:06d}0000",
+                        "country_code": c, "flow_id": f"{p:06d}_{c}",
+                        "month_key": f"m{m}", "month_index": m,
+                        "treatment_cohort": cohort,
+                        "is_treated_country": c == "5700",
+                        "event_time": (m - waves[cohort]) if cohort != "NEVER_TREATED" else None,
+                        "y": y,
+                    }
+                )
+    return pl.DataFrame(rows)
+
+
+WAVES = {"W1": 24218, "W2": 24224, "W3": 24230}
+TRUE_MEAN_EFFECT = (-0.60 + -0.40 + -0.20) / 3
+
+
+def test_stacked_design_assigns_one_sub_experiment_per_wave():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    st = build_stacked_design(_multiwave_panel(), WAVES, window=(-6, 6))
+    assert set(st["stack_id"].unique()) == {"W1", "W2", "W3"}
+    never = st.filter(pl.col("treatment_cohort") == "NEVER_TREATED")
+    assert never["stack_id"].n_unique() == 3
+    bad = st.filter(pl.col("stack_treated") & (pl.col("treatment_cohort") != pl.col("stack_id")))
+    assert bad.height == 0
+
+
+def test_stacked_design_never_uses_an_already_treated_unit_as_a_control():
+    """The forbidden comparison under staggered adoption."""
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    st = build_stacked_design(_multiwave_panel(), WAVES, window=(-6, 6))
+    controls = st.filter(~pl.col("stack_treated"))
+    other_cohort_treated = controls.filter(
+        (pl.col("treatment_cohort") != "NEVER_TREATED")
+        & (pl.col("treatment_cohort") != pl.col("stack_id"))
+    )
+    assert other_cohort_treated.height == 0
+
+
+def test_stacked_design_breaks_event_time_calendar_time_collinearity():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    st = build_stacked_design(_multiwave_panel(), WAVES, window=(-6, 6))
+    assert st.filter(pl.col("event_time") == 0)["month_index"].n_unique() == 3
+
+
+def test_stacked_event_study_recovers_the_average_effect_under_heterogeneity():
+    from tariff_incidence.econ.designs import stacked_event_study
+
+    fit, spec, coefs, comp = stacked_event_study(
+        _multiwave_panel(), "y", WAVES, cluster_vars=["hs6"], window=(-6, 6), reference=-3
+    )
+    post = coefs.filter((pl.col("event_time") >= 0) & (pl.col("std_error") > 0))
+    assert post["estimate"].mean() == pytest.approx(TRUE_MEAN_EFFECT, abs=0.08)
+    assert comp.height == 3
+    assert "flow x stack" in spec.fixed_effects
+
+
+def test_stacked_pre_period_is_flat_under_heterogeneous_staggered_treatment():
+    from tariff_incidence.econ.designs import stacked_event_study
+
+    fit, _, coefs, _ = stacked_event_study(
+        _multiwave_panel(), "y", WAVES, cluster_vars=["hs6"], window=(-6, 6), reference=-3
+    )
+    pt = pretrend_test(coefs, fit)
+    assert pt["economically_small"], f"stacked pre-period should be flat, got {pt}"
+
+
+def test_naive_staggered_twfe_is_biased_where_the_stacked_design_is_not():
+    """Motivates the whole rung: the naive design misses by more than stacking."""
+    from tariff_incidence.econ.designs import stacked_event_study
+
+    panel = _multiwave_panel()
+    naive_fit, _, naive_coefs = event_study(
+        panel, "y", fixed_effects=["flow_id", "month_key"], cluster_vars=["hs6"],
+        window=(-6, 6), reference=-3,
+    )
+    naive_post = naive_coefs.filter(
+        (pl.col("event_time") >= 0) & (pl.col("std_error") > 0)
+    )["estimate"].mean()
+
+    _, _, coefs, _ = stacked_event_study(
+        panel, "y", WAVES, cluster_vars=["hs6"], window=(-6, 6), reference=-3
+    )
+    stacked_post = coefs.filter(
+        (pl.col("event_time") >= 0) & (pl.col("std_error") > 0)
+    )["estimate"].mean()
+
+    assert abs(stacked_post - TRUE_MEAN_EFFECT) < abs(naive_post - TRUE_MEAN_EFFECT)
+
+
+def test_stacked_design_rejects_an_unknown_control_definition():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    with pytest.raises(ValueError, match="unknown control_definition"):
+        build_stacked_design(_multiwave_panel(), WAVES, control_definition="nonsense")
+
+
+def test_stacked_design_requires_at_least_one_cohort():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    with pytest.raises(ValueError, match="cohort_months is empty"):
+        build_stacked_design(_multiwave_panel(), {})
