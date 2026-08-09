@@ -45,6 +45,7 @@ SCHEDULE_SCHEMA: dict[str, Any] = {
     "confidence": pl.String,
     "partial_line": pl.Boolean,
     "partial_line_note": pl.String,
+    "partial_line_excluded_codes": pl.String,
     "notes": pl.String,
     "tags": pl.String,
     "source_document_id": pl.String,
@@ -204,6 +205,7 @@ def records_to_frame(records: list[TariffRecord]) -> pl.DataFrame:
                 "confidence": r.confidence.value,
                 "partial_line": r.partial_line,
                 "partial_line_note": r.partial_line_note,
+                "partial_line_excluded_codes": "|".join(r.partial_line_excluded_codes),
                 "notes": r.notes,
                 "tags": "|".join(r.tags),
                 "source_document_id": r.source.document_id,
@@ -248,6 +250,9 @@ def frame_to_records(df: pl.DataFrame) -> list[TariffRecord]:
                 confidence=Confidence(row["confidence"]),
                 partial_line=bool(row["partial_line"]),
                 partial_line_note=row["partial_line_note"] or "",
+                partial_line_excluded_codes=tuple(
+                    c for c in (row.get("partial_line_excluded_codes") or "").split("|") if c
+                ),
                 notes=row["notes"] or "",
                 tags=tuple(t for t in (row["tags"] or "").split("|") if t),
             )

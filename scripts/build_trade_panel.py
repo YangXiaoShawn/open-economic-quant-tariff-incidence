@@ -29,9 +29,11 @@ from tariff_incidence.adapters.base import SourceUnavailable  # noqa: E402
 from tariff_incidence.config import load_config  # noqa: E402
 from tariff_incidence.manifest import DatasetManifest  # noqa: E402
 from tariff_incidence.panel.build import (  # noqa: E402
+    aggregate_to_hs6,
     ambiguity_report,
     build_panel,
     month_average_additional_rate,
+    stage_census,
 )
 from tariff_incidence.panel.synthetic import (  # noqa: E402
     GroundTruth,
@@ -132,38 +134,57 @@ def main() -> int:
 
     engine = TariffEngine(records, baseline=baseline, hs6_children=children)
 
-    treated, control, ambiguous = select_products(
-        engine, children, sample.hs2_chapters, sample.treated_country_code,
-        args.n_treated, args.n_control,
-    )
-    print(
-        f"product split in chapters {sample.hs2_chapters}: "
-        f"{len(treated)} treated / {len(control)} control sampled; "
-        f"{len(ambiguous):,} HS6 headings have partial coverage and are excluded from both"
-    )
-
     countries = [sample.treated_country_code, *sample.comparison_country_codes]
 
     # ---- data source selection ------------------------------------------
     use_census = census_trade.available() and not args.force_synthetic
+    product_col = "hs10" if sample.hs_level == "HS10" else "hs6"
+
     if use_census:
         valid, unknown = census_trade.verify_schema(census_trade.DEFAULT_VARIABLES)
         if unknown:
             print(f"! Census schema changed; unknown variables: {unknown}")
-        print(f"Census API key detected; fetching {sample.start_month}..{sample.end_month}")
-        paths = census_trade.fetch_range(
+        print(
+            f"Census API key detected; fetching {sample.hs_level} "
+            f"{sample.start_month}..{sample.end_month} for chapters {sample.hs2_chapters}"
+        )
+        paths = census_trade.fetch_chapters_range(
             sample.start_month,
             sample.end_month,
-            commodities=treated + control,
+            chapters=sample.hs2_chapters,
             countries=countries,
-            commodity_level="HS6",
+            commodity_level=sample.hs_level,
             max_calls=sample.max_api_calls,
         )
-        staged = pl.concat([pl.read_parquet(p) for p in paths], how="diagonal_relaxed")
-        staged = staged.rename(
-            {v: v.lower() for v in staged.columns if v.upper() == v}
-        ).rename({"i_commodity": "hs6", "cty_code": "country_code", "cty_name": "country_name"},
-                 strict=False)
+        raw = pl.concat(
+            [pl.read_parquet(p) for p in paths], how="diagonal_relaxed"
+        )
+        staged_full = stage_census(raw, product_col=product_col)
+        print(f"staged {staged_full.height:,} raw {sample.hs_level} rows")
+
+        # Classify the full universe with the engine, then keep treated + control.
+        # Section 301 is legislated at HS8 and HS10 nests exactly within it, so
+        # there is no partial-coverage problem at this level.
+        codes = staged_full[product_col].unique().to_list()
+        as_of = date(2018, 10, 1)
+        treated, control, other = [], [], []
+        for c in codes:
+            a = engine.assess(c, sample.treated_country_code, as_of)
+            if a.is_treated and a.active_action_ids == ("SEC301_LIST3",):
+                treated.append(c)
+            elif a.coverage_share == 0.0 and not a.is_treated:
+                control.append(c)
+            else:
+                other.append(c)
+        print(
+            f"{sample.hs_level} classification: {len(treated):,} treated (List 3 only), "
+            f"{len(control):,} never-treated control, {len(other):,} excluded "
+            "(other/multiple actions)"
+        )
+        keep = set(treated) | set(control)
+        staged = staged_full.filter(pl.col(product_col).is_in(list(keep)))
+        ambiguous = other
+
         provenance = DataProvenance.OFFICIAL
         truth = None
         source_desc = "U.S. Census Bureau timeseries/intltrade/imports/hs"
@@ -176,6 +197,17 @@ def main() -> int:
         )
         print(f"\n*** SYNTHETIC MODE: {why}")
         print("*** Estimates from this panel validate the code, not the world.\n")
+
+        treated, control, ambiguous = select_products(
+            engine, children, sample.hs2_chapters, sample.treated_country_code,
+            args.n_treated, args.n_control,
+        )
+        product_col = "hs6"
+        print(
+            f"product split in chapters {sample.hs2_chapters}: "
+            f"{len(treated)} treated / {len(control)} control sampled; "
+            f"{len(ambiguous):,} HS6 headings excluded (partial coverage or other waves)"
+        )
 
         # The generator's rate path comes from the tariff engine itself, month by
         # month, so the data-generating process and the estimation panel cannot
@@ -232,6 +264,7 @@ def main() -> int:
         engine,
         treated_country_code=sample.treated_country_code,
         pre_period_end=date(2018, 6, 30),
+        product_col=product_col,
     )
     # No silent null-filling of tariff variables. A null baseline means the HS6
     # heading contains at least one 8-digit line whose column-1 general rate is
@@ -242,19 +275,50 @@ def main() -> int:
         pl.col("total_modeled_tariff_rate").is_not_null().alias("baseline_mfn_available"),
         (1.0 + pl.col("total_modeled_tariff_rate")).log().alias("log1p_total_tariff"),
         (1.0 + pl.col("additional_tariff_rate")).log().alias("log1p_additional_tariff"),
-        pl.concat_str([pl.col("hs6"), pl.col("country_code")], separator="_").alias("flow_id"),
+        pl.concat_str([pl.col(product_col), pl.col("country_code")], separator="_").alias("flow_id"),
         pl.col("month_date").dt.strftime("%Y-%m").alias("month_key"),
     )
     n_no_base = int((~panel["baseline_mfn_available"]).sum())
     print(
         f"  MFN baseline unavailable for {n_no_base:,} of {panel.height:,} rows "
-        f"({n_no_base / panel.height:.1%}): HS6 headings containing compound or specific duty "
-        "lines. These rows keep a null total rate and drop out of total-rate specifications; "
-        "the additional-duty specification is unaffected."
+        f"({n_no_base / panel.height:.1%}): lines whose column-1 general rate is compound or "
+        "specific, so no single ad valorem rate exists. These keep a null total rate and drop "
+        "out of total-rate specifications; the additional-duty specification is unaffected."
+    )
+    n_no_qty = int(panel["customs_unit_value"].is_null().sum())
+    print(
+        f"  customs unit value undefined for {n_no_qty:,} of {panel.height:,} rows "
+        f"({n_no_qty / panel.height:.1%}): zero or uncollected quantity."
     )
 
     out = layer_path("analytical", "trade_panel.parquet")
     panel.write_parquet(out)
+
+    # Companion HS6 panel, for comparison across aggregation levels. Built by
+    # aggregating the same staged rows, so any difference between the two is an
+    # aggregation effect and not a different sample.
+    if product_col == "hs10":
+        hs6_staged = aggregate_to_hs6(staged, product_col=product_col)
+        hs6_panel = build_panel(
+            hs6_staged,
+            engine,
+            treated_country_code=sample.treated_country_code,
+            pre_period_end=date(2018, 6, 30),
+            product_col="hs6",
+        ).with_columns(
+            pl.col("total_modeled_tariff_rate").is_not_null().alias("baseline_mfn_available"),
+            (1.0 + pl.col("total_modeled_tariff_rate")).log().alias("log1p_total_tariff"),
+            (1.0 + pl.col("additional_tariff_rate")).log().alias("log1p_additional_tariff"),
+            pl.concat_str([pl.col("hs6"), pl.col("country_code")], separator="_").alias("flow_id"),
+            pl.col("month_date").dt.strftime("%Y-%m").alias("month_key"),
+        )
+        hs6_panel.write_parquet(layer_path("analytical", "trade_panel_hs6.parquet"))
+        mixed = int(hs6_panel["hs6_units_mixed"].sum()) if "hs6_units_mixed" in hs6_panel.columns else 0
+        print(
+            f"  HS6 companion panel: {hs6_panel.height:,} rows; {mixed:,} "
+            f"({mixed / max(hs6_panel.height, 1):.1%}) have mixed units of measure across their "
+            "10-digit lines, so their quantity and unit values are null by construction"
+        )
 
     amb = ambiguity_report(panel)
     amb.write_parquet(layer_path("analytical", "tariff_assessment_status.parquet"))

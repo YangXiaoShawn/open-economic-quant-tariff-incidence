@@ -22,6 +22,7 @@ import polars as pl  # noqa: E402
 from tariff_incidence.config import load_config  # noqa: E402
 from tariff_incidence.manifest import list_manifests  # noqa: E402
 from tariff_incidence.paths import REPORTS, layer_path  # noqa: E402
+from tariff_incidence.paths import RESULTS as RESULTS_DIR
 from tariff_incidence.provenance import DataProvenance, RunStamp  # noqa: E402
 from tariff_incidence.reporting.render import (  # noqa: E402
     Section,
@@ -29,7 +30,7 @@ from tariff_incidence.reporting.render import (  # noqa: E402
     render,
 )
 
-R = layer_path("results", "").parent
+R = RESULTS_DIR
 
 
 def _read(name: str) -> pl.DataFrame | None:
@@ -84,6 +85,32 @@ def main() -> int:  # noqa: C901, PLR0915
     expo_sum = _read("industry_exposure_summary")
     truth_p = layer_path("analytical", "synthetic_ground_truth.json")
     truth = json.loads(truth_p.read_text()) if truth_p.exists() else None
+
+    # Per-outcome pre-trend verdicts. A causal reading is licensed outcome by
+    # outcome, not for the run as a whole: in this project the price outcomes
+    # pass the pre-trend test and the quantity outcome does not, and a report
+    # that averaged over that would be misleading in both directions.
+    verdicts: dict[str, str] = {}
+    for k, v in (ident or {}).get("pretrend_tests", {}).items():
+        outcome = k.replace("pretrend_", "").rsplit("_ref", 1)[0]
+        verd = v.get("verdict", "UNKNOWN")
+        prior = verdicts.get(outcome)
+        rank = {"CLEAN": 0, "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL": 1,
+                "IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND": 2, "PRETREND_PRESENT": 3}
+        if prior is None or rank.get(verd, 9) > rank.get(prior, 9):
+            verdicts[outcome] = verd   # worst verdict across reference periods governs
+
+    def licensed(outcome: str) -> bool:
+        return verdicts.get(outcome) in (
+            "CLEAN", "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL"
+        )
+
+    verdict_note = "\n".join(
+        f"- `{o}`: pre-trend verdict **{v}** -> "
+        + ("a causal reading is supported by this test" if licensed(o)
+           else "**a causal reading is not supported**; read as descriptive")
+        for o, v in sorted(verdicts.items())
+    )
 
     # ------------------------------------------------------------------ #
     # tariff_incidence_results.md
@@ -184,6 +211,19 @@ def main() -> int:  # noqa: C901, PLR0915
     )
     if not empirical:
         intro += "\n\n> " + NOT_EMPIRICAL
+    if verdicts:
+        secs.insert(
+            0,
+            Section(
+                "Which of these outcomes survives its own pre-trend test",
+                (
+                    "The parallel-trends assumption is tested per outcome, and it does not "
+                    "hold uniformly. The verdict below governs how each result may be read; "
+                    "it is placed first so it cannot be skipped.\n\n" + verdict_note
+                ),
+                discusses_evidential_status=True,
+            ),
+        )
     written.append(
         render("Tariff Incidence — Results", stamp, secs, intro=intro,
                out_path=REPORTS / "tariff_incidence_results.md")
@@ -572,10 +612,15 @@ def main() -> int:  # noqa: C901, PLR0915
                 "intention-to-treat with respect to the statutory list because product "
                 "exclusions are not yet in the schedule."
                 if not empirical
-                else
-                "Only the event-study and difference-in-differences estimates whose pre-trend "
-                "verdict is CLEAN and whose placebo checks are null, and then only as "
-                "intention-to-treat with respect to the statutory list.",
+                else (
+                    "Outcome by outcome, according to each one's own pre-trend test:\n\n"
+                    + verdict_note
+                    + "\n\nEven where the test is passed, the estimate is "
+                    "intention-to-treat with respect to the statutory list, because product "
+                    "exclusions are not parsed. The data-quality battery puts a floor under "
+                    "how much that matters: realised duty rates depart from the statutory "
+                    "schedule on a material share of dutiable observations."
+                ),
             ),
             q_a(
                 "Which conclusions are descriptive or model-dependent?",
@@ -588,9 +633,13 @@ def main() -> int:  # noqa: C901, PLR0915
             q_a(
                 "What evidence would change the recommendation?",
                 "\n".join(
-                    [
+                    ([] if empirical else [
                         "- Official Census data replacing the synthetic panel (this is the "
                         "binding constraint; everything else is secondary).",
+                    ]) + [
+                        "- A specification that clears the pre-trend test for the quantity "
+                        "outcome. As it stands the quantity and diversion results are "
+                        "descriptive, and the headline sourcing numbers rest on them.",
                         "- Parsing product exclusions, which would move estimates from "
                         "intention-to-treat toward treatment-on-the-treated.",
                         "- A parsed List 4A, allowing the window to extend past 2019-08 with a "

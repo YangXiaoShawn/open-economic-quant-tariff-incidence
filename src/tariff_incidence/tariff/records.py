@@ -88,6 +88,13 @@ class TariffRecord:
     confidence: Confidence = Confidence.OFFICIAL_PARSED
     partial_line: bool = False
     partial_line_note: str = ""
+    partial_line_excluded_codes: tuple[str, ...] = field(default_factory=tuple)
+    """10-digit statistical numbers carved *out* of the duty on this line.
+
+    Held structurally rather than only in prose so the engine can resolve a
+    10-digit query exactly: an HS10 line named here is untreated, any other
+    child of the same HS8 parent is fully treated. At HS8 or HS6 the line can
+    only be flagged as partial."""
     notes: str = ""
     tags: tuple[str, ...] = field(default_factory=tuple)
 

@@ -1,11 +1,11 @@
 {
   "run": {
-    "run_id": "20260808T224221Z-55c15b82",
-    "created_utc": "2026-08-08T22:42:21.607465+00:00",
-    "git_commit": "7daad83-dirty",
+    "run_id": "20260809T194150Z-597ee5ff",
+    "created_utc": "2026-08-09T19:41:50.036884+00:00",
+    "git_commit": "c53443d-dirty",
     "config_name": "sample_slice.yaml",
-    "config_sha256": "55c15b82b4e1bdd1697f82c0fa9dbcdb690a23b4c1ecae6ffd57dcdd3287f988",
-    "data_provenance": "MIXED",
+    "config_sha256": "597ee5ffe47af577cc12c18a77fbd8ceb65895fed1ca83ff18eb0e2ce7bb7338",
+    "data_provenance": "OFFICIAL",
     "data_period_start": "2017-01",
     "data_period_end": "2019-08",
     "python_version": "3.12.13",
@@ -15,11 +15,11 @@
   "pretrend_tests": {
     "pretrend_log_customs_unit_value_ref3": {
       "n_pre_coefs": 11,
-      "approx_chi2": 5.04752573849777,
-      "approx_p_value": 0.9288431189526678,
-      "max_abs_pre_coef": 0.023255772224009333,
-      "mean_abs_post_coef": 0.009202906862447052,
-      "max_pre_relative_to_mean_post": 2.5270028885009954,
+      "approx_chi2": 5.480869836869227,
+      "approx_p_value": 0.9056651047846451,
+      "max_abs_pre_coef": 0.04030367618201463,
+      "mean_abs_post_coef": 0.0249610296782849,
+      "max_pre_relative_to_mean_post": 1.6146640063120963,
       "relative_threshold": 0.2,
       "any_pre_significant_5pct": false,
       "economically_small": false,
@@ -29,25 +29,25 @@
     },
     "pretrend_log_customs_unit_value_ref1": {
       "n_pre_coefs": 11,
-      "approx_chi2": 14.243960825207877,
-      "approx_p_value": 0.21978689027268422,
-      "max_abs_pre_coef": 0.03302566641624233,
-      "mean_abs_post_coef": 0.018058133945196873,
-      "max_pre_relative_to_mean_post": 1.828852666419973,
+      "approx_chi2": 4.610239899370803,
+      "approx_p_value": 0.9485652082489893,
+      "max_abs_pre_coef": 0.03594146381197759,
+      "mean_abs_post_coef": 0.02377133539554833,
+      "max_pre_relative_to_mean_post": 1.5119665434828018,
       "relative_threshold": 0.2,
-      "any_pre_significant_5pct": true,
+      "any_pre_significant_5pct": false,
       "economically_small": false,
-      "verdict": "PRETREND_PRESENT",
+      "verdict": "IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND",
       "caveat": "diagonal-only approximation; ignores covariance between event-time coefficients, so the p-value is indicative rather than an exact joint test. Statistical significance of a pre-coefficient is not by itself grounds to reject the design in a large panel; read it together with the relative magnitude.",
       "reference_period": -1
     },
     "pretrend_log_landed_unit_value_ref3": {
       "n_pre_coefs": 11,
-      "approx_chi2": 4.997424180755368,
-      "approx_p_value": 0.9312912910052592,
-      "max_abs_pre_coef": 0.023214052207850167,
-      "mean_abs_post_coef": 0.10367855471476611,
-      "max_pre_relative_to_mean_post": 0.22390408770372233,
+      "approx_chi2": 4.282885610055985,
+      "approx_p_value": 0.960899505700998,
+      "max_abs_pre_coef": 0.0416165248116494,
+      "mean_abs_post_coef": 0.08762098354085773,
+      "max_pre_relative_to_mean_post": 0.47496071294661496,
       "relative_threshold": 0.2,
       "any_pre_significant_5pct": false,
       "economically_small": false,
@@ -57,25 +57,25 @@
     },
     "pretrend_log_landed_unit_value_ref1": {
       "n_pre_coefs": 11,
-      "approx_chi2": 13.482994486516523,
-      "approx_p_value": 0.26293177417378494,
-      "max_abs_pre_coef": 0.03241306000515139,
-      "mean_abs_post_coef": 0.0944795469174655,
-      "max_pre_relative_to_mean_post": 0.3430695961472642,
+      "approx_chi2": 4.565955678096381,
+      "approx_p_value": 0.9503549159482052,
+      "max_abs_pre_coef": 0.045305891881490895,
+      "mean_abs_post_coef": 0.09063955659799948,
+      "max_pre_relative_to_mean_post": 0.49984679517387276,
       "relative_threshold": 0.2,
-      "any_pre_significant_5pct": true,
+      "any_pre_significant_5pct": false,
       "economically_small": false,
-      "verdict": "PRETREND_PRESENT",
+      "verdict": "IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND",
       "caveat": "diagonal-only approximation; ignores covariance between event-time coefficients, so the p-value is indicative rather than an exact joint test. Statistical significance of a pre-coefficient is not by itself grounds to reject the design in a large panel; read it together with the relative magnitude.",
       "reference_period": -1
     },
     "pretrend_log_quantity_ref3": {
       "n_pre_coefs": 11,
-      "approx_chi2": 16.65101225141471,
-      "approx_p_value": 0.11863074820402494,
-      "max_abs_pre_coef": 0.12912095197427526,
-      "mean_abs_post_coef": 0.26326087731181674,
-      "max_pre_relative_to_mean_post": 0.4904676809282954,
+      "approx_chi2": 185.2585082969171,
+      "approx_p_value": 8.404625221249217e-34,
+      "max_abs_pre_coef": 0.3377980250676158,
+      "mean_abs_post_coef": 0.3300523566081892,
+      "max_pre_relative_to_mean_post": 1.0234679992563167,
       "relative_threshold": 0.2,
       "any_pre_significant_5pct": true,
       "economically_small": false,
@@ -85,76 +85,76 @@
     },
     "pretrend_log_quantity_ref1": {
       "n_pre_coefs": 11,
-      "approx_chi2": 153.70860019060055,
-      "approx_p_value": 2.6007147497226307e-27,
-      "max_abs_pre_coef": 0.16849773958363673,
-      "mean_abs_post_coef": 0.39238182928614324,
-      "max_pre_relative_to_mean_post": 0.4294228911929565,
+      "approx_chi2": 151.85813488646264,
+      "approx_p_value": 6.216781862900925e-27,
+      "max_abs_pre_coef": 0.3222882823813431,
+      "mean_abs_post_coef": 0.3173625671376079,
+      "max_pre_relative_to_mean_post": 1.0155207820763543,
       "relative_threshold": 0.2,
       "any_pre_significant_5pct": true,
       "economically_small": false,
       "verdict": "PRETREND_PRESENT",
       "caveat": "diagonal-only approximation; ignores covariance between event-time coefficients, so the p-value is indicative rather than an exact joint test. Statistical significance of a pre-coefficient is not by itself grounds to reject the design in a large panel; read it together with the relative magnitude.",
       "reference_period": -1
-    },
-    "sutva_control_group": {
-      "description": "Comparison of treatment estimates under a diversion-contaminated control group versus a control group restricted to treated-country flows of never-treated products.",
-      "rows": [
-        {
-          "control_group": "all_untreated_flows_incl_third_country",
-          "outcome": "log_quantity",
-          "estimate": -1.6856203269253733,
-          "std_error": 0.08816190676664762,
-          "ci_low": -1.8607961577785608,
-          "ci_high": -1.510444496072186,
-          "n_obs": 25857
-        },
-        {
-          "control_group": "all_untreated_flows_incl_third_country",
-          "outcome": "log_customs_unit_value",
-          "estimate": -0.048510622159706376,
-          "std_error": 0.026999191608625874,
-          "ci_low": -0.10215744078993472,
-          "ci_high": 0.005136196470521957,
-          "n_obs": 25857
-        },
-        {
-          "control_group": "treated_country_flows_only",
-          "outcome": "log_quantity",
-          "estimate": -1.2564053574381178,
-          "std_error": 0.09039399238142724,
-          "ci_low": -1.4360162948633468,
-          "ci_high": -1.0767944200128887,
-          "n_obs": 2817
-        },
-        {
-          "control_group": "treated_country_flows_only",
-          "outcome": "log_customs_unit_value",
-          "estimate": -0.051527874406513054,
-          "std_error": 0.032500493239381506,
-          "ci_low": -0.116105662196612,
-          "ci_high": 0.013049913383585889,
-          "n_obs": 2817
-        }
-      ],
-      "interpretation": "A gap indicates that third-country suppliers of treated products respond to the policy, so they are not valid controls. In trade settings this is the rule, not the exception."
     }
+  },
+  "sutva_control_group": {
+    "description": "Comparison of treatment estimates under a diversion-contaminated control group versus a control group restricted to treated-country flows of never-treated products.",
+    "rows": [
+      {
+        "control_group": "all_untreated_flows_incl_third_country",
+        "outcome": "log_quantity",
+        "estimate": -1.2016986292207925,
+        "std_error": 0.1481522898518205,
+        "ci_low": -1.4924667615880074,
+        "ci_high": -0.9109304968535776,
+        "n_obs": 319063
+      },
+      {
+        "control_group": "all_untreated_flows_incl_third_country",
+        "outcome": "log_customs_unit_value",
+        "estimate": -0.03552012007187317,
+        "std_error": 0.07475390082528888,
+        "ci_low": -0.18223437033336623,
+        "ci_high": 0.1111941301896199,
+        "n_obs": 319063
+      },
+      {
+        "control_group": "treated_country_flows_only",
+        "outcome": "log_quantity",
+        "estimate": -1.1591575311936524,
+        "std_error": 0.23424527564636147,
+        "ci_low": -1.6189109131486092,
+        "ci_high": -0.6994041492386955,
+        "n_obs": 67773
+      },
+      {
+        "control_group": "treated_country_flows_only",
+        "outcome": "log_customs_unit_value",
+        "estimate": 0.07944936758111448,
+        "std_error": 0.12458017940036797,
+        "ci_low": -0.165064245962767,
+        "ci_high": 0.323962981124996,
+        "n_obs": 67773
+      }
+    ],
+    "interpretation": "A gap indicates that third-country suppliers of treated products respond to the policy, so they are not valid controls. In trade settings this is the rule, not the exception."
   },
   "checks": [
     {
       "check": "placebo_treatment_date_minus_12m",
       "description": "treatment date moved 12 months earlier, pre-period sample only",
-      "n_obs": 16200,
-      "max_abs_post_coef": 0.03951338482633242,
-      "any_post_significant_5pct": false,
+      "n_obs": 193094,
+      "max_abs_post_coef": 0.11039377211727901,
+      "any_post_significant_5pct": true,
       "interpretation": "a significant 'effect' here means the design picks up differential trends rather than the tariff"
     },
     {
       "check": "placebo_product_group",
       "description": "half the never-treated products labelled treated at the real date",
-      "n_obs": 12960,
-      "max_abs_post_coef": 0.07055042562649538,
-      "any_post_significant_5pct": false
+      "n_obs": 89375,
+      "max_abs_post_coef": 0.2601032819454421,
+      "any_post_significant_5pct": true
     },
     {
       "check": "announcement_vs_effective",
@@ -166,9 +166,9 @@
     {
       "check": "leave_one_chapter_out",
       "n_variants": 10,
-      "estimate_spread": 0.11895163143568044,
-      "min": -1.729167822486999,
-      "max": -1.6102161910513186
+      "estimate_spread": 0.21694090604660632,
+      "min": -1.3433258726615862,
+      "max": -1.1263849666149799
     },
     {
       "check": "leave_one_country_out",

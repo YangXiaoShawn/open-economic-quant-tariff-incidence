@@ -209,6 +209,96 @@ def iter_months(start: str, end: str) -> Iterator[tuple[int, int]]:
             y, m = y + 1, 1
 
 
+def fetch_chapter_month(
+    chapter: str,
+    year: int,
+    month: int,
+    countries: list[str],
+    *,
+    commodity_level: str = "HS10",
+    force: bool = False,
+) -> pl.DataFrame:
+    """Fetch every line in an HS chapter for one month, using a prefix wildcard.
+
+    ``I_COMMODITY=84*`` returns the whole chapter in one request, which is far
+    cheaper than enumerating codes and, more importantly, returns the **full
+    universe** rather than a list chosen in advance. Census emits explicit zero
+    rows for country-product combinations with no trade, so the extensive margin
+    is observed rather than inferred from a missing record.
+    """
+    key = require_env("U.S. Census international trade API", KEY_ENV, KEY_SIGNUP)
+    ch = chapter.zfill(2)
+    params: list[tuple[str, str]] = [
+        ("get", ",".join(DEFAULT_VARIABLES)),
+        ("YEAR", f"{year:04d}"),
+        ("MONTH", f"{month:02d}"),
+        ("COMM_LVL", commodity_level),
+        ("I_COMMODITY", f"{ch}*"),
+        ("key", key),
+    ]
+    for c in countries:
+        params.append(("CTY_CODE", c))
+
+    res = cached_get(
+        BASE,
+        f"census_{commodity_level}_ch{ch}_{year:04d}-{month:02d}.json",
+        params=params,
+        subdir="census",
+        timeout=300.0,
+        force=force,
+    )
+    rows = _check_payload(res.path.read_text(), f"ch{ch} {year:04d}-{month:02d}")
+    header, *body = rows
+    df = pl.DataFrame({h: [r[i] for r in body] for i, h in enumerate(header)})
+    q = CensusQuery(year=year, month=month, commodity_level=commodity_level)
+    return _coerce(df, q)
+
+
+def fetch_chapters_range(
+    start: str,
+    end: str,
+    *,
+    chapters: list[str],
+    countries: list[str],
+    commodity_level: str = "HS10",
+    out_dir: Path | None = None,
+    max_calls: int = 1000,
+    progress: bool = True,
+) -> list[Path]:
+    """Fetch chapters x months into partitioned Parquet, one file per chapter-month.
+
+    Incremental: an existing partition is never re-fetched. Nothing requires the
+    whole panel in memory at any point.
+    """
+    from ..paths import STAGED
+
+    out_dir = out_dir or (STAGED / f"census_{commodity_level.lower()}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    calls = 0
+    todo = [(ch, y, m) for y, m in iter_months(start, end) for ch in sorted(set(chapters))]
+
+    for i, (ch, y, m) in enumerate(todo, 1):
+        target = out_dir / f"chapter={ch.zfill(2)}" / f"year={y}" / f"month={m:02d}" / "part.parquet"
+        if target.exists():
+            written.append(target)
+            continue
+        if calls >= max_calls:
+            print(f"  stopped at max_calls={max_calls}; {len(todo) - i + 1} partitions remain")
+            break
+        df = fetch_chapter_month(ch, y, m, countries, commodity_level=commodity_level)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        df.write_parquet(target)
+        written.append(target)
+        calls += 1
+        if progress and calls % 20 == 0:
+            print(f"  fetched {calls} partitions ({i}/{len(todo)}); last ch{ch} {y}-{m:02d} "
+                  f"{df.height:,} rows", flush=True)
+    if progress:
+        print(f"  {len(written)} partitions available ({calls} newly downloaded)")
+    return written
+
+
 def fetch_range(
     start: str,
     end: str,

@@ -195,6 +195,15 @@ class TariffEngine:
     def records(self) -> list[TariffRecord]:
         return list(self._records)
 
+    def records_for_line(self, product_code: str, country: str) -> list[TariffRecord]:
+        """Records governing one 8-digit line, via the prebuilt index.
+
+        Callers that need to know when the law changes (the panel builder's
+        within-month day weighting) must not scan the whole schedule per query:
+        at HS10 scale that is millions of passes over 12,000+ records.
+        """
+        return list(self._by_line.get((product_code[:8], country), []))
+
     def known_hs8_for_hs6(self, hs6: str) -> tuple[str, ...]:
         """HS8 children of an HS6 heading, from the supplied tariff-schedule map."""
         return self._hs6_children.get(hs6, ())
@@ -332,12 +341,33 @@ class TariffEngine:
 
         partial = [r for r in governing.values() if r.partial_line]
         if partial and status is not ValidationStatus.EXCLUDED:
-            status = ValidationStatus.PARTIAL_LINE
-            for r in partial:
-                messages.append(
-                    f"{r.record_id} covers only part of the statistical line"
-                    + (f": {r.partial_line_note}" if r.partial_line_note else "")
-                )
+            # A partial line names the 10-digit statistical numbers carved out of
+            # the duty. At 10 digits that is not ambiguity at all -- the query
+            # either is one of those numbers or it is not -- so the answer is
+            # exact. Only at 8 or 6 digits, where the query spans both the
+            # covered and carved-out parts, must it be flagged as partial.
+            resolvable = level == 10 and all(r.partial_line_excluded_codes for r in partial)
+            if resolvable:
+                carved = {c for r in partial for c in r.partial_line_excluded_codes}
+                if code in carved:
+                    additional = 0.0
+                    messages.append(
+                        f"statistical reporting number {code} is named in the carve-out of "
+                        f"{', '.join(sorted(r.record_id for r in partial))}, so no additional "
+                        "duty applies"
+                    )
+                else:
+                    messages.append(
+                        "parent line is partially covered, but this 10-digit number is not "
+                        "among the carve-outs, so it is fully covered"
+                    )
+            else:
+                status = ValidationStatus.PARTIAL_LINE
+                for r in partial:
+                    messages.append(
+                        f"{r.record_id} covers only part of the statistical line"
+                        + (f": {r.partial_line_note}" if r.partial_line_note else "")
+                    )
 
         total = None if (baseline is None or additional is None) else baseline + additional
         srcs = tuple({r.source.document_id: r.source for r in governing.values()}.values())

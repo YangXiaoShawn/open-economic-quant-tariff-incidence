@@ -246,7 +246,8 @@ def main() -> int:
     #       diversion spillover, at the cost of a weaker common-shock argument.
     #
     # A gap between them is evidence of spillover, not noise.
-    sutva_rows = []
+    sutva_rows: list[dict] = []
+    sutva_diagnostic: dict = {}
     contaminated = panel
     clean = panel.filter(
         pl.col("is_treated_country")  # only treated-country flows
@@ -279,7 +280,7 @@ def main() -> int:
                 print(f"SUTVA [{label} | {outcome}] failed: {exc}")
     if sutva_rows:
         _write(pl.DataFrame(sutva_rows), "sutva_control_group_diagnostic", stamp)
-        diagnostics["sutva_control_group"] = {
+        sutva_diagnostic = {
             "description": (
                 "Comparison of treatment estimates under a diversion-contaminated control "
                 "group versus a control group restricted to treated-country flows of "
@@ -434,7 +435,8 @@ def main() -> int:
     _write(pl.DataFrame(spec_rows), "specification_register", stamp)
     (layer_path("results", "identification_checks.json")).write_text(
         json.dumps(
-            {"run": stamp.to_dict(), "pretrend_tests": diagnostics, "checks": checks},
+            {"run": stamp.to_dict(), "pretrend_tests": diagnostics,
+             "sutva_control_group": sutva_diagnostic, "checks": checks},
             indent=2, default=str,
         )
         + "\n"

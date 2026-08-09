@@ -427,6 +427,7 @@ def annex_to_records(
                     "statistical reporting number(s) carved out of the duty: "
                     + ", ".join(carved_out)
                 ),
+                partial_line_excluded_codes=tuple(carved_out),
                 notes=f"Chapter 99 heading {annex.chapter99_heading} (partial line)",
                 tags=("section301", annex.chapter99_heading, "partial_line"),
             )

@@ -132,6 +132,14 @@ worse than a shorter window.
 
 ### D-009 — Census API requires a key that is unavailable; use a labelled synthetic generator
 
+> **SUPERSEDED 2026-08-09.** A key was supplied and verified against the live
+> endpoint. The panel is now built from official Census data and carries
+> provenance `OFFICIAL`. The synthetic generator remains in the codebase and is
+> still exercised by the test suite and by `--force-synthetic`, because
+> validating estimators against a known data-generating process is worth keeping
+> regardless of data availability. The entry below records the state that held
+> while no key existed. See D-019 for what the first live pull revealed.
+
 **Decision.** The Census `timeseries/intltrade/imports/hs` endpoint now requires
 an API key (an unauthenticated request returns an HTML "Missing Key" page with
 HTTP 200). No key is available in this environment. The adapter is fully
@@ -280,3 +288,76 @@ sentences; both were rephrased rather than the guard weakened.
 **Design note.** It distinguishes assertions ("the tariff caused") from
 vocabulary used to *discuss* evidential status ("which conclusions are causal"),
 because the executive memo is required to answer that question.
+
+---
+
+### D-019 — Census reports no quantity at HS6; the panel moves to HS10
+
+**Decision.** The analytical panel is built at 10-digit statistical lines. An HS6
+panel is still produced, by aggregation, for comparison across aggregation
+levels.
+
+**Why.** This was discovered on the first live pull after a Census API key
+became available, not reasoned about in advance. At ``COMM_LVL=HS6`` the
+endpoint returns ``CON_QY1_MO = 0`` and ``UNIT_QY1 = "-"`` for every line,
+because the 10-digit lines beneath an HS6 heading carry different units of
+measure (pieces, kilograms, dozens) and Census will not add them. Verified
+across chapters 39, 73, 84, 87 and 94.
+
+Without quantity there is no unit value, and without unit values the two central
+incidence outcomes — the tariff-exclusive customs unit value and the
+duty-inclusive landed unit value — do not exist. An HS6 panel can support value
+and duty outcomes only, which cannot answer who bears the tariff.
+
+**Second reason, independent of the first.** Section 301 is legislated at HS8,
+and 10-digit statistical lines nest exactly within HS8. At HS10 the
+partial-coverage problem simply does not arise: the 598 HS6 headings previously
+excluded because only some of their HS8 children were covered can all re-enter
+the sample, correctly classified. Superseding the exclusion described in
+D-013's neighbourhood is a strict improvement in both coverage and precision.
+
+**Cost.** Roughly an order of magnitude more rows, and 320 API calls instead of
+32. Mitigated by chapter-prefix wildcard queries (``I_COMMODITY=84*``), one
+Parquet partition per chapter-month, and never re-fetching an existing
+partition.
+
+**Unexpected benefit.** Census emits explicit zero rows for country-product
+combinations with no trade, so the extensive margin is *observed* rather than
+inferred from a missing record. This partially retires the ``PANEL_GAPS``
+caveat, which previously had to say that absence and true zero were
+indistinguishable.
+
+---
+
+### D-020 — HS6 aggregates refuse to sum quantities across unlike units
+
+**Decision.** When aggregating HS10 to HS6, values always add. Quantities add
+only when every constituent 10-digit line in that HS6-country-month reports the
+same unit of measure. Otherwise the aggregate quantity is null and
+``hs6_units_mixed`` is set.
+
+**Why.** Adding pieces to kilograms produces a number, and dividing value by it
+produces a unit value that moves with product mix rather than with price. That
+is exactly the measurement artefact this project exists to avoid, and it is
+precisely how a careless HS6 panel would manufacture a spurious "price" effect.
+
+**Cost.** A meaningful share of HS6-country-months carry no unit value. That is
+the honest representation of what the data supports, and it is recorded on the
+panel rather than hidden.
+
+---
+
+### D-021 — Tariff assessments are keyed on the 8-digit line, not the observation
+
+**Decision.** ``attach_tariff_treatment`` computes one assessment per distinct
+(HS8, country, month) and joins it onto the observations.
+
+**Why.** Correctness first: every HS10 child of an HS8 parent is subject to the
+same statute, so keying on HS8 is exact, not an approximation. Performance
+follows: on a full HS10 panel this turns roughly 1.4 million engine calls into a
+few tens of thousands. ``_month_segments`` was also changed to use the engine's
+prebuilt (HS8, country) index instead of scanning all 12,587 records per call,
+which was O(n x records) and would not have completed.
+
+A regression test asserts that HS10 siblings under one HS8 parent receive
+identical rates and statuses.

@@ -3,13 +3,24 @@ name: vertical_slice_v1
 sample:
   name: section301_list3_slice
   description: >
-    First vertical slice. Treated group: HS6 headings whose 8-digit children are
-    fully covered by Section 301 List 3 (effective 2018-09-24). Control group:
-    HS6 headings in the same HS2 chapters with zero coverage under Lists 1, 2
-    and 3. Products whose HS6 heading is only partly covered are excluded from
-    both groups and reported separately, because assigning them to either would
-    introduce treatment measurement error.
-  hs_level: HS6
+    Official-data slice at HS10. Treated group: 10-digit statistical lines whose
+    8-digit parent is covered by Section 301 List 3 and by no other action
+    (effective 2018-09-24). Control group: HS10 lines in the same HS2 chapters
+    whose 8-digit parent has zero coverage under Lists 1, 2 and 3.
+
+    HS10 rather than HS6 for two reasons, both discovered against live data:
+    Census reports no quantity at HS6 aggregation (UNIT_QY1 is "-" and
+    CON_QY1_MO is 0, because the underlying 10-digit lines carry different units
+    of measure), so unit values -- the central incidence outcome -- cannot be
+    constructed there at all. And because Section 301 is legislated at HS8, into
+    which HS10 nests exactly, the partial-coverage problem that forced 598 HS6
+    headings out of the sample simply does not arise.
+
+    An HS6 panel is still built by aggregation, for comparison across
+    aggregation levels. Its unit values are constructed from summed HS10
+    quantities and are therefore only defined where the constituent lines share
+    a unit of measure; that restriction is recorded, not hidden.
+  hs_level: HS10
   hs2_chapters: ["39", "40", "44", "48", "73", "76", "84", "85", "87", "94"]
   hs6_products: []          # empty means "derive from the tariff schedule"
   treated_country_code: "5700"
@@ -24,7 +35,7 @@ sample:
     - "1220"   # Canada
   start_month: "2017-01"
   end_month: "2019-08"
-  max_api_calls: 40
+  max_api_calls: 400
 
 # Sample-window rationale
 # -----------------------

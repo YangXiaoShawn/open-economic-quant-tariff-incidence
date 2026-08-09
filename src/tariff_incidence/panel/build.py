@@ -98,6 +98,84 @@ def construct_value_measures(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+CENSUS_RENAME = {
+    "I_COMMODITY": "product_code",
+    "CTY_CODE": "country_code",
+    "CTY_NAME": "country_name",
+    "CON_VAL_MO": "con_val_mo",
+    "GEN_VAL_MO": "gen_val_mo",
+    "DUT_VAL_MO": "dut_val_mo",
+    "CAL_DUT_MO": "cal_dut_mo",
+    "CON_CHA_MO": "con_cha_mo",
+    "CON_QY1_MO": "con_qy1_mo",
+    "UNIT_QY1": "unit_qy1",
+    "CON_QY2_MO": "con_qy2_mo",
+    "UNIT_QY2": "unit_qy2",
+}
+
+
+def stage_census(df: pl.DataFrame, product_col: str = "hs10") -> pl.DataFrame:
+    """Map raw Census column names onto the project's staged schema.
+
+    Census reports a quantity unit of ``"-"`` and a quantity of 0 where no
+    quantity is collected for the line. That is *not* a zero quantity, so the
+    quantity is set null and the unit blanked; treating it as zero would make
+    every unit value on those lines infinite.
+    """
+    out = df.rename({k: v for k, v in CENSUS_RENAME.items() if k in df.columns}, strict=False)
+    out = out.rename({"product_code": product_col}, strict=False)
+
+    no_qty = pl.col("unit_qy1").is_null() | pl.col("unit_qy1").is_in(["-", "", "X"])
+    return out.with_columns(
+        pl.when(no_qty).then(None).otherwise(pl.col("con_qy1_mo")).alias("con_qy1_mo"),
+        pl.when(no_qty).then(pl.lit("")).otherwise(pl.col("unit_qy1")).alias("unit_qy1"),
+        no_qty.alias("quantity_not_collected"),
+    )
+
+
+def aggregate_to_hs6(
+    hs10: pl.DataFrame,
+    *,
+    product_col: str = "hs10",
+    country_col: str = "country_code",
+    month_col: str = "month_date",
+) -> pl.DataFrame:
+    """Aggregate an HS10 staged table to HS6.
+
+    Values add. Quantities only add when every constituent 10-digit line in that
+    HS6-country-month shares one unit of measure -- summing pieces and kilograms
+    produces a number with no meaning, and the resulting unit value would be an
+    artefact of product mix. Where units are mixed the quantity is null and
+    ``hs6_units_mixed`` records why, so the loss is visible rather than silent.
+    """
+    df = hs10.with_columns(pl.col(product_col).str.slice(0, 6).alias("hs6"))
+    units = (
+        df.filter(pl.col("unit_qy1") != "")
+        .group_by(["hs6", country_col, month_col])
+        .agg(pl.col("unit_qy1").n_unique().alias("_n_units"),
+             pl.col("unit_qy1").first().alias("_unit"))
+    )
+    agg = df.group_by(["hs6", country_col, month_col]).agg(
+        pl.col("country_name").first(),
+        pl.col("con_val_mo").sum(),
+        pl.col("gen_val_mo").sum(),
+        pl.col("dut_val_mo").sum(),
+        pl.col("cal_dut_mo").sum(),
+        pl.col("con_cha_mo").sum(),
+        pl.col("con_qy1_mo").sum().alias("_qty_sum"),
+        pl.len().alias("n_hs10_lines"),
+    )
+    out = agg.join(units, on=["hs6", country_col, month_col], how="left")
+    return out.with_columns(
+        (pl.col("_n_units").fill_null(0) > 1).alias("hs6_units_mixed"),
+    ).with_columns(
+        pl.when(pl.col("_n_units") == 1).then(pl.col("_qty_sum")).otherwise(None).alias("con_qy1_mo"),
+        pl.when(pl.col("_n_units") == 1).then(pl.col("_unit")).otherwise(pl.lit("")).alias("unit_qy1"),
+        pl.lit(None, dtype=pl.Float64).alias("con_qy2_mo"),
+        pl.lit("").alias("unit_qy2"),
+    ).drop(["_n_units", "_unit", "_qty_sum"])
+
+
 def _month_segments(
     month_start: date, engine: TariffEngine, product: str, country: str
 ) -> list[tuple[date, int]]:
@@ -119,11 +197,16 @@ def _month_segments(
     n_days = (nxt - month_start).days
 
     cuts = {month_start}
-    for r in engine.records:
-        if r.product_code[:8] != product[:8] and not r.product_code.startswith(product[:6]):
-            continue
-        if r.partner_country_code != country:
-            continue
+    if len(product) >= 8:
+        relevant = engine.records_for_line(product, country)
+    else:
+        # HS6 query: any 8-digit child of the heading can change the law.
+        relevant = [
+            r
+            for r in engine.records
+            if r.product_code.startswith(product[:6]) and r.partner_country_code == country
+        ]
+    for r in relevant:
         for d in (r.effective_date, r.expiry_date):
             if d is not None and month_start < d < nxt:
                 cuts.add(d)
@@ -167,20 +250,45 @@ def attach_tariff_treatment(
 ) -> pl.DataFrame:
     """Attach point-in-time tariff assessments from the policy engine.
 
-    The engine is queried once per distinct (product, country, month) rather than
-    per row. Ambiguous assessments are carried through as explicit status flags,
-    never silently converted into a treatment indicator.
+    Ambiguous assessments are carried through as explicit status flags, never
+    silently converted into a treatment indicator.
 
     With ``day_weight_within_month`` the reported rate is the day-weighted
     average statutory rate over the month, which is what a monthly duty
     collection actually reflects. ``statutory_rate_month_end`` is kept alongside
     it so a specification can use the discrete-jump definition instead, and the
     two can be compared.
+
+    **Assessments are keyed on the 8-digit line, not the observation.** Section
+    301 is legislated at HS8 and 10-digit statistical lines nest exactly within
+    it, so every HS10 child of an HS8 parent has the same statutory rate. Keying
+    on HS8 turns roughly 1.4 million lookups on a full HS10 panel into a few
+    tens of thousands, and the result is identical by construction.
+
+    **Except on partial lines**, where the statute itself reaches below HS8 and
+    names individual 10-digit numbers as carve-outs. There the HS10 children of
+    one HS8 parent genuinely differ, so those parents are keyed at full length.
+    Collapsing them to HS8 would throw away the exactness that working at HS10
+    buys and would leave the observations flagged merely "partial".
     """
+    level = int(df.select(pl.col(product_col).str.len_chars().max()).item() or 6)
+    partial_parents = {
+        r.product_code[:8] for r in engine.records if r.partial_line
+    }
+    tariff_key = "_tariff_key"
+    if level >= 8:
+        key_expr = (
+            pl.when(pl.col(product_col).str.slice(0, 8).is_in(list(partial_parents)))
+            .then(pl.col(product_col))
+            .otherwise(pl.col(product_col).str.slice(0, 8))
+        )
+    else:
+        key_expr = pl.col(product_col)
+    keyed = df.with_columns(key_expr.alias(tariff_key))
     keys = (
-        df.select([product_col, country_col, month_col])
+        keyed.select([tariff_key, country_col, month_col])
         .unique()
-        .sort([product_col, country_col, month_col])
+        .sort([tariff_key, country_col, month_col])
     )
 
     recs = []
@@ -205,7 +313,7 @@ def attach_tariff_treatment(
 
         recs.append(
             {
-                product_col: prod,
+                tariff_key: prod,
                 country_col: ctry,
                 month_col: mth,
                 "baseline_mfn_rate": primary.baseline_rate,
@@ -225,7 +333,7 @@ def attach_tariff_treatment(
             }
         )
     tar = pl.DataFrame(recs)
-    return df.join(tar, on=[product_col, country_col, month_col], how="left")
+    return keyed.join(tar, on=[tariff_key, country_col, month_col], how="left").drop(tariff_key)
 
 
 def add_event_time(
@@ -362,15 +470,21 @@ def build_panel(
     treated_country_code: str,
     pre_period_end: date,
     hs8_weights: dict[str, dict[str, float]] | None = None,
+    product_col: str = "hs6",
 ) -> pl.DataFrame:
     """Full analytical-panel construction pipeline."""
     df = construct_value_measures(staged)
-    df = attach_tariff_treatment(df, engine, hs8_weights=hs8_weights)
-    df = add_event_time(df)
-    df = add_sourcing_measures(df, treated_country_code=treated_country_code)
-    df = add_extensive_margin(df)
+    df = attach_tariff_treatment(df, engine, product_col=product_col, hs8_weights=hs8_weights)
+    df = add_event_time(df, product_col=product_col)
+    df = add_sourcing_measures(
+        df, treated_country_code=treated_country_code, product_col=product_col
+    )
+    df = add_extensive_margin(df, product_col=product_col)
     df = add_pretreatment_exposure(
-        df, treated_country_code=treated_country_code, pre_period_end=pre_period_end
+        df,
+        treated_country_code=treated_country_code,
+        pre_period_end=pre_period_end,
+        product_col=product_col,
     )
     return df.with_columns(
         pl.lit(PANEL_SCHEMA_VERSION).alias("panel_schema_version"),
@@ -378,8 +492,12 @@ def build_panel(
         pl.col("landed_unit_value_duty_inclusive").log().alias("log_landed_unit_value"),
         pl.col("quantity").log().alias("log_quantity"),
         pl.col("customs_value").log().alias("log_customs_value"),
-        (pl.col("hs6").str.slice(0, 2)).alias("hs2_chapter"),
-    ).sort(["hs6", "country_code", "month_date"])
+        (pl.col(product_col).str.slice(0, 2)).alias("hs2_chapter"),
+        (pl.col(product_col).str.slice(0, 6)).alias("hs6"),
+        (pl.col(product_col).str.slice(0, 8)).alias("hs8")
+        if product_col != "hs6"
+        else pl.lit(None, dtype=pl.String).alias("hs8"),
+    ).sort([product_col, "country_code", "month_date"])
 
 
 def ambiguity_report(panel: pl.DataFrame) -> pl.DataFrame:

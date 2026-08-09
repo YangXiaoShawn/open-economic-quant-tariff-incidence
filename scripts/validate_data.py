@@ -43,8 +43,12 @@ def main() -> int:
         ]
     )
     valid = {cfg.sample.treated_country_code, *cfg.sample.comparison_country_codes}
+    # The battery must key on the panel's own product level. Keying an HS10
+    # panel on hs6 would report every HS10 sibling as a duplicate.
+    product_col = "hs10" if "hs10" in panel.columns else "hs6"
+    print(f"panel product level: {product_col}")
 
-    results = checks.run_all(panel, valid_country_codes=valid)
+    results = checks.run_all(panel, valid_country_codes=valid, product_col=product_col)
     frame = checks.to_frame(results)
     summary = checks.summarize(results)
 

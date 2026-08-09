@@ -1,43 +1,49 @@
 {
   "dataset_id": "trade_panel_hs6_country_month",
   "layer": "analytical",
-  "source": "SYNTHETIC generator (tariff_incidence.panel.synthetic) + OFFICIAL tariff schedule and OFFICIAL USITC HTS baselines",
-  "source_url": "n/a (locally generated)",
-  "retrieval_timestamp_utc": "2026-08-08T22:42:20.285730+00:00",
-  "source_release_or_vintage": "synthetic v1",
+  "source": "U.S. Census Bureau timeseries/intltrade/imports/hs",
+  "source_url": "https://api.census.gov/data/timeseries/intltrade/imports/hs",
+  "retrieval_timestamp_utc": "2026-08-09T19:37:55.018024+00:00",
+  "source_release_or_vintage": "Census live API",
   "date_range_start": "2017-01",
   "date_range_end": "2019-08",
   "schema_version": "panel_v1",
   "product_code_vintage": "HTS2018",
-  "checksum_sha256": "e805d07cc9b000c5601ece80e4c899fe138731cc36a04779098bfd70e508989e",
-  "row_count": 25857,
+  "checksum_sha256": "0433227a53e1a87550a484c96a4a161d0bfb5c5f4eaecdb2f86294baa9630baa",
+  "row_count": 489733,
   "partition_keys": [
     "hs6",
     "country_code",
     "month_date"
   ],
   "transformation_version": "build_trade_panel.py@v1",
-  "data_provenance": "MIXED",
+  "data_provenance": "OFFICIAL",
   "known_limitations": [
     "Customs unit values are value/quantity over heterogeneous transactions; they are not transaction prices and move with product mix and quality.",
     "HS6 aggregation loses the HS8 level at which Section 301 lists are written; partially covered headings are excluded from both treatment groups.",
-    "Sample ends 2019-08 to avoid List 4A contamination of the control group.",
-    "TRADE FLOWS ARE SYNTHETIC. No estimate from this panel is an empirical finding about U.S. trade. Set CENSUS_API_KEY to rebuild with official data."
+    "Sample ends 2019-08 to avoid List 4A contamination of the control group."
   ],
   "columns": {
-    "hs6": "String",
     "country_code": "String",
     "country_name": "String",
-    "month_date": "Date",
-    "customs_value": "Float64",
+    "hs10": "String",
+    "I_COMMODITY_SDESC": "String",
+    "COMM_LVL": "String",
     "general_imports_value": "Float64",
+    "customs_value": "Float64",
     "dutiable_value": "Float64",
     "calculated_duties": "Float64",
     "import_charges": "Float64",
     "quantity": "Float64",
     "quantity_unit": "String",
-    "quantity_2": "Null",
+    "quantity_2": "Float64",
     "quantity_2_unit": "String",
+    "SUMMARY_LVL": "String",
+    "YEAR": "String",
+    "MONTH": "String",
+    "month_date": "Date",
+    "period": "String",
+    "quantity_not_collected": "Boolean",
     "cif_value": "Float64",
     "customs_unit_value": "Float64",
     "landed_unit_value_duty_inclusive": "Float64",
@@ -81,6 +87,8 @@
     "log_quantity": "Float64",
     "log_customs_value": "Float64",
     "hs2_chapter": "String",
+    "hs6": "String",
+    "hs8": "String",
     "baseline_mfn_available": "Boolean",
     "log1p_total_tariff": "Float64",
     "log1p_additional_tariff": "Float64",
@@ -88,9 +96,9 @@
     "month_key": "String"
   },
   "extra": {
-    "n_treated_products": 45,
-    "n_control_products": 45,
-    "n_ambiguous_hs6_excluded": 598,
+    "n_treated_products": 2303,
+    "n_control_products": 1153,
+    "n_ambiguous_hs6_excluded": 1748,
     "countries": [
       "5700",
       "5520",
@@ -103,15 +111,6 @@
       "1220"
     ],
     "hts_available": true,
-    "synthetic_ground_truth": {
-      "pass_through_exporter": -0.05,
-      "elasticity_own": -1.5,
-      "diversion_gain": 0.35,
-      "anticipation_pull_forward": 0.12,
-      "exit_hazard_treated": 0.015,
-      "sigma_price": 0.06,
-      "sigma_qty": 0.18,
-      "seed": 20180924
-    }
+    "synthetic_ground_truth": null
   }
 }

@@ -114,12 +114,12 @@ def run_all(
 
     # 3. Product codes -----------------------------------------------------
     badp = panel.filter(
-        ~pl.col(product_col).str.contains(r"^\d{6}$")
+        ~pl.col(product_col).str.contains(r"^\d{6}(\d{2})?(\d{2})?$")
     )
     out.append(
         CheckResult(
             "BAD_PRODUCT_CODE",
-            "product code is not a 6-digit HS code",
+            "product code is not a 6-, 8- or 10-digit HS code",
             Severity.ERROR,
             badp.height == 0,
             badp.height,

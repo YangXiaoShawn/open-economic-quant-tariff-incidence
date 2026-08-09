@@ -314,3 +314,65 @@ def test_record_rejects_code_length_mismatch():
             announcement_date=None, effective_date=date(2018, 9, 24),
             expiry_date=None, ad_valorem_rate=0.1, source=src(),
         )
+
+
+# --------------------------------------------------------------------- #
+# partial lines resolve exactly at 10 digits
+# --------------------------------------------------------------------- #
+
+
+def _partial_rec() -> TariffRecord:
+    """29319090 is covered by List 3 except for statistical number 2931909051."""
+    return TariffRecord(
+        record_id="SEC301_LIST3:29319090:2018-09-24:ADDITIONAL_DUTY",
+        episode_id="US_SECTION301_CHINA",
+        action_id="SEC301_LIST3",
+        record_type=RecordType.ADDITIONAL_DUTY,
+        product_code="29319090",
+        product_code_level=8,
+        product_code_vintage="HTS2018",
+        partner_country_code=CHINA,
+        announcement_date=date(2018, 7, 17),
+        effective_date=date(2018, 9, 24),
+        expiry_date=None,
+        ad_valorem_rate=0.10,
+        source=src(),
+        partial_line=True,
+        partial_line_note="statistical reporting number(s) carved out: 2931909051",
+        partial_line_excluded_codes=("2931909051",),
+    )
+
+
+def test_carved_out_ten_digit_line_is_untreated_and_unambiguous():
+    e = TariffEngine([_partial_rec()])
+    a = e.assess("2931909051", CHINA, date(2019, 1, 1))
+    assert a.additional_rate == 0.0
+    assert a.status is ValidationStatus.OK, "at 10 digits this is exact, not ambiguous"
+    assert a.status.usable_for_treatment
+    assert not a.is_treated
+
+
+def test_sibling_ten_digit_line_under_a_partial_parent_is_fully_treated():
+    e = TariffEngine([_partial_rec()])
+    a = e.assess("2931909010", CHINA, date(2019, 1, 1))
+    assert a.additional_rate == pytest.approx(0.10)
+    assert a.status is ValidationStatus.OK
+    assert a.is_treated
+
+
+def test_partial_line_is_still_ambiguous_at_eight_digits():
+    """The HS8 query spans both the covered and the carved-out parts."""
+    e = TariffEngine([_partial_rec()])
+    a = e.assess("29319090", CHINA, date(2019, 1, 1))
+    assert a.status is ValidationStatus.PARTIAL_LINE
+    assert not a.status.usable_for_treatment
+
+
+def test_partial_line_without_recorded_carve_outs_stays_ambiguous_at_ten_digits():
+    """Never resolve a carve-out we do not actually have the codes for."""
+    r = _partial_rec()
+    bare = TariffRecord(
+        **{**{f: getattr(r, f) for f in r.__slots__}, "partial_line_excluded_codes": ()}
+    )
+    a = TariffEngine([bare]).assess("2931909051", CHINA, date(2019, 1, 1))
+    assert a.status is ValidationStatus.PARTIAL_LINE

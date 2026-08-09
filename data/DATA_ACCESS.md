@@ -10,13 +10,13 @@ about it.
 | Federal Register API + GPO PDFs | no | **working** | Section 301 actions, effective dates, annexes |
 | USITC HTS `reststop/exportList` | no | **working** | MFN baseline rates, HS6→HS8 child map |
 | BEA Supply-Use static files | no | **working** | Input-output requirements |
-| U.S. Census intl. trade API | **yes** | **BLOCKED — no key** | Monthly imports by HS × country |
+| U.S. Census intl. trade API | **yes** | **WORKING (key supplied 2026-08-09)** | Monthly imports by HS10 × country |
 | BLS PPI API | v1 keyless | **down for maintenance** at build time | Domestic producer prices |
 | Census HS→NAICS concordance | no | **404/403** | Industry mapping |
 
 ---
 
-## A. U.S. Census international trade — **BLOCKED, action required**
+## A. U.S. Census international trade — **WORKING**
 
 **Endpoint.** `https://api.census.gov/data/timeseries/intltrade/imports/hs`
 
@@ -25,7 +25,22 @@ returns HTTP **200** with an HTML page titled "Missing Key". A pipeline that
 checks status codes will happily ingest that HTML as data. The adapter therefore
 validates the payload shape, not the status code.
 
-**Fix — takes about two minutes and is free:**
+A key was supplied on 2026-08-09 and verified against the live endpoint (15/15
+variables confirmed against the endpoint's own `variables.json`). The panel is
+built from official data and carries provenance `OFFICIAL`.
+
+**Critical finding from the first live pull: no quantity at HS6.** At
+`COMM_LVL=HS6` the endpoint returns `CON_QY1_MO = 0` and `UNIT_QY1 = "-"` for
+every line, because the underlying 10-digit lines carry different units of
+measure. Unit values therefore cannot be constructed at HS6 at all, which is why
+the panel is built at HS10 (see docs/DECISION_LOG.md D-019). Census also emits
+explicit zero rows for country-product combinations with no trade, so the
+extensive margin is observed rather than inferred.
+
+Retrieval: chapter-prefix wildcard (`I_COMMODITY=84*`), one partition per
+chapter-month, 320 requests for 10 chapters x 32 months, about 9 minutes, 18 MB.
+
+**If you need to set up a key elsewhere:**
 
 1. Register at https://api.census.gov/data/key_signup.html
 2. Export the key:
@@ -43,10 +58,10 @@ make build-trade-panel estimate-incidence estimate-diversion report
 Every artefact's provenance flips from `MIXED` to `OFFICIAL` automatically. No
 estimation code changes.
 
-**Until then**, trade flows come from `tariff_incidence.panel.synthetic`, a
-documented generator with declared parameters. Everything derived from it is
-tagged and the reporting guard blocks causal language. Nothing in this
-repository is currently an empirical finding about U.S. trade.
+**Without a key** the pipeline falls back to `tariff_incidence.panel.synthetic`,
+a documented generator with declared parameters, and tags every derived artefact
+so nothing can be mistaken for evidence. That path is still exercised by the
+test suite and by `--force-synthetic`.
 
 **Variables retrieved** (verified against the endpoint's own `variables.json` at
 runtime, not hard-coded): `CON_VAL_MO`, `GEN_VAL_MO`, `DUT_VAL_MO`,

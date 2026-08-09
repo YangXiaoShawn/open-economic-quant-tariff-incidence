@@ -277,3 +277,92 @@ def test_negative_values_are_detected():
     panel = build_panel(s, _engine(), treated_country_code=CHINA, pre_period_end=date(2018, 6, 30))
     res = {r.check_id: r for r in checks.run_all(panel)}
     assert res["NEGATIVE_VALUES"].passed is False
+
+
+# --------------------------------------------------------------------- #
+# HS10 staging and HS6 aggregation
+# --------------------------------------------------------------------- #
+
+
+def _census_like() -> pl.DataFrame:
+    """Mimics a raw Census HS10 payload, including its "no quantity" convention."""
+    return pl.DataFrame(
+        {
+            "I_COMMODITY": ["8471300100", "8471300150", "8471410100", "8471410150"],
+            "CTY_CODE": [CHINA] * 4,
+            "CTY_NAME": ["CHINA"] * 4,
+            "CON_VAL_MO": [1000.0, 500.0, 2000.0, 300.0],
+            "GEN_VAL_MO": [1010.0, 505.0, 2020.0, 303.0],
+            "DUT_VAL_MO": [1000.0, 500.0, 2000.0, 300.0],
+            "CAL_DUT_MO": [20.0, 10.0, 40.0, 6.0],
+            "CON_CHA_MO": [50.0, 25.0, 100.0, 15.0],
+            # Census emits 0 with unit "-" when no quantity is collected.
+            "CON_QY1_MO": [100.0, 0.0, 200.0, 40.0],
+            "UNIT_QY1": ["NO", "-", "NO", "KG"],
+            "CON_QY2_MO": [0.0, 0.0, 0.0, 0.0],
+            "UNIT_QY2": ["-", "-", "-", "-"],
+            "month_date": [date(2018, 10, 1)] * 4,
+        }
+    )
+
+
+def test_stage_census_treats_uncollected_quantity_as_null_not_zero():
+    """A unit of '-' means no quantity collected; zero would make unit values infinite."""
+    from tariff_incidence.panel.build import stage_census
+
+    s = stage_census(_census_like(), product_col="hs10")
+    row = s.filter(pl.col("hs10") == "8471300150").row(0, named=True)
+    assert row["con_qy1_mo"] is None
+    assert row["unit_qy1"] == ""
+    assert row["quantity_not_collected"] is True
+    kept = s.filter(pl.col("hs10") == "8471300100").row(0, named=True)
+    assert kept["con_qy1_mo"] == pytest.approx(100.0)
+    assert kept["quantity_not_collected"] is False
+
+
+def test_unit_value_is_null_where_quantity_was_not_collected():
+    from tariff_incidence.panel.build import stage_census
+
+    df = construct_value_measures(stage_census(_census_like(), product_col="hs10"))
+    row = df.filter(pl.col("hs10") == "8471300150").row(0, named=True)
+    assert row["customs_unit_value"] is None
+
+
+def test_hs6_aggregation_sums_values_but_refuses_to_sum_mixed_units():
+    """847141 mixes NO and KG, so its aggregate quantity has no meaning."""
+    from tariff_incidence.panel.build import aggregate_to_hs6, stage_census
+
+    agg = aggregate_to_hs6(stage_census(_census_like(), product_col="hs10"))
+    clean = agg.filter(pl.col("hs6") == "847130").row(0, named=True)
+    mixed = agg.filter(pl.col("hs6") == "847141").row(0, named=True)
+
+    assert clean["con_val_mo"] == pytest.approx(1500.0)
+    assert clean["con_qy1_mo"] == pytest.approx(100.0)  # only the NO-unit line contributes
+    assert clean["hs6_units_mixed"] is False
+
+    assert mixed["con_val_mo"] == pytest.approx(2300.0), "values always add"
+    assert mixed["con_qy1_mo"] is None, "pieces and kilograms must not be summed"
+    assert mixed["hs6_units_mixed"] is True
+
+
+def test_tariff_assessment_is_keyed_on_hs8_so_hs10_siblings_agree():
+    """HS10 nests exactly inside the HS8 line the statute names."""
+    from tariff_incidence.panel.build import attach_tariff_treatment, stage_census
+
+    staged = stage_census(_census_like(), product_col="hs10")
+    out = attach_tariff_treatment(staged, _engine(), product_col="hs10")
+    sibs = out.filter(pl.col("hs10").str.starts_with("84713001"))
+    assert sibs.height == 2
+    assert sibs["additional_tariff_rate"].n_unique() == 1
+    assert sibs["tariff_status"].n_unique() == 1
+
+
+def test_hs10_panel_has_no_partial_hs6_coverage_status():
+    """The partial-coverage problem is an artefact of aggregating above the statute."""
+    from tariff_incidence.panel.build import attach_tariff_treatment, stage_census
+
+    out = attach_tariff_treatment(
+        stage_census(_census_like(), product_col="hs10"), _engine(), product_col="hs10"
+    )
+    assert "PARTIAL_HS6_COVERAGE" not in set(out["tariff_status"])
+    assert out["tariff_usable_for_treatment"].all()

@@ -9,21 +9,19 @@ episodes are added through configuration, not code.
 
 > ### Read this before reading any number
 >
-> The U.S. Census international-trade API requires an API key that is **not
-> available in this environment**. Trade flows therefore come from a documented
-> synthetic generator, and every artefact built from them is tagged
-> `MIXED` or `SYNTHETIC_PIPELINE_VALIDATION`.
+> The pipeline runs on **official U.S. Census data** (provenance `OFFICIAL`).
+> 489,733 HS10 x country x month observations, 2017-01 to 2019-08.
 >
-> **No estimate in this repository is currently an empirical finding about U.S.
-> trade.** The estimates demonstrate that the estimation code recovers
-> parameters that were deliberately injected into simulated data.
+> **No outcome clears its pre-trend test**, so every estimate below is reported
+> as **descriptive, not causal**. The price outcomes are imprecise relative to
+> their own pre-period movement; the quantity outcome has pre-trends as large as
+> its post-treatment effect. The reports state this per outcome, first, before
+> any number.
 >
-> What *is* built from official sources and is real: the entire Section 301
-> tariff schedule (12,587 records parsed from Federal Register PDFs), MFN
-> baseline rates from the USITC HTS, and BEA input-output tables.
->
-> Set `CENSUS_API_KEY` ([free, ~2 minutes](https://api.census.gov/data/key_signup.html))
-> and re-run — every provenance tag flips to `OFFICIAL` with no code change.
+> Estimates are also **intention-to-treat** with respect to the statutory list,
+> because USTR product exclusions are not yet parsed. The data-quality battery
+> measures the gap: realised duties depart from the statutory schedule on 12.5%
+> of dutiable observations.
 
 ---
 
@@ -74,25 +72,51 @@ Reaching an exact match required three things a naive parse misses:
    because the USITC HTS contains exactly one unclaimed 8-digit line under that
    heading, and the record is marked `DERIVED`, not `OFFICIAL_PARSED`.
 
-### The estimators recover parameters injected into simulated data
+### First estimates on official data
 
-| Parameter | Injected | Recovered | Control group |
+Two-way fixed effects (product-country flow + month), clustered on HS6,
+n = 319,063:
+
+| Outcome | Estimate | 95% CI | Pre-trend verdict |
 |---|---|---|---|
-| Exporter pass-through | −0.050 | **−0.0485** [−0.102, +0.005] | contaminated |
-| Exporter pass-through | −0.050 | **−0.0515** | clean |
-| Quantity response (implied slope) | −1.339 | −1.686 | contaminated |
-| Quantity response (implied slope) | −1.339 | **−1.256** | clean |
+| log customs unit value (tariff-**exclusive**) | −0.036 | [−0.182, +0.111] | IMPRECISE |
+| log landed unit value (duty-**inclusive**) | **+0.663** | [+0.514, +0.812] | IMPRECISE |
+| log quantity | −1.202 | [−1.492, −0.911] | **PRETREND_PRESENT** |
 
-The gap in the quantity row is the finding, not a defect. Third-country
-suppliers of a treated product are **not untreated bystanders** — the policy
-pushes demand toward them. Using them as controls violates the no-interference
-assumption and biases the estimate away from zero. The price parameter, which
-has no third-country spillover in the generator, is recovered correctly under
-either control group. The pipeline reports both, always.
+The shape is near-complete pass-through to the U.S. importer: the duty-inclusive
+border cost rises sharply and precisely, while the foreign border price is
+statistically indistinguishable from unchanged. Reading incidence requires both
+numbers — one alone cannot separate exporter absorption from importer cost.
+
+The pre-trend column is why none of this is claimed as causal. For the customs
+unit value the pre-period coefficients are *larger* than the effect itself
+(ratio 1.61); for quantity they are the same size and statistically significant
+(ratio 1.02).
+
+### Sourcing did not visibly relocate in this sample
+
+Against a never-treated-product counterfactual, China ran **−$1.79bn/month**
+below counterfactual on the targeted products (−41%). Third countries ran
+**−$512mn/month below** their own counterfactual — only Korea and India gained.
+Adjusted replacement ratio **−0.29**.
+
+This cuts against the usual relocation narrative and should be read with its
+caveats: 10 chapters, 8 partners, a 10-month post window, and a counterfactual
+doing heavy lifting (most of Korea's apparent gain is its *control* products
+falling 11%).
+
+### Estimator validation against a known data-generating process
+
+Still run, via `--force-synthetic`, because knowing the right answer is the only
+way to test an estimator. It surfaced a design problem: third-country suppliers
+of a treated product are **not untreated bystanders**, so using them as controls
+violates no-interference and biased the quantity elasticity by 26% while leaving
+the price elasticity untouched. Both control groups are now reported on every
+run.
 
 ### Industries are exposed through two channels that are never netted
 
-Using pre-treatment BEA input-output weights, of 72 industries: 8 face **both**
+Using pre-treatment BEA input-output weights, of 72 industries: 9 face **both**
 output protection and higher imported-input costs simultaneously — including
 primary metals, fabricated metal products, machinery, and motor vehicles. A
 single "net exposure" number would hide exactly the distributional question the
@@ -105,9 +129,10 @@ These are enforced by code and tests, not by good intentions.
 
 **Ambiguity is surfaced, never resolved silently.** The tariff engine returns a
 `ValidationStatus` with every answer. Conflicting records return no rate at all.
-An HS6 heading whose HS8 children are only partly covered returns
-`PARTIAL_HS6_COVERAGE` and a coverage share — 598 such headings were excluded
-from both treatment groups rather than assigned an invented rate.
+Working at HS10 removes the ambiguity rather than papering over it: **0 of
+489,733 observations** carry an unusable status, because HS10 nests exactly
+inside the HS8 line the statute names, and the 11 partial lines are resolved
+against the specific 10-digit numbers U.S. note 20(g) carves out.
 
 **Value concepts stay distinct.** `customs_unit_value` (tariff-exclusive) and
 `landed_unit_value_duty_inclusive` answer different questions; incidence cannot
@@ -122,9 +147,12 @@ increase to 25% was announced for 2019-01-01, postponed twice, and took effect
 September — 7 of 30 days. Month-start assessment says untreated, month-end says
 fully treated, and both errors land on the event-time-zero coefficient.
 
-**Nulls are never filled silently.** An HS6 heading containing a compound duty
-line has no single ad-valorem baseline; those rows carry a null, not a zero. An
-earlier version filled them and attenuated 38% of the sample.
+**Nulls are never filled silently.** A line whose column-1 general rate is
+compound or specific has no single ad-valorem baseline; those rows (42.5% of the
+panel) carry a null, not a zero. An earlier version filled them and attenuated
+every total-rate estimate. Census's own "no quantity collected" convention
+(`UNIT_QY1 = "-"`, quantity 0) is likewise read as null, not as zero — treating
+it as zero would make those unit values infinite.
 
 **Reports cannot make claims the data cannot support.** `guard_language` raises
 on causal assertions under non-official provenance and on quantified welfare
@@ -178,7 +206,7 @@ make help
 
 | Gap | Consequence |
 |---|---|
-| **No Census API key** | No empirical finding exists yet. The binding constraint. |
+| **Quantity fails its pre-trend test** | Sourcing and diversion results are descriptive, not causal. The binding constraint now. |
 | List 4A unparsed | Window ends 2019-08 to keep the control group clean |
 | Product exclusions unparsed | Estimates are intention-to-treat, not treatment-on-the-treated |
 | HS→NAICS concordance 404 | Industry exposure is an ordering, not a magnitude |
