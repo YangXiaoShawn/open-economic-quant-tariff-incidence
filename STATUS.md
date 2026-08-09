@@ -1,13 +1,47 @@
 # STATUS
 
-**Last updated:** 2026-08-09 · session 3
+**Last updated:** 2026-08-09 · session 4
 
 ## One-line state
 
-Official Census data at HS10, all three Section 301 waves, and a **stacked
-multi-wave design**. `log_landed_unit_value` now passes its pre-trend test
-(**CLEAN**) — the first outcome in the project with a licensed causal reading.
-Quantity still fails and its sourcing results remain descriptive.
+Official Census data at HS10, all three Section 301 waves, stacked multi-wave
+design, and a **corrected pre-trend test** that separates bias from imprecision.
+Landed cost is **CLEAN**; quantity has **no detectable differential trend** and
+earns a qualified reading; the customs unit value is the one genuinely
+compromised outcome.
+
+## Session 4: the pre-trend was mostly my own statistic
+
+Five hypotheses were tested against `log_quantity` and all five failed:
+announcement-date event time (made it *worse*, 1.57 — and dilutes the effect
+from −0.350 to −0.192 by putting the no-duty window into the post period),
+balanced lines only, trimming to flows over $1M/month, and stacked PPML in
+levels. Small-flow noise is real (month-to-month SD of log quantity is 2.44
+under $10k/month versus 0.69 over $1M/month, and the small flows are 26% of
+flows but 0.07% of value) but trimming them did not move the statistic.
+
+Looking at the coefficient path rather than the summary statistic showed why:
+the pre-period oscillates around −0.07 with no drift, and the three months
+nearest treatment are +0.06, +0.04, −0.03. The post-period falls monotonically
+to −0.58. That is a good event study being failed by a bad statistic.
+
+**The statistic compared `max|pre|` against `mean|post|`** — the maximum of a
+dozen noisy coefficients against the mean of another dozen. Replaced with
+like-for-like RMS, plus a slope test and the implied bias over the post window
+in the outcome's own units. The correction leaves `log_quantity` still above the
+threshold (0.54 -> 0.27), which is the check that it did not manufacture a pass
+(D-026).
+
+| Outcome (stacked) | rms/rms | slope/mo | p | implied bias | verdict |
+|---|---|---|---|---|---|
+| log landed unit value | 0.11 | +0.0010 | 0.54 | +0.005 | **CLEAN** |
+| log quantity | 0.27 | +0.0134 | 0.068 | +0.067 | NOISY_PRE_PERIOD_NO_SLOPE |
+| log customs unit value | 0.55 | +0.0024 | 0.142 | +0.012 | **PRETREND_PRESENT** |
+
+Quantity's implied bias is 19% of its effect and of the *opposite* sign, so
+correcting it would deepen the estimated contraction rather than explain it
+away. The customs unit value's implied bias is half its effect; that is the
+outcome now correctly isolated as unusable.
 
 ## Session 3: diagnosing the pre-trend
 
@@ -129,12 +163,7 @@ tables were missing. Fixed, and reports regenerated with content.
 
 ## Next actions, in priority order
 
-1. **Quantity still fails (ratio 0.54).** Stacking halved it but did not clear
-   it. Next candidates: front-running against the *announcement* date rather
-   than the effective date (the schedule already carries both), and composition
-   change as 10-digit lines enter and exit. Until it clears, every sourcing and
-   diversion finding stays descriptive.
-2. **Parse product exclusions.** `DUTY_VS_ENGINE` flags 12,861 of 102,950
+1. **Parse product exclusions.** `DUTY_VS_ENGINE` flags 12,861 of 102,950
    dutiable observations (12.5%) where the realised duty departs from the
    statutory schedule — a direct, measurable floor on how much
    intention-to-treat differs from treatment-on-the-treated.

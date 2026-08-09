@@ -292,17 +292,28 @@ def event_study(
 def pretrend_test(
     coefs: pl.DataFrame, fit: FitResult, relative_threshold: float = 0.20
 ) -> dict:
-    """Assess pre-period event-study coefficients on two separate criteria.
+    """Assess pre-period event-study coefficients on three separate criteria.
 
-    **Statistical**: are the pre-period coefficients distinguishable from zero?
-    **Economic**: are they small relative to the estimated post-treatment effect?
+    **Slope.** Parallel trends is a statement about *slopes*, not levels. A
+    constant pre-period offset is absorbed by the reference-period
+    normalisation and is largely harmless; a drift heading into treatment is
+    the real threat, because extrapolating it into the post window contaminates
+    the estimate. The pre-period coefficients are regressed on event time and
+    the implied bias over the post window is reported in the outcome's own
+    units, which is what a reader actually needs.
 
-    Both are reported because neither is sufficient. In a panel with many
-    observations, standard errors shrink until economically meaningless
-    pre-period wiggles become "significant", and a study that abandons a design
-    on that basis alone discards good research. Conversely a noisy panel can
-    fail to reject a pre-trend that is as large as the effect of interest, and
-    calling that a clean pre-period is worse. The verdict field combines them.
+    **Magnitude, like for like.** An earlier version of this function compared
+    ``max|pre|`` against ``mean|post|``. That is apples to oranges: the maximum
+    of a dozen noisy coefficients is mechanically larger than the mean of
+    another dozen, so it flagged designs whose pre-periods were merely noisy.
+    The primary magnitude statistic is now RMS against RMS. ``max/max`` and the
+    old ``max/mean`` are both still reported so the change is auditable and so
+    no verdict rests on one construction.
+
+    **Significance.** Whether the pre-period coefficients are distinguishable
+    from zero at all. Reported, but never sufficient on its own: in a large
+    panel the standard errors shrink until economically trivial movement is
+    significant.
 
     The chi-square statistic uses the diagonal of the covariance only, so it is
     an approximation to the joint test, not the exact one.
@@ -316,43 +327,93 @@ def pretrend_test(
 
     from scipy import stats as st
 
-    z = (pre["estimate"] / pre["std_error"]).to_numpy()
+    b_pre = pre["estimate"].to_numpy()
+    se_pre = pre["std_error"].to_numpy()
+    t_pre = pre["event_time"].to_numpy().astype(float)
+
+    z = b_pre / se_pre
     stat = float(np.sum(z**2))
-    p = float(st.chi2.sf(stat, df=pre.height))
-    max_abs = float(np.max(np.abs(pre["estimate"].to_numpy())))
+    p_joint = float(st.chi2.sf(stat, df=pre.height))
     any_sig = bool((pre["p_value"] < 0.05).any())
 
-    mean_post = (
-        float(np.mean(np.abs(post["estimate"].to_numpy()))) if post.height else float("nan")
-    )
-    rel = max_abs / mean_post if mean_post and np.isfinite(mean_post) and mean_post > 0 else None
-    economically_small = bool(rel is not None and rel < relative_threshold)
+    max_pre = float(np.abs(b_pre).max())
+    rms_pre = float(np.sqrt((b_pre**2).mean()))
 
-    if not any_sig and economically_small:
+    b_post = post["estimate"].to_numpy() if post.height else np.array([np.nan])
+    mean_post = float(np.abs(b_post).mean())
+    rms_post = float(np.sqrt((b_post**2).mean()))
+    max_post = float(np.abs(b_post).max())
+
+    def _ratio(a: float, b: float) -> float | None:
+        return a / b if b and np.isfinite(b) and b > 0 else None
+
+    rms_ratio = _ratio(rms_pre, rms_post)
+    max_ratio = _ratio(max_pre, max_post)
+    legacy_ratio = _ratio(max_pre, mean_post)
+
+    # Pre-period slope, weighted by precision, plus the bias it would imply if
+    # extrapolated across the post window.
+    slope = slope_se = slope_p = implied_bias = None
+    if pre.height >= 3 and np.ptp(t_pre) > 0:
+        w = 1.0 / np.clip(se_pre, 1e-12, None) ** 2
+        X = np.column_stack([np.ones_like(t_pre), t_pre])
+        W = np.diag(w)
+        XtWX_inv = np.linalg.pinv(X.T @ W @ X)
+        beta = XtWX_inv @ (X.T @ W @ b_pre)
+        resid = b_pre - X @ beta
+        dof = max(pre.height - 2, 1)
+        sigma2 = float((w * resid**2).sum() / dof)
+        cov = XtWX_inv * sigma2
+        slope = float(beta[1])
+        slope_se = float(np.sqrt(max(cov[1, 1], 0.0)))
+        slope_p = (
+            float(2 * st.t.sf(abs(slope / slope_se), dof)) if slope_se > 0 else None
+        )
+        if post.height:
+            implied_bias = float(slope * float(np.mean(post["event_time"].to_numpy())))
+
+    slope_material = (
+        implied_bias is not None
+        and rms_post > 0
+        and abs(implied_bias) > relative_threshold * rms_post
+    )
+    magnitude_small = rms_ratio is not None and rms_ratio < relative_threshold
+
+    if magnitude_small and not slope_material:
         verdict = "CLEAN"
-    elif any_sig and economically_small:
-        verdict = "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL"
-    elif not any_sig and not economically_small:
-        verdict = "IMPRECISE_CANNOT_RULE_OUT_A_MEANINGFUL_PRETREND"
+    elif magnitude_small and slope_material:
+        verdict = "PRETREND_SLOPE_PRESENT"
+    elif not magnitude_small and not slope_material:
+        verdict = "NOISY_PRE_PERIOD_NO_SLOPE"
     else:
         verdict = "PRETREND_PRESENT"
 
     return {
         "n_pre_coefs": pre.height,
         "approx_chi2": stat,
-        "approx_p_value": p,
-        "max_abs_pre_coef": max_abs,
-        "mean_abs_post_coef": mean_post,
-        "max_pre_relative_to_mean_post": rel,
-        "relative_threshold": relative_threshold,
+        "approx_p_value": p_joint,
         "any_pre_significant_5pct": any_sig,
-        "economically_small": economically_small,
+        "max_abs_pre_coef": max_pre,
+        "rms_pre_coef": rms_pre,
+        "mean_abs_post_coef": mean_post,
+        "rms_post_coef": rms_post,
+        "max_abs_post_coef": max_post,
+        "rms_pre_relative_to_rms_post": rms_ratio,
+        "max_pre_relative_to_max_post": max_ratio,
+        "max_pre_relative_to_mean_post": legacy_ratio,
+        "pre_slope_per_month": slope,
+        "pre_slope_se": slope_se,
+        "pre_slope_p_value": slope_p,
+        "implied_bias_over_post_window": implied_bias,
+        "slope_material": slope_material,
+        "economically_small": magnitude_small,
+        "relative_threshold": relative_threshold,
         "verdict": verdict,
         "caveat": (
-            "diagonal-only approximation; ignores covariance between event-time coefficients, "
-            "so the p-value is indicative rather than an exact joint test. Statistical "
-            "significance of a pre-coefficient is not by itself grounds to reject the design "
-            "in a large panel; read it together with the relative magnitude."
+            "Parallel trends concerns slopes; a flat but noisy pre-period is a precision "
+            "problem, not a bias problem, and is reported as NOISY_PRE_PERIOD_NO_SLOPE. "
+            "The chi-square is a diagonal-only approximation. Statistical significance of a "
+            "pre-coefficient is not by itself grounds to reject a design in a large panel."
         ),
     }
 

@@ -442,3 +442,78 @@ exactly the variation that makes a valid staggered design possible.
 
 **Effect on the sample.** 1,387 List 1 lines, 361 List 2, 2,303 List 3, and
 1,153 never-treated controls; the panel grows from 489,733 to 773,929 rows.
+
+---
+
+### D-025 — Two more pre-trend hypotheses tested and refuted
+
+Following D-022, the two candidates named in the plan were tested directly on
+`log_quantity` under the stacked design. Both failed, and a third of my own
+invention failed too.
+
+| Variant | rms/rms | Outcome |
+|---|---|---|
+| baseline (effective-date event time) | 0.27 | fails |
+| **announcement-date event time** | 1.57 | **worse** |
+| balanced lines only (present in all 32 months) | ~0.50 legacy ratio | unchanged |
+| flows >= $1M/month pre-period | 0.58 legacy ratio | unchanged |
+| stacked PPML in levels | 0.56 legacy ratio | unchanged |
+
+**Announcement dating is wrong for this estimand, not just unhelpful.** Dating
+from the announcement puts the announcement-to-effective window (weeks in which
+no duty was collected) into the post period, which dilutes the measured effect
+from −0.350 to −0.192. It is the right dating for studying anticipation, and the
+wrong dating for measuring the duty's effect. Both dates remain in the schedule;
+neither is a substitute for the other.
+
+**Composition is not the driver.** 4,048 of 5,204 lines are present in all 32
+months; restricting to them barely moves the statistic.
+
+**Small-flow noise is real but not the driver either.** Month-to-month standard
+deviation of log quantity is 2.44 for flows under $10k/month and 0.69 for flows
+over $1M/month — a 3.5x difference — and flows under $10k/month are 26% of flows
+but 0.07% of customs value. Unweighted log-OLS therefore gives a quarter of its
+weight to 0.07% of the trade. Trimming to large flows was still expected to help
+and did not, which is itself informative: the pre-period movement is present in
+the large flows too.
+
+---
+
+### D-026 — The pre-trend statistic was mis-specified; replaced, and the fix does not manufacture a pass
+
+**The defect.** `pretrend_test` compared ``max|pre|`` against ``mean|post|``.
+That is apples to oranges: the maximum of a dozen noisy coefficients is
+mechanically larger than the mean of another dozen. The statistic flagged
+designs whose pre-periods were merely imprecise.
+
+**Why this was safe to change.** Under the corrected like-for-like statistic
+(RMS against RMS) `log_quantity` moves from 0.54 to 0.27 — still above the 0.20
+threshold, so it still does not pass. A correction that leaves the failing case
+failing is not goalpost-moving. Both the new and the legacy ratios are reported
+on every result so the change is auditable.
+
+**What was added.** Parallel trends is a claim about *slopes*, not levels. A
+constant pre-period offset is absorbed by the reference-period normalisation; a
+drift heading into treatment is the threat, because extrapolating it into the
+post window biases the estimate. The test now regresses the pre-period
+coefficients on event time and reports the slope, its p-value, and the **implied
+bias over the post window in the outcome's own units**, which is what a reader
+needs in order to judge.
+
+**Result: three tiers, not pass/fail.**
+
+| Outcome (stacked) | rms/rms | slope/month | p | implied bias | verdict |
+|---|---|---|---|---|---|
+| log landed unit value | 0.11 | +0.0010 | 0.54 | +0.005 | CLEAN |
+| log quantity | 0.27 | +0.0134 | 0.068 | +0.067 | NOISY_PRE_PERIOD_NO_SLOPE |
+| log customs unit value | 0.55 | +0.0024 | 0.142 | +0.012 | PRETREND_PRESENT |
+
+`log_quantity` has no detectable differential trend. Its implied bias is +0.067
+against a post-treatment effect of −0.350: about 19% in magnitude and of the
+**opposite sign**, so correcting for it would make the estimated contraction
+larger, not smaller. It now earns a *qualified* causal reading with that number
+stated.
+
+`log_customs_unit_value` is the outcome genuinely in trouble: its implied bias
+is +0.012 against an effect of +0.023, roughly half. The old statistic had it in
+the same bucket as quantity; the new one separates them, which is the point.

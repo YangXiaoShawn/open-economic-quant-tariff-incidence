@@ -108,7 +108,11 @@ def main() -> int:  # noqa: C901, PLR0915
         if prior is None or rank.get(verd, 9) > rank.get(prior, 9):
             verdicts[outcome] = verd   # worst verdict across reference periods governs
 
+    # Three tiers, not pass/fail. A flat-but-noisy pre-period is a precision
+    # problem, not a bias problem, and deserves a qualified reading rather than
+    # the same treatment as a design with a genuine drift into treatment.
     OK_VERDICTS = ("CLEAN", "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL")
+    QUALIFIED_VERDICTS = ("NOISY_PRE_PERIOD_NO_SLOPE",)
 
     def best(outcome: str) -> tuple[str, str]:
         """Prefer the stacked design's verdict where one exists."""
@@ -117,18 +121,39 @@ def main() -> int:  # noqa: C901, PLR0915
         return verdicts.get(outcome, "UNKNOWN"), "single-wave"
 
     def licensed(outcome: str) -> bool:
-        return best(outcome)[0] in OK_VERDICTS
+        return best(outcome)[0] in OK_VERDICTS + QUALIFIED_VERDICTS
+
+    bias_by_outcome: dict[str, dict] = {}
+    for k, v in (ident or {}).get("pretrend_tests", {}).items():
+        if k.startswith("pretrend_stacked_") and k.endswith("_never_treated_products"):
+            key = k[len("pretrend_stacked_"): -len("_never_treated_products")]
+            bias_by_outcome[key] = v
 
     lines = []
     for o in sorted(set(verdicts) | set(stacked_verdicts)):
         v, design = best(o)
-        lines.append(
-            f"- `{o}`: **{v}** under the {design} design -> "
-            + (
-                "a causal reading is supported by this test"
-                if v in OK_VERDICTS
-                else "**a causal reading is not supported**; read as descriptive"
+        if v in OK_VERDICTS:
+            reading = "a causal reading is supported by this test"
+        elif v in QUALIFIED_VERDICTS:
+            det = bias_by_outcome.get(o, {})
+            bias = det.get("implied_bias_over_post_window")
+            rmsp = det.get("rms_post_coef")
+            extra = ""
+            if bias is not None and rmsp:
+                extra = (
+                    f" The pre-period slope is not statistically distinguishable from zero; "
+                    f"extrapolated across the post window it would shift the estimate by "
+                    f"{bias:+.3f} against a post-treatment RMS of {rmsp:.3f}."
+                )
+            reading = (
+                "**a qualified causal reading** — no differential trend is detectable, but "
+                "the pre-period is noisy, so the estimate is less precise than the interval "
+                "alone suggests." + extra
             )
+        else:
+            reading = "**a causal reading is not supported**; read as descriptive"
+        lines.append(
+            f"- `{o}`: **{v}** under the {design} design -> " + reading
             + (
                 f" (single-wave design: {verdicts[o]})"
                 if o in stacked_verdicts and o in verdicts and verdicts[o] != v

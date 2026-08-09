@@ -20,7 +20,7 @@ from tariff_incidence.econ.designs import (
     two_way_fe_regression,
 )
 from tariff_incidence.econ.diversion import decompose
-from tariff_incidence.econ.hdfe import absorb, ols_hdfe, ppml_hdfe
+from tariff_incidence.econ.hdfe import FitResult, absorb, ols_hdfe, ppml_hdfe
 
 # --------------------------------------------------------------------- #
 # absorption
@@ -460,3 +460,73 @@ def test_stacked_design_requires_at_least_one_cohort():
 
     with pytest.raises(ValueError, match="cohort_months is empty"):
         build_stacked_design(_multiwave_panel(), {})
+
+
+# --------------------------------------------------------------------- #
+# pre-trend test: slope vs noise
+# --------------------------------------------------------------------- #
+
+
+def _coef_frame(pre: list[float], post: list[float], se: float = 0.02) -> pl.DataFrame:
+    rows = []
+    for i, b in enumerate(pre):
+        rows.append({"term": f"m{i}", "event_time": -len(pre) + i, "estimate": b,
+                     "std_error": se, "ci_low": b - 2 * se, "ci_high": b + 2 * se,
+                     "p_value": 0.5, "is_pre": True})
+    for i, b in enumerate(post):
+        rows.append({"term": f"p{i}", "event_time": i, "estimate": b,
+                     "std_error": se, "ci_low": b - 2 * se, "ci_high": b + 2 * se,
+                     "p_value": 0.01, "is_pre": False})
+    return pl.DataFrame(rows)
+
+
+def _dummy_fit() -> FitResult:
+    return FitResult(
+        params={}, std_errors={}, n_obs=1000, n_params=1, estimator="OLS-HDFE",
+        cluster_vars=["hs6"], n_clusters={"hs6": 50}, converged=True, iterations=1,
+        absorbed_effects=["flow"], dof_resid=900,
+    )
+
+
+def test_flat_precise_pre_period_is_clean():
+    c = _coef_frame(pre=[0.0, 0.01, -0.01, 0.0, 0.005], post=[0.15] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["verdict"] == "CLEAN"
+    assert abs(t["pre_slope_per_month"]) < 0.01
+
+
+def test_noisy_but_trendless_pre_period_is_not_called_a_pretrend():
+    """A flat-but-noisy pre-period is a precision problem, not a bias problem."""
+    c = _coef_frame(pre=[-0.10, 0.12, -0.11, 0.09, -0.08], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["verdict"] == "NOISY_PRE_PERIOD_NO_SLOPE"
+    assert not t["slope_material"]
+    assert not t["economically_small"], "it is genuinely noisy; that is still reported"
+
+
+def test_genuine_linear_pretrend_is_flagged():
+    c = _coef_frame(pre=[-0.20, -0.15, -0.10, -0.05, 0.0], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["slope_material"], "a drift heading into treatment must be caught"
+    assert t["verdict"] in ("PRETREND_PRESENT", "PRETREND_SLOPE_PRESENT")
+    assert t["pre_slope_per_month"] > 0
+
+
+def test_implied_bias_is_reported_in_outcome_units():
+    c = _coef_frame(pre=[-0.20, -0.15, -0.10, -0.05, 0.0], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["implied_bias_over_post_window"] is not None
+    # slope ~ +0.05/month extrapolated across a post window centred at t=2
+    assert t["implied_bias_over_post_window"] == pytest.approx(0.05 * 2.0, abs=0.02)
+
+
+def test_like_for_like_and_legacy_ratios_are_both_reported():
+    """The statistic was changed; both constructions stay visible so it is auditable."""
+    c = _coef_frame(pre=[-0.10, 0.12, -0.11, 0.09, -0.08], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["rms_pre_relative_to_rms_post"] < t["max_pre_relative_to_mean_post"], (
+        "max-vs-mean overstates, which is why it was replaced"
+    )
+    for k in ["rms_pre_relative_to_rms_post", "max_pre_relative_to_max_post",
+              "max_pre_relative_to_mean_post"]:
+        assert k in t
