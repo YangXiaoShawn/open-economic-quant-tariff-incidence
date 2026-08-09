@@ -267,11 +267,11 @@ def coverage_summary(notices: list[ExclusionNotice]) -> dict:
 
 
 def realised_vs_statutory_bound(
-    panel: "pl.DataFrame",
+    panel: pl.DataFrame,
     *,
     tolerance: float = 0.03,
     treated_country_col: str = "is_treated_country",
-) -> "pl.DataFrame | None":
+) -> pl.DataFrame | None:
     """Empirical bound on the intention-to-treat gap, month by month.
 
     Compares the duty Customs actually calculated against the duty the statutory

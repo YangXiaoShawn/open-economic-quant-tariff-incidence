@@ -570,3 +570,84 @@ right: the gap steps up when exclusions began to be granted.
 to the statutory list. That is now a documented structural property with a
 measured bound, not an outstanding task, and the milestone is closed as **not
 achievable from published statistics**.
+
+---
+
+### D-028 — `log_customs_unit_value` was never contaminated; the verdict rule was punishing a small true effect
+
+**Diagnosis.** The two unit-value outcomes differ only by the duty term, so
+before treatment they should behave almost identically. Plotting both stacked
+event-study paths confirmed it exactly:
+
+| event time | customs | landed | difference |
+|---|---|---|---|
+| −12 | −0.0215 | −0.0116 | +0.0098 |
+| −10 | +0.0066 | +0.0168 | +0.0103 |
+| −6 | +0.0148 | +0.0245 | +0.0097 |
+| +1 | +0.0233 | +0.1444 | +0.1211 |
+| +10 | +0.0034 | +0.1912 | +0.1878 |
+
+The pre-period difference is a near-constant +0.010 — the MFN duty, unchanging.
+Post-treatment it jumps to +0.12, the Section 301 duty. Pre-period noise is
+essentially the same for both: RMS 0.0183 against 0.0169.
+
+So the two outcomes have **the same clean pre-period**. Their verdicts differed
+only because the post-treatment effects differ by 4.7x (RMS 0.155 against
+0.033).
+
+**The defect.** A relative-magnitude criterion systematically punishes an
+outcome whose true effect is near zero: the denominator is small, so the same
+absolute pre-period noise looks enormous. An outcome with a genuinely zero
+effect fails such a test however clean the design. `log_customs_unit_value` was
+being labelled unusable for having a small effect, which is the opposite of what
+the test is for.
+
+**Fix.** A fourth verdict, `PRECISE_NULL_EFFECT_BOUNDED`, fires when the
+post-treatment path does not rise clear of the pre-period noise
+(`rms_post < 2 x rms_pre`). It reports `effect_bound_abs`, how large the effect
+could be given both the observed path and the slope bias. A bound on a near-zero
+effect is a finding.
+
+**A false positive the test suite caught.** The first version of the rule fired
+on a synthetic panel with a deliberately injected linear pre-trend: a real
+pre-trend inflates the pre-period RMS and, by offsetting the effect, deflates
+the post-period RMS, pushing the ratio under the threshold and disguising a
+contaminated design as a null. The rule is therefore gated on the slope being
+**statistically undetectable** (p >= 0.05), not on another ratio. Re-checked:
+the injected-pre-trend case is caught again, and the real-data verdicts are
+unchanged.
+
+**Verification that the change manufactures nothing.** Only the outcome whose
+effect genuinely fails to clear its pre-period noise was reclassified:
+
+| Outcome | rms_post / rms_pre | slope p | verdict |
+|---|---|---|---|
+| log landed unit value | 9.17 | 0.540 | CLEAN (unchanged) |
+| log customs unit value | 1.81 | 0.142 | **PRECISE_NULL_EFFECT_BOUNDED**, bound 0.072 |
+| log quantity | 3.68 | 0.068 | NOISY_PRE_PERIOD_NO_SLOPE (unchanged) |
+
+---
+
+### D-029 — The incidence conclusion, and which half of it carries the claim
+
+With the customs unit value restored as a bounded null, the incidence account
+closes.
+
+The value-weighted additional duty actually in force on treated flows is
+**15.3%**. If the exporter absorbed none of it, the duty-inclusive landed unit
+value would rise by log(1.153) = **0.1424**. Observed: landed **+0.1494**,
+customs (tariff-exclusive) **+0.0225**, bounded at **0.072**.
+
+**The landed figure is not independent evidence.** It contains the duty by
+construction, so most of its rise is arithmetic. Quoting it alone would be
+close to quoting the tariff rate back.
+
+**The behavioural quantity is the customs unit value**, which falls only if the
+exporter cuts its border price. It did not: the point estimate is slightly
+*positive* and the effect is bounded near zero. That bound is what supports the
+conclusion that the tariff was passed through to the U.S. importer close to in
+full over this window, with no detectable exporter absorption.
+
+The accounting is written into `identification_checks.json` by the estimation
+script so the mechanical benchmark is a recorded result rather than an
+after-the-fact calculation.

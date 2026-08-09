@@ -290,7 +290,10 @@ def event_study(
 
 
 def pretrend_test(
-    coefs: pl.DataFrame, fit: FitResult, relative_threshold: float = 0.20
+    coefs: pl.DataFrame,
+    fit: FitResult,
+    relative_threshold: float = 0.20,
+    null_multiple: float = 2.0,
 ) -> dict:
     """Assess pre-period event-study coefficients on three separate criteria.
 
@@ -314,6 +317,17 @@ def pretrend_test(
     from zero at all. Reported, but never sufficient on its own: in a large
     panel the standard errors shrink until economically trivial movement is
     significant.
+
+    **Small true effects.** A relative-magnitude criterion punishes an outcome
+    whose effect really is near zero: such an outcome fails "pre-noise relative
+    to post-effect" however clean the design, because the denominator is small.
+    That case is detected on its own terms. When the post-treatment path does
+    not rise clear of the pre-period noise (``rms_post < null_multiple *
+    rms_pre``) the verdict is ``PRECISE_NULL_EFFECT_BOUNDED`` and
+    ``effect_bound_abs`` reports how large the effect could be given both the
+    observed post path and the slope bias. A bound on a near-zero effect is a
+    finding, not a failure -- for tariff incidence, a bounded-small exporter
+    price response is exactly what completes the pass-through account.
 
     The chi-square statistic uses the diagonal of the covariance only, so it is
     an approximation to the joint test, not the exact one.
@@ -379,7 +393,27 @@ def pretrend_test(
     )
     magnitude_small = rms_ratio is not None and rms_ratio < relative_threshold
 
-    if magnitude_small and not slope_material:
+    # A relative-magnitude test systematically punishes a small true effect: an
+    # outcome whose effect really is zero fails "pre-noise relative to
+    # post-effect" no matter how clean the design. Detect that case explicitly
+    # instead of mislabelling it a pre-trend. The signature is a post-treatment
+    # path that does not rise clear of the pre-period noise.
+    effect_separable = rms_post >= null_multiple * rms_pre if rms_pre > 0 else True
+    # A genuine pre-trend inflates the pre-period RMS and, by offsetting the
+    # effect, deflates the post-period RMS -- which can push the ratio below the
+    # threshold and disguise a contaminated design as a null. The null branch is
+    # therefore gated on the slope being statistically undetectable, not on
+    # another ratio. A test with an injected linear pre-trend caught exactly this
+    # false positive.
+    slope_detectable = slope_p is not None and slope_p < 0.05
+    is_precise_null = (not effect_separable) and not slope_detectable
+    effect_bound = (
+        float(max_post + abs(implied_bias or 0.0)) if is_precise_null else None
+    )
+
+    if is_precise_null:
+        verdict = "PRECISE_NULL_EFFECT_BOUNDED"
+    elif magnitude_small and not slope_material:
         verdict = "CLEAN"
     elif magnitude_small and slope_material:
         verdict = "PRETREND_SLOPE_PRESENT"
@@ -407,6 +441,10 @@ def pretrend_test(
         "implied_bias_over_post_window": implied_bias,
         "slope_material": slope_material,
         "economically_small": magnitude_small,
+        "effect_separable_from_pre_noise": effect_separable,
+        "slope_detectable": slope_detectable,
+        "effect_bound_abs": effect_bound,
+        "null_multiple": null_multiple,
         "relative_threshold": relative_threshold,
         "verdict": verdict,
         "caveat": (

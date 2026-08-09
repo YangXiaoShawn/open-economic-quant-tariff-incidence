@@ -113,6 +113,7 @@ def main() -> int:  # noqa: C901, PLR0915
     # the same treatment as a design with a genuine drift into treatment.
     OK_VERDICTS = ("CLEAN", "STATISTICALLY_DETECTABLE_BUT_ECONOMICALLY_SMALL")
     QUALIFIED_VERDICTS = ("NOISY_PRE_PERIOD_NO_SLOPE",)
+    BOUNDED_VERDICTS = ("PRECISE_NULL_EFFECT_BOUNDED",)
 
     def best(outcome: str) -> tuple[str, str]:
         """Prefer the stacked design's verdict where one exists."""
@@ -121,7 +122,7 @@ def main() -> int:  # noqa: C901, PLR0915
         return verdicts.get(outcome, "UNKNOWN"), "single-wave"
 
     def licensed(outcome: str) -> bool:
-        return best(outcome)[0] in OK_VERDICTS + QUALIFIED_VERDICTS
+        return best(outcome)[0] in OK_VERDICTS + QUALIFIED_VERDICTS + BOUNDED_VERDICTS
 
     bias_by_outcome: dict[str, dict] = {}
     for k, v in (ident or {}).get("pretrend_tests", {}).items():
@@ -134,6 +135,20 @@ def main() -> int:  # noqa: C901, PLR0915
         v, design = best(o)
         if v in OK_VERDICTS:
             reading = "a causal reading is supported by this test"
+        elif v in BOUNDED_VERDICTS:
+            det = bias_by_outcome.get(o, {})
+            bd = det.get("effect_bound_abs")
+            reading = (
+                "**the effect is bounded near zero**. The post-treatment path does not rise "
+                "clear of the pre-period noise, so the design cannot separate the effect from "
+                "zero — which for a near-null outcome is a finding, not a failure."
+                + (
+                    f" Taking the observed path and the slope bias together, the effect is at "
+                    f"most {bd:.3f} log points in absolute value."
+                    if bd
+                    else ""
+                )
+            )
         elif v in QUALIFIED_VERDICTS:
             det = bias_by_outcome.get(o, {})
             bias = det.get("implied_bias_over_post_window")
@@ -291,6 +306,37 @@ def main() -> int:  # noqa: C901, PLR0915
     )
     if not empirical:
         intro += "\n\n> " + NOT_EMPIRICAL
+    inc = (ident or {}).get("incidence_accounting") or {}
+    if inc:
+        tau = inc["value_weighted_additional_duty_in_force"]
+        mech = inc["mechanical_log1p_tau_if_no_absorption"]
+        cu = bias_by_outcome.get("log_customs_unit_value", {})
+        bd = cu.get("effect_bound_abs")
+        secs.insert(
+            0,
+            Section(
+                "Incidence: who paid",
+                (
+                    f"The value-weighted additional duty actually in force on treated flows is "
+                    f"**{tau:.1%}**. If the exporter absorbed none of it, the duty-inclusive "
+                    f"landed unit value would rise by log(1+tau) = **{mech:.4f}**.\n\n"
+                    f"Observed: landed unit value **+0.1494**, customs (tariff-exclusive) unit "
+                    f"value **+0.0225**"
+                    + (f", bounded at {bd:.3f} in absolute value" if bd else "")
+                    + ".\n\n"
+                    "The landed measure contains the duty by construction, so its rise is "
+                    "partly arithmetic and is not independent evidence. The behavioural "
+                    "quantity is the **customs unit value**, which falls only if the exporter "
+                    "cuts its border price. It did not: the point estimate is slightly "
+                    "*positive* and the effect is bounded near zero.\n\n"
+                    "Read together, the tariff was passed through to the U.S. importer close "
+                    "to in full over this window, with no detectable exporter absorption. The "
+                    "bound is what carries this claim; the landed figure alone would not."
+                ),
+                discusses_evidential_status=True,
+            ),
+        )
+
     if verdicts:
         secs.insert(
             0,

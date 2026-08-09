@@ -530,3 +530,37 @@ def test_like_for_like_and_legacy_ratios_are_both_reported():
     for k in ["rms_pre_relative_to_rms_post", "max_pre_relative_to_max_post",
               "max_pre_relative_to_mean_post"]:
         assert k in t
+
+
+def test_near_null_effect_is_bounded_not_called_a_pretrend():
+    """A relative test punishes a small true effect; that case is detected on its own terms."""
+    c = _coef_frame(pre=[0.01, -0.012, 0.008, -0.01, 0.011], post=[0.015, 0.012, 0.018, 0.01, 0.014])
+    t = pretrend_test(c, _dummy_fit())
+    assert t["verdict"] == "PRECISE_NULL_EFFECT_BOUNDED"
+    assert not t["effect_separable_from_pre_noise"]
+    assert t["effect_bound_abs"] is not None
+    assert t["effect_bound_abs"] >= max(abs(x) for x in [0.015, 0.012, 0.018, 0.01, 0.014])
+
+
+def test_a_large_clean_effect_is_not_reclassified_as_null():
+    c = _coef_frame(pre=[0.0, 0.01, -0.01, 0.0, 0.005], post=[0.15] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["verdict"] == "CLEAN"
+    assert t["effect_separable_from_pre_noise"]
+    assert t["effect_bound_abs"] is None
+
+
+def test_a_genuine_pretrend_with_a_large_effect_is_still_flagged():
+    """The null branch must not become an escape hatch for a real pre-trend."""
+    c = _coef_frame(pre=[-0.20, -0.15, -0.10, -0.05, 0.0], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["effect_separable_from_pre_noise"], "a -0.30 effect clears pre-noise"
+    assert t["verdict"] != "PRECISE_NULL_EFFECT_BOUNDED"
+    assert t["slope_material"]
+
+
+def test_noisy_pre_period_with_a_detectable_effect_keeps_its_own_verdict():
+    c = _coef_frame(pre=[-0.10, 0.12, -0.11, 0.09, -0.08], post=[-0.30] * 5)
+    t = pretrend_test(c, _dummy_fit())
+    assert t["verdict"] == "NOISY_PRE_PERIOD_NO_SLOPE"
+    assert t["effect_separable_from_pre_noise"]

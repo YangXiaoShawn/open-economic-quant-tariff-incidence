@@ -318,6 +318,40 @@ def main() -> int:
             print(f"rung 6 [{label}] failed: {exc}")
 
     # ---------------------------------------------------------------- #
+    # Incidence accounting: is the landed-cost rise mechanical, and did the
+    # exporter cut its border price?
+    # ---------------------------------------------------------------- #
+    # The duty-inclusive landed measure contains the duty by construction, so
+    # part of its rise is arithmetic rather than behaviour. What is NOT
+    # mechanical is the customs (tariff-exclusive) unit value: if the exporter
+    # absorbed part of the tariff, that series falls. Reporting the mechanical
+    # benchmark beside both estimates is what separates the two.
+    treated_flows = panel.filter(
+        pl.col("is_treated_country") & pl.col("treated") & (pl.col("customs_value") > 0)
+    )
+    incidence: dict = {}
+    if treated_flows.height:
+        tau = float(
+            (treated_flows["additional_tariff_rate"] * treated_flows["customs_value"]).sum()
+            / treated_flows["customs_value"].sum()
+        )
+        incidence = {
+            "value_weighted_additional_duty_in_force": tau,
+            "mechanical_log1p_tau_if_no_absorption": float(np.log1p(tau)),
+            "interpretation": (
+                "log(1+tau) is what the duty-inclusive landed unit value would rise by if the "
+                "exporter absorbed none of the tariff. The customs unit value response is the "
+                "behavioural quantity: it falls only if the exporter cuts its border price. "
+                "The landed measure contains the duty by construction, so its rise is partly "
+                "arithmetic and is not independent evidence on its own."
+            ),
+        }
+        print(
+            f"\nincidence accounting: value-weighted duty in force tau={tau:.4f}; "
+            f"mechanical log(1+tau)={np.log1p(tau):.4f} if the exporter absorbs nothing"
+        )
+
+    # ---------------------------------------------------------------- #
     # Control-group contamination (SUTVA) diagnostic
     # ---------------------------------------------------------------- #
     # Alternative suppliers of a treated product are not untreated bystanders:
@@ -521,6 +555,7 @@ def main() -> int:
     (layer_path("results", "identification_checks.json")).write_text(
         json.dumps(
             {"run": stamp.to_dict(), "pretrend_tests": diagnostics,
+             "incidence_accounting": incidence,
              "sutva_control_group": sutva_diagnostic, "checks": checks},
             indent=2, default=str,
         )

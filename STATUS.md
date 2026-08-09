@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-09 · session 5
+**Last updated:** 2026-08-09 · session 6
 
 ## One-line state
 
@@ -9,6 +9,37 @@ design, and a **corrected pre-trend test** that separates bias from imprecision.
 Landed cost is **CLEAN**; quantity has **no detectable differential trend** and
 earns a qualified reading; the customs unit value is the one genuinely
 compromised outcome.
+
+## Session 6: the incidence conclusion closes
+
+`log_customs_unit_value` was never contaminated. Plotting both unit-value paths
+side by side showed their pre-periods are nearly identical (RMS 0.0183 against
+0.0169) and differ by a constant +0.010 — the MFN duty. The verdicts diverged
+only because the post effects differ 4.7x. A relative-magnitude test punishes a
+small true effect; an outcome whose effect is genuinely zero fails it however
+clean the design (D-028).
+
+A fourth verdict, `PRECISE_NULL_EFFECT_BOUNDED`, now reports the **bound** on
+such an effect. Its first version had a false positive on a synthetic panel with
+an injected pre-trend — a real trend deflates the post RMS and disguises itself
+as a null — so the branch is gated on the slope being statistically
+undetectable. The test suite caught that; the rule was fixed, not the test.
+
+**The incidence account now closes.** Value-weighted duty in force **15.3%**;
+mechanical log(1+tau) with zero absorption **0.1424**; observed landed
+**+0.1494**, customs **+0.0225** bounded at **0.072**.
+
+The landed figure is *not* independent evidence — it contains the duty by
+construction. The behavioural quantity is the customs unit value, which falls
+only if the exporter cuts its border price. It did not. **The tariff was passed
+through to the U.S. importer close to in full, with no detectable exporter
+absorption**, and it is the bound that carries that claim (D-029).
+
+| Outcome (stacked) | mean post | verdict |
+|---|---|---|
+| log landed unit value | +0.149 | CLEAN |
+| log customs unit value | +0.023 | PRECISE_NULL, bound 0.072 |
+| log quantity | −0.350 | NOISY_PRE_PERIOD_NO_SLOPE |
 
 ## Session 5: exclusions are unbuildable, and now provably so
 
