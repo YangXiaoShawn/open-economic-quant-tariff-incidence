@@ -60,8 +60,12 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .base import cached_get
+if TYPE_CHECKING:
+    import polars as pl
+
+from .base import FetchResult, cached_get
 
 GOVINFO_PDF = "https://www.govinfo.gov/content/pkg/FR-{pub}/pdf/{doc}.pdf"
 
@@ -204,7 +208,9 @@ def parse_notice(pdf_path: Path, document_number: str, publication_date: str) ->
     return notice
 
 
-def fetch_notice(document_number: str, publication_date: str, *, force: bool = False):  # noqa: ANN201
+def fetch_notice(
+    document_number: str, publication_date: str, *, force: bool = False
+) -> FetchResult:
     return cached_get(
         GOVINFO_PDF.format(pub=publication_date, doc=document_number),
         f"{document_number}.pdf",
@@ -261,11 +267,11 @@ def coverage_summary(notices: list[ExclusionNotice]) -> dict:
 
 
 def realised_vs_statutory_bound(
-    panel,  # polars DataFrame
+    panel: "pl.DataFrame",
     *,
     tolerance: float = 0.03,
     treated_country_col: str = "is_treated_country",
-):
+) -> "pl.DataFrame | None":
     """Empirical bound on the intention-to-treat gap, month by month.
 
     Compares the duty Customs actually calculated against the duty the statutory
