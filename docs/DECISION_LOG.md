@@ -517,3 +517,56 @@ stated.
 `log_customs_unit_value` is the outcome genuinely in trouble: its implied bias
 is +0.012 against an effect of +0.023, roughly half. The old statistic had it in
 the same bucket as quantity; the new one separates them, which is the point.
+
+---
+
+### D-027 — Product exclusions cannot be incorporated; the milestone is closed as not achievable
+
+**Finding.** Across the eleven USTR exclusion notices covering the sample
+window, the notices' own stated counts are **16 exclusions expressed as a
+10-digit HTSUS subheading against 824 expressed as a "specially prepared
+product description"** — 1.9% mappable to trade data.
+
+A product description identifies a subset of a statistical reporting number by
+physical characteristics. U.S. import statistics are published at that number
+and no finer, so the share of a line's imports that was excluded is not
+observable. **This is a property of the data, not a parsing problem.** No amount
+of engineering closes it.
+
+**Two further obstacles, recorded so they do not look like open tasks.**
+
+* Every exclusion annex is an embedded raster image in the Federal Register PDF
+  (`[GRAPHIC] [TIFF OMITTED]`), with no text layer — unlike the List 1-3
+  annexes, which are typeset text. OCR is deliberately not used: it would
+  introduce an unvalidatable transcription channel into a legal treatment
+  variable, for the same reason a typographically damaged code is never repaired
+  by guessing (D-005).
+* The USITC HTS exposes the exclusion headings (9903.88.05 onward) but their
+  descriptions only reference U.S. notes 20(h), 20(i), ...; the enumerated
+  product lists live in note text the export endpoint does not return.
+
+**A third kind of date.** Exclusions apply retroactively from the *effective
+date of the underlying action* and expire one year after *publication*. The
+first notice, published 2018-12-28, applies from 2018-07-06. Announcement,
+publication and effective are three separate facts; the adapter captures all
+three.
+
+**What was built instead of an unbuildable adjustment.** The gap is bounded
+empirically. Comparing the duty Customs actually calculated against the
+statutory rate on treated flows:
+
+| Period | Share of treated customs value more than 3pp short |
+|---|---|
+| before exclusions were first granted (2018-12) | 4.4% |
+| after | 20.1% |
+
+The pre-exclusion figure cannot be caused by exclusions — it reflects preference
+programmes, Chapter 98 provisions and duty-free entry — so only the increase of
+roughly 15.7 percentage points is attributable to them, and even that is an
+**upper** bound because those other channels also grew. The timing signature is
+right: the gap steps up when exclusions began to be granted.
+
+**Consequence.** Estimates in this project are intention-to-treat with respect
+to the statutory list. That is now a documented structural property with a
+measured bound, not an outstanding task, and the milestone is closed as **not
+achievable from published statistics**.

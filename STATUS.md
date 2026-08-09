@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-09 · session 4
+**Last updated:** 2026-08-09 · session 5
 
 ## One-line state
 
@@ -9,6 +9,27 @@ design, and a **corrected pre-trend test** that separates bias from imprecision.
 Landed cost is **CLEAN**; quantity has **no detectable differential trend** and
 earns a qualified reading; the customs unit value is the one genuinely
 compromised outcome.
+
+## Session 5: exclusions are unbuildable, and now provably so
+
+Milestone 1 (parse product exclusions) is **closed as not achievable from
+published statistics**, with the reason quantified rather than asserted.
+
+Across 11 USTR notices: **16 exclusions expressed as a 10-digit subheading, 824
+as a product description — 1.9% mappable.** A product description identifies a
+subset of a statistical reporting number; trade data is published at that number
+and no finer. Every annex is a raster image with no text layer, and OCR is not
+used (D-005's rule against unvalidatable transcription into a legal variable).
+
+Instead of an unbuildable adjustment, the gap is **bounded**. Share of treated
+customs value where the realised duty falls more than 3pp short of statutory:
+**4.4% before** exclusions were first granted (2018-12), **20.1% after**. The
+pre-exclusion figure is preference programmes and duty-free entry, not
+exclusions, so at most ~15.7pp is attributable to them — an upper bound with the
+right timing signature (D-027).
+
+Exclusions also introduce a third kind of date: retroactive to the *action's*
+effective date, expiring one year after *publication*.
 
 ## Session 4: the pre-trend was mostly my own statistic
 

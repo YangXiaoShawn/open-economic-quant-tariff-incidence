@@ -1,0 +1,28 @@
+{
+  "run": {
+    "run_id": "20260809T220352Z-597ee5ff",
+    "created_utc": "2026-08-09T22:03:52.910586+00:00",
+    "git_commit": "304fded-dirty",
+    "config_name": "sample_slice.yaml",
+    "config_sha256": "597ee5ffe47af577cc12c18a77fbd8ceb65895fed1ca83ff18eb0e2ce7bb7338",
+    "data_provenance": "OFFICIAL",
+    "data_period_start": "2017-01",
+    "data_period_end": "2019-08",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "notes": "USTR exclusion notices; coverage and intention-to-treat bound"
+  },
+  "summary": {
+    "n_notices": 11,
+    "n_ten_digit_exclusions": 16,
+    "n_prose_exclusions": 824,
+    "n_total_exclusions": 840,
+    "mappable_share": 0.01904761904761905,
+    "all_annexes_image_only": true,
+    "earliest_retroactive_to": "2018-07-06",
+    "conclusion": "Exclusions are granted at a finer granularity than U.S. import statistics are published. A specially prepared product description identifies a subset of a statistical reporting number, and trade data is reported at that number and no finer, so the share of a line's imports that was excluded is not observable. Exclusion adjustment therefore cannot be performed from published trade statistics, regardless of parsing effort. Estimates in this project remain intention-to-treat with respect to the statutory list, and that is a structural property of the data rather than an outstanding task.",
+    "itt_bound_before_first_exclusion": 0.04404561667485129,
+    "itt_bound_after_first_exclusion": 0.2007622292388549,
+    "first_exclusion_month": "2018-12-01"
+  }
+}

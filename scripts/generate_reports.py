@@ -441,6 +441,88 @@ def main() -> int:  # noqa: C901, PLR0915
     )
 
     # ------------------------------------------------------------------ #
+    # exclusions: why the intention-to-treat gap cannot be closed
+    # ------------------------------------------------------------------ #
+    exc_cov = _read("exclusion_notice_coverage")
+    exc_bound = _read("exclusion_itt_bound_by_month")
+    exc_sum = (_json("exclusion_coverage_summary") or {}).get("summary")
+    if exc_cov is not None and exc_sum:
+        esecs = [
+            Section(
+                "Why exclusion adjustment cannot be done from published trade data",
+                (
+                    f"Across {exc_sum['n_notices']} USTR exclusion notices covering this "
+                    f"sample window, **{exc_sum['n_ten_digit_exclusions']} exclusions are "
+                    f"expressed as a 10-digit subheading and "
+                    f"{exc_sum['n_prose_exclusions']} as a specially prepared product "
+                    f"description** — only "
+                    f"{exc_sum['mappable_share']:.1%} could ever be mapped to trade data.\n\n"
+                    "A product description identifies a subset of a statistical reporting "
+                    "number by physical characteristics. U.S. import statistics are published "
+                    "at that number and no finer, so the share of a line's imports that was "
+                    "excluded is not observable. This is a property of the data, not a "
+                    "parsing problem that more effort would solve.\n\n"
+                    "Two further obstacles are recorded so they do not look like open tasks: "
+                    "every annex is an embedded raster image with no text layer, and OCR is "
+                    "not used here because it would introduce an unvalidatable transcription "
+                    "channel into a legal treatment variable; and the USITC HTS exposes the "
+                    "exclusion headings but not the enumerated product lists in their U.S. "
+                    "notes."
+                ),
+                [("notices", exc_cov.select(
+                    ["document_number", "publication_date", "n_ten_digit_exclusions",
+                     "n_prose_exclusions", "retroactive_to", "expires", "annex_is_image_only"]
+                ))],
+            ),
+            Section(
+                "Exclusions are retroactive, which is a third kind of date",
+                (
+                    "Exclusions apply from the **effective date of the underlying action**, "
+                    "not from publication, and expire one year after publication. The first "
+                    "notice was published 2018-12-28 and applies retroactively to 2018-07-06. "
+                    "Announcement, publication and effective dates are three separate facts "
+                    "and are stored separately throughout this project."
+                ),
+            ),
+        ]
+        if exc_bound is not None and "itt_bound_before_first_exclusion" in exc_sum:
+            esecs.append(
+                Section(
+                    "Empirical bound on the intention-to-treat gap",
+                    (
+                        "Share of treated customs value where the duty Customs actually "
+                        "calculated falls more than 3 percentage points short of the statutory "
+                        "rate:\n\n"
+                        f"- before exclusions were first granted "
+                        f"({exc_sum['first_exclusion_month']}): "
+                        f"**{exc_sum['itt_bound_before_first_exclusion']:.1%}**\n"
+                        f"- after: **{exc_sum['itt_bound_after_first_exclusion']:.1%}**\n\n"
+                        "The pre-exclusion figure cannot be caused by exclusions; it reflects "
+                        "preference programmes, Chapter 98 provisions and duty-free entry. "
+                        "Only the increase is attributable to exclusions, and even that is an "
+                        "**upper** bound, since those other channels also grew. The estimates "
+                        "in this project are intention-to-treat with respect to the statutory "
+                        "list, and this is how far that can be from "
+                        "treatment-on-the-treated."
+                    ),
+                    [("by month", exc_bound.select(
+                        ["month_date", "n_obs", "share_obs_short", "share_value_short",
+                         "median_gap"]
+                    ))],
+                    discusses_evidential_status=True,
+                )
+            )
+        written.append(
+            render("Product Exclusions and the Intention-to-Treat Gap", stamp, esecs,
+                   intro=(
+                       "USTR granted product exclusions from the Section 301 duties. This "
+                       "document establishes, quantitatively, why those exclusions cannot be "
+                       "incorporated into the treatment variable, and bounds the resulting gap."
+                   ),
+                   out_path=REPORTS / "product_exclusions.md")
+        )
+
+    # ------------------------------------------------------------------ #
     # methodology_and_limitations.md  /  failed_hypotheses.md
     # ------------------------------------------------------------------ #
     mans = list_manifests()
@@ -564,11 +646,22 @@ def main() -> int:  # noqa: C901, PLR0915
         "different construction, so the parser built for Lists 1-3 raises rather than guessing. "
         "The sample window ends 2019-08 to keep the control group clean."
     )
-    fh.append(
-        "- **Product exclusions are not parsed.** They are written as narrative product "
-        "descriptions, not clean code lists, and no mechanical mapping to statistical lines was "
-        "attempted. The tariff engine supports exclusion records; the schedule carries none."
-    )
+    if exc_sum:
+        fh.append(
+            f"- **Product exclusions cannot be incorporated, and this is now established "
+            f"rather than assumed.** Across {exc_sum['n_notices']} notices, only "
+            f"{exc_sum['mappable_share']:.1%} of exclusions "
+            f"({exc_sum['n_ten_digit_exclusions']} of {exc_sum['n_total_exclusions']}) are "
+            "expressed as a 10-digit subheading; the rest describe a subset of a statistical "
+            "reporting number, which published trade data cannot resolve. Every annex is a "
+            "raster image with no text layer. The milestone is closed as **not achievable "
+            "from published statistics**, not as outstanding work."
+        )
+    else:
+        fh.append(
+            "- **Product exclusions are not parsed.** The tariff engine supports exclusion "
+            "records; the schedule carries none."
+        )
     fh.append(
         "- **The Census HS-to-NAICS concordance was unreachable** (HTTP 404/403), so industry "
         "mapping falls back to a hand-built HS2-chapter map labelled COARSE_APPROXIMATION."
