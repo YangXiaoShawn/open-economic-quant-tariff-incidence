@@ -1,9 +1,9 @@
 {
-  "dataset_id": "trade_panel_hs6_country_month",
+  "dataset_id": "trade_panel_hs10_country_month",
   "layer": "analytical",
   "source": "U.S. Census Bureau timeseries/intltrade/imports/hs",
   "source_url": "https://api.census.gov/data/timeseries/intltrade/imports/hs",
-  "retrieval_timestamp_utc": "2026-08-10T14:03:43.590636+00:00",
+  "retrieval_timestamp_utc": "2026-08-10T18:36:50.418066+00:00",
   "source_release_or_vintage": "Census live API",
   "date_range_start": "2017-01",
   "date_range_end": "2020-02",
@@ -12,7 +12,7 @@
   "checksum_sha256": "bc7bfe9a8132b24461c657cc6179795c50cda5fda8f21b224efc29ddd75c0834",
   "row_count": 923440,
   "partition_keys": [
-    "hs6",
+    "hs10",
     "country_code",
     "month_date"
   ],
@@ -20,8 +20,8 @@
   "data_provenance": "OFFICIAL",
   "known_limitations": [
     "Customs unit values are value/quantity over heterogeneous transactions; they are not transaction prices and move with product mix and quality.",
-    "HS6 aggregation loses the HS8 level at which Section 301 lists are written; partially covered headings are excluded from both treatment groups.",
-    "Sample ends 2019-08 to avoid List 4A contamination of the control group."
+    "The panel is keyed on the 10-digit statistical reporting number, finer than the 8-digit level at which Section 301 lists are written, so no partial-coverage weighting arises. Quantities are never summed across lines reporting in unlike units.",
+    "Sample window is 2017-01 to 2020-02, set by configuration; the control group is defined by the actions that ever cover a line within that window."
   ],
   "columns": {
     "country_code": "String",

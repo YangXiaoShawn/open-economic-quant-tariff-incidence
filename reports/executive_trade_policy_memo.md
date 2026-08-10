@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T174643Z-b1495fb3` · git `266e6a0-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T17:46:43.142574+00:00
+> run_id `20260810T183723Z-b1495fb3` · git `f0032db-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T18:37:23.953474+00:00
 
 
 A short answer to each policy question this project was built to address, with the evidential status of each answer stated rather than implied.
@@ -29,7 +29,7 @@ A third-country increase in customs data is consistent with relocated production
 
 **Which U.S. industries received protection?**
 
-0 industries show output protection without material input-cost exposure; 29 face input-cost exposure without protection; **19 face both at once**, including Motor vehicles, bodies and trailers, and parts, Plastics and rubber products, Paper products, Machinery. Exposure here is a qualitative ordering built on a COARSE_APPROXIMATION concordance, not a magnitude.
+0 industries show output protection without material input-cost exposure; 29 face input-cost exposure without protection; **19 face both at once**, including Motor vehicles, bodies and trailers, and parts, Plastics and rubber products, Paper products, Machinery. These are accounting constructs from pre-treatment input-output weights, not estimates: they say which industries are positioned to be helped or hurt, not by how much. Protection and input cost are also not comparable as levels -- protection carries one commodity's statutory rate while input cost is averaged over a purchase basket that is mostly untariffed.
 
 **Which U.S. industries faced higher input costs?**
 
@@ -43,30 +43,27 @@ Outcome by outcome, according to each one's own pre-trend test:
 - `log_landed_unit_value`: **CLEAN** under the stacked multi-wave design -> a causal reading is supported by this test
 - `log_quantity`: **NOISY_PRE_PERIOD_NO_SLOPE** under the stacked multi-wave design -> **a qualified causal reading** — no differential trend is detectable, but the pre-period is noisy, so the estimate is less precise than the interval alone suggests. The pre-period slope is not statistically distinguishable from zero; extrapolated across the post window it would shift the estimate by +0.033 against a post-treatment RMS of 0.418.
 
-Even where the test is passed, the estimate is intention-to-treat with respect to the statutory list, because product exclusions are not parsed. The data-quality battery puts a floor under how much that matters: realised duty rates depart from the statutory schedule on a material share of dutiable observations.
+Every estimate is intention-to-treat with respect to the statutory list, and that is a property of the published data rather than an outstanding task: exclusions are granted at a finer granularity than U.S. import statistics are published, so the excluded share of a reporting number is not observable at any parsing effort. The gap is bounded instead of closed: observations whose realised duty falls short of the statutory schedule are 4.4% of dutiable observations before the first exclusion took effect (2018-12-01) and 18.7% after. The difference is what exclusions plausibly add; the pre-exclusion level is what other causes account for.
 
 **Which conclusions are descriptive or model-dependent?**
 
-The sourcing shares, supplier concentration and entry/exit counts are descriptive. The industry exposure measures are constructed from pre-treatment input-output weights and a coarse concordance; they are accounting constructs, not estimates. No structural counterfactual has been run, so no model-implied welfare number exists in this project.
+The sourcing shares, supplier concentration and entry/exit counts are descriptive. The industry exposure measures are constructed from pre-treatment input-output weights and the official Census concordance; they are accounting constructs, not estimates. No structural counterfactual has been run, so no model-implied welfare number exists in this project.
 
 **What evidence would change the recommendation?**
 
-- A specification that clears the pre-trend test for the quantity outcome. As it stands the quantity and diversion results are descriptive, and the headline sourcing numbers rest on them.
-- Parsing product exclusions, which would move estimates from intention-to-treat toward treatment-on-the-treated.
-- A parsed List 4A, allowing the window to extend past 2019-08 with a clean control group.
-- An official HS-to-NAICS concordance, replacing the coarse chapter map and making industry exposure magnitudes usable.
-- Domestic output and price data, without which a fall in imports cannot be attributed to domestic substitution rather than lower demand.
+- A resolution of the exclusion gap from a source other than the notices. The annexes are raster images and 98% of exclusions name a subset of a statistical reporting number, so the intention-to-treat gap is currently bounded rather than closed.
+- Domestic output and price data, without which a fall in imports cannot be attributed to domestic substitution rather than lower demand. This is now the binding one.
 
 ---
 
 ## Reproducibility
 
-- run id: `20260810T174643Z-b1495fb3`
-- git commit: `266e6a0-dirty`
+- run id: `20260810T183723Z-b1495fb3`
+- git commit: `f0032db-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T17:46:43.142574+00:00
+- generated: 2026-08-10T18:37:23.953474+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

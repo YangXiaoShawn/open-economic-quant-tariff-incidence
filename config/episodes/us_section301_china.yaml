@@ -210,22 +210,29 @@ known_gaps:
       differs from Lists 1-3 only by an ": i)" enumeration prefix. List 4A is now
       parsed by the same generalised parser and is in the schedule above.
     impact: "None remaining for the schedule."
-    remedy: "Done. The sample window still ends 2019-08; extending it is separate."
+    remedy: "Done. The sample window now runs to 2020-02."
 
   - id: EXCLUSIONS_NOT_PARSED
+    status: CLOSED_NOT_ACHIEVABLE
     description: >
-      USTR granted thousands of product exclusions in a long series of notices
-      (e.g. 84 FR 38717, 84 FR 61674, 85 FR 6674). Most are written as narrative
-      product descriptions under new 9903.88.xx headings rather than as clean
-      HTS8 lists, so they cannot be mapped to statistical lines mechanically.
-      The tariff engine fully supports exclusion records; the schedule currently
-      carries none from this source.
+      CLOSED, not outstanding. USTR granted 840 product exclusions across 11
+      notices. Only 1.9% (16) name a 10-digit subheading; the remaining 824 are
+      specially prepared product descriptions identifying a SUBSET of a
+      statistical reporting number. U.S. import statistics are published at that
+      reporting number and no finer, so the excluded share of a line's imports is
+      not observable at any parsing effort. Every annex is additionally a raster
+      image with no text layer, and OCR was refused because it would introduce an
+      unvalidatable transcription channel into a legal treatment variable. This is
+      a property of what is published, not a task left undone.
     impact: >
-      Overstates the additional duty actually collected on excluded products
-      from mid-2019 onward. Estimated incidence is therefore an intention-to-treat
-      effect with respect to the statutory list, not a treatment-on-the-treated
-      effect.
+      Every estimate is intention-to-treat with respect to the statutory list.
+      The gap is bounded rather than closed: observations whose realised duty
+      falls short of the statutory schedule are 4.4% of dutiable observations
+      before the first exclusion took effect (2018-12) and 18.7% after. The
+      difference is what exclusions plausibly add; the pre-exclusion level is what
+      other causes -- preference programmes, duty-free entry -- account for, which
+      makes the realised-versus-statutory gap an UPPER bound.
     remedy: >
-      Parse exclusion annexes into EXCLUSION records with an explicit
-      partial_line flag; report exclusion-adjusted and unadjusted estimates side
-      by side.
+      Not available from published trade statistics. It would take entry-level
+      customs microdata, which is not public. Reporting the bound is the
+      substitute, and it is produced by scripts/analyse_exclusions.py.

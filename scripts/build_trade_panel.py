@@ -366,7 +366,11 @@ def main() -> int:
 
     DatasetManifest.for_file(
         out,
-        dataset_id="trade_panel_hs6_country_month",
+        dataset_id=(
+            "trade_panel_hs10_country_month"
+            if "hs10" in panel.columns
+            else "trade_panel_hs6_country_month"
+        ),
         layer="analytical",
         source=source_desc,
         source_url=source_url,
@@ -377,14 +381,40 @@ def main() -> int:
         data_provenance=provenance,
         product_code_vintage="HTS2018",
         date_range=(sample.start_month, sample.end_month),
-        partition_keys=["hs6", "country_code", "month_date"],
+        partition_keys=(
+            ["hs10", "country_code", "month_date"]
+            if "hs10" in panel.columns
+            else ["hs6", "country_code", "month_date"]
+        ),
         known_limitations=(
             [
                 "Customs unit values are value/quantity over heterogeneous transactions; they are "
                 "not transaction prices and move with product mix and quality.",
-                "HS6 aggregation loses the HS8 level at which Section 301 lists are written; "
-                "partially covered headings are excluded from both treatment groups.",
-                "Sample ends 2019-08 to avoid List 4A contamination of the control group.",
+            ]
+            + (
+                # The panel moved to the 10-digit line, which is finer than the
+                # 8-digit level the lists are written at, so the partial-coverage
+                # ambiguity that HS6 created does not arise. Leaving the old
+                # limitation in place would have described a panel that no longer
+                # exists, in a document whose job is to state what the design cannot
+                # support.
+                [
+                    "The panel is keyed on the 10-digit statistical reporting number, finer "
+                    "than the 8-digit level at which Section 301 lists are written, so no "
+                    "partial-coverage weighting arises. Quantities are never summed across "
+                    "lines reporting in unlike units.",
+                ]
+                if "hs10" in panel.columns
+                else [
+                    "HS6 aggregation loses the HS8 level at which Section 301 lists are "
+                    "written; partially covered headings are excluded from both treatment "
+                    "groups.",
+                ]
+            )
+            + [
+                f"Sample window is {sample.start_month} to {sample.end_month}, set by "
+                "configuration; the control group is defined by the actions that ever cover a "
+                "line within that window.",
             ]
             + (
                 []

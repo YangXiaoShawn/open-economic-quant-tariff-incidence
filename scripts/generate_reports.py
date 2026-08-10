@@ -83,6 +83,20 @@ def main() -> int:  # noqa: C901, PLR0915
     div_het = _read("diversion_heterogeneity_by_dependence")
     expo = _read("industry_tariff_exposure")
     expo_sum = _read("industry_exposure_summary")
+
+    # Facts the reports used to assert from a fixed string written when they
+    # were true. Each was solved in a later session and the prose kept claiming
+    # the failure, which understates the project in the one report whose job is
+    # to be honest about what did not work. They are read from the artefacts now.
+    conc_status = str((_json("io_exposure_quality") or {}).get("concordance_config_status", ""))
+    conc_is_official = conc_status.startswith("CENSUS_IMPORT_CONCORDANCE")
+    sched_p = layer_path("normalized", "tariff_schedule.parquet")
+    parsed_actions: list[str] = (
+        sorted(pl.read_parquet(sched_p)["action_id"].unique().to_list())
+        if sched_p.exists()
+        else []
+    )
+    list4a_parsed = any(a.endswith("LIST4A") for a in parsed_actions)
     truth_p = layer_path("analytical", "synthetic_ground_truth.json")
     truth = json.loads(truth_p.read_text()) if truth_p.exists() else None
 
@@ -767,8 +781,22 @@ def main() -> int:  # noqa: C901, PLR0915
                     "**Product reclassification.** Firms have an incentive to reclassify into "
                     "untreated lines, which appears as treated-product exit plus control-product "
                     "entry.",
-                    "**Exclusions are not in the schedule.** Estimates are intention-to-treat "
-                    "with respect to the statutory list, not treatment-on-the-treated.",
+                    (
+                        "**Exclusions cannot be put in the schedule.** They are granted at a "
+                        "finer granularity than import statistics are published, so estimates "
+                        "are intention-to-treat with respect to the statutory list and the "
+                        "gap is bounded rather than removed: the realised-versus-statutory "
+                        f"shortfall runs "
+                        f"{exc_sum['itt_bound_before_first_exclusion']:.1%} before the first "
+                        f"exclusion and "
+                        f"{exc_sum['itt_bound_after_first_exclusion']:.1%} after, and that is "
+                        "an upper bound because preference programmes leave the same "
+                        "signature."
+                        if exc_sum
+                        else "**Exclusions are not in the schedule.** Estimates are "
+                        "intention-to-treat with respect to the statutory list, not "
+                        "treatment-on-the-treated."
+                    ),
                 ]
             ),
             discusses_evidential_status=True,
@@ -814,11 +842,21 @@ def main() -> int:  # noqa: C901, PLR0915
             "is a dominant supplier, and it argues against saturating with product-time "
             "effects when the level response is the estimand."
         )
-    fh.append(
-        "- **List 4A is not parsed.** Its annex enumerates 10-digit statistical lines under a "
-        "different construction, so the parser built for Lists 1-3 raises rather than guessing. "
-        "The sample window ends 2019-08 to keep the control group clean."
-    )
+    if list4a_parsed:
+        fh.append(
+            "- **List 4A was not parsed, and now is.** Its annex enumerates 10-digit "
+            "statistical lines under a different construction from Lists 1-3, and the "
+            "original parser raised rather than guessing at it. That was the right failure: "
+            "the parser was extended to the second construction instead of the codes being "
+            f"inferred. The schedule now carries {', '.join(parsed_actions)}, and the window "
+            "extends past 2019-08."
+        )
+    else:
+        fh.append(
+            "- **List 4A is not parsed.** Its annex enumerates 10-digit statistical lines "
+            "under a different construction, so the parser built for Lists 1-3 raises rather "
+            "than guessing. The sample window ends 2019-08 to keep the control group clean."
+        )
     if exc_sum:
         fh.append(
             f"- **Product exclusions cannot be incorporated, and this is now established "
@@ -835,10 +873,23 @@ def main() -> int:  # noqa: C901, PLR0915
             "- **Product exclusions are not parsed.** The tariff engine supports exclusion "
             "records; the schedule carries none."
         )
-    fh.append(
-        "- **The Census HS-to-NAICS concordance was unreachable** (HTTP 404/403), so industry "
-        "mapping falls back to a hand-built HS2-chapter map labelled COARSE_APPROXIMATION."
-    )
+    if conc_is_official:
+        fh.append(
+            "- **\"The Census concordance is unavailable\" was wrong, twice over.** The "
+            "reference URLs returned 404/403 and the conclusion drawn was that the resource "
+            "did not exist; it did, and the guessed URL patterns were the failure. Then the "
+            "per-year files were declared unreadable because openpyxl rejects the legacy "
+            "`.xls` vintages — but `xlrd` reads exactly those and nothing else. One tool "
+            "failing is not a resource being unavailable. Industry mapping now uses "
+            f"`{conc_status}`, and the hand-built chapter map survives only as a labelled "
+            "fallback."
+        )
+    else:
+        fh.append(
+            "- **The Census HS-to-NAICS concordance was unreachable** (HTTP 404/403), so "
+            "industry mapping falls back to a hand-built HS2-chapter map labelled "
+            "COARSE_APPROXIMATION."
+        )
     fh.append(
         "- **One tariff line was lost to typesetting.** In 83 FR 28710 a code renders as "
         "`9033.00` with its final pair missing. It was not repaired by guessing; it was "
@@ -926,8 +977,16 @@ def main() -> int:  # noqa: C901, PLR0915
                 for r in both.head(4).iter_rows(named=True)
                 if r["industry_name"]
             )
-            + ". Exposure here is a qualitative ordering built on a COARSE_APPROXIMATION "
-            "concordance, not a magnitude."
+            + (
+                ". These are accounting constructs from pre-treatment input-output weights, "
+                "not estimates: they say which industries are positioned to be helped or hurt, "
+                "not by how much. Protection and input cost are also not comparable as levels "
+                "-- protection carries one commodity's statutory rate while input cost is "
+                "averaged over a purchase basket that is mostly untariffed."
+                if conc_is_official
+                else ". Exposure here is a qualitative ordering built on a "
+                "COARSE_APPROXIMATION concordance, not a magnitude."
+            )
         )
 
     memo_body = "\n".join(
@@ -961,20 +1020,39 @@ def main() -> int:  # noqa: C901, PLR0915
                 else (
                     "Outcome by outcome, according to each one's own pre-trend test:\n\n"
                     + verdict_note
-                    + "\n\nEven where the test is passed, the estimate is "
-                    "intention-to-treat with respect to the statutory list, because product "
-                    "exclusions are not parsed. The data-quality battery puts a floor under "
-                    "how much that matters: realised duty rates depart from the statutory "
-                    "schedule on a material share of dutiable observations."
+                    + "\n\nEvery estimate is intention-to-treat with respect to the "
+                    "statutory list, and that is a property of the published data rather "
+                    "than an outstanding task: exclusions are granted at a finer granularity "
+                    "than U.S. import statistics are published, so the excluded share of a "
+                    "reporting number is not observable at any parsing effort. The gap is "
+                    "bounded instead of closed"
+                    + (
+                        f": observations whose realised duty falls short of the statutory "
+                        f"schedule are "
+                        f"{exc_sum['itt_bound_before_first_exclusion']:.1%} of dutiable "
+                        f"observations before the first exclusion took effect "
+                        f"({exc_sum['first_exclusion_month']}) and "
+                        f"{exc_sum['itt_bound_after_first_exclusion']:.1%} after. The "
+                        "difference is what exclusions plausibly add; the pre-exclusion level "
+                        "is what other causes account for."
+                        if exc_sum
+                        else "."
+                    )
                 ),
             ),
             q_a(
                 "Which conclusions are descriptive or model-dependent?",
                 "The sourcing shares, supplier concentration and entry/exit counts are "
                 "descriptive. The industry exposure measures are constructed from "
-                "pre-treatment input-output weights and a coarse concordance; they are "
-                "accounting constructs, not estimates. No structural counterfactual has been "
-                "run, so no model-implied welfare number exists in this project.",
+                "pre-treatment input-output weights"
+                + (
+                    " and the official Census concordance"
+                    if conc_is_official
+                    else " and a coarse concordance"
+                )
+                + "; they are accounting constructs, not estimates. No structural "
+                "counterfactual has been run, so no model-implied welfare number exists in "
+                "this project.",
             ),
             q_a(
                 "What evidence would change the recommendation?",
@@ -982,18 +1060,30 @@ def main() -> int:  # noqa: C901, PLR0915
                     ([] if empirical else [
                         "- Official Census data replacing the synthetic panel (this is the "
                         "binding constraint; everything else is secondary).",
-                    ]) + [
-                        "- A specification that clears the pre-trend test for the quantity "
-                        "outcome. As it stands the quantity and diversion results are "
-                        "descriptive, and the headline sourcing numbers rest on them.",
+                    ])
+                    + ([] if exc_sum else [
                         "- Parsing product exclusions, which would move estimates from "
                         "intention-to-treat toward treatment-on-the-treated.",
-                        "- A parsed List 4A, allowing the window to extend past 2019-08 with a "
-                        "clean control group.",
-                        "- An official HS-to-NAICS concordance, replacing the coarse chapter map "
-                        "and making industry exposure magnitudes usable.",
+                    ])
+                    + ([] if list4a_parsed else [
+                        "- A parsed List 4A, allowing the window to extend past 2019-08 with "
+                        "a clean control group.",
+                    ])
+                    + ([] if conc_is_official else [
+                        "- An official HS-to-NAICS concordance, replacing the coarse chapter "
+                        "map and making industry exposure magnitudes usable.",
+                    ])
+                    + [
+                        "- A resolution of the exclusion gap from a source other than the "
+                        "notices. The annexes are raster images and 98% of exclusions name a "
+                        "subset of a statistical reporting number, so the intention-to-treat "
+                        "gap is currently bounded rather than closed."
+                        if exc_sum
+                        else "- A specification that clears the pre-trend test for the "
+                        "quantity outcome.",
                         "- Domestic output and price data, without which a fall in imports "
-                        "cannot be attributed to domestic substitution rather than lower demand.",
+                        "cannot be attributed to domestic substitution rather than lower "
+                        "demand. This is now the binding one.",
                     ]
                 ),
             ),

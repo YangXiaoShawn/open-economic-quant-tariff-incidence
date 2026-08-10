@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T174643Z-b1495fb3` · git `266e6a0-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T17:46:43.142574+00:00
+> run_id `20260810T183723Z-b1495fb3` · git `f0032db-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T18:37:23.953474+00:00
 
 
 What this design can and cannot support.
@@ -59,10 +59,10 @@ Every specification estimated in this run, with its estimand and identifying ass
 | propagation_ppi_estimates | results | Composite BEA industries average component PPI series unweighted, because NAICS-component output weights are not available in the BEA summary tables. |
 | propagation_ppi_estimates | results | PPI industry indices cover an entire NAICS group while exposure is built from 10-digit lines; the aggregation gap attenuates any true relationship. |
 | tariff_schedule_section301_china | normalized | LIST_4A_NOT_PARSED_SUPERSEDED: SUPERSEDED. This gap recorded that List 4A was unparsed and assumed its annex enumerated 10-digit statistical lines needing a separate parser. That assumption was wrong: the annex is 8-digit, and the operative sentence differs from Lists 1-3 only by an ": i)" enumeration prefix. List 4A is now parsed by the same generalised parser and is in the schedule above. |
-| tariff_schedule_section301_china | normalized | EXCLUSIONS_NOT_PARSED: USTR granted thousands of product exclusions in a long series of notices (e.g. 84 FR 38717, 84 FR 61674, 85 FR 6674). Most are written as narrative product descriptions under new 9903.88.xx headings rather than as clean HTS8 lists, so they cannot be mapped to statistical lines mechanically. The tariff engine fully supports exclusion records; the schedule currently carries none from this source. |
-| trade_panel_hs6_country_month | analytical | Customs unit values are value/quantity over heterogeneous transactions; they are not transaction prices and move with product mix and quality. |
-| trade_panel_hs6_country_month | analytical | HS6 aggregation loses the HS8 level at which Section 301 lists are written; partially covered headings are excluded from both treatment groups. |
-| trade_panel_hs6_country_month | analytical | Sample ends 2019-08 to avoid List 4A contamination of the control group. |
+| tariff_schedule_section301_china | normalized | EXCLUSIONS_NOT_PARSED: CLOSED, not outstanding. USTR granted 840 product exclusions across 11 notices. Only 1.9% (16) name a 10-digit subheading; the remaining 824 are specially prepared product descriptions identifying a SUBSET of a statistical reporting number. U.S. import statistics are published at that reporting number and no finer, so the excluded share of a line's imports is not observable at any parsing effort. Every annex is additionally a raster image with no text layer, and OCR was refused because it would introduce an unvalidatable transcription channel into a legal treatment variable. This is a property of what is published, not a task left undone. |
+| trade_panel_hs10_country_month | analytical | Customs unit values are value/quantity over heterogeneous transactions; they are not transaction prices and move with product mix and quality. |
+| trade_panel_hs10_country_month | analytical | The panel is keyed on the 10-digit statistical reporting number, finer than the 8-digit level at which Section 301 lists are written, so no partial-coverage weighting arises. Quantities are never summed across lines reporting in unlike units. |
+| trade_panel_hs10_country_month | analytical | Sample window is 2017-01 to 2020-02, set by configuration; the control group is defined by the actions that ever cover a line within that window. |
 | ustr_exclusion_notice_coverage | results | Only the notices' self-reported counts are extracted. The annexes listing the excluded products are embedded raster images with no text layer, and OCR is not used because it would introduce an unvalidatable transcription channel into a legal treatment variable. |
 | ustr_exclusion_notice_coverage | results | 1.9% of exclusions are expressed as a 10-digit subheading; the rest are product descriptions identifying a subset of a statistical reporting number, which published trade data cannot resolve. |
 | ustr_exclusion_notice_coverage | results | The realised-versus-statutory gap is an UPPER bound on the exclusion effect: preference programmes and duty-free entry produce the same signature. |
@@ -85,18 +85,18 @@ Every specification estimated in this run, with its estimand and identifying ass
 - **Exchange rates.** RMB depreciation over 2018-2019 moves customs unit values in the same direction as exporter absorption and is not separated here.
 - **Transshipment and origin misdeclaration.** Third-country increases in customs data cannot be distinguished from relocation of production.
 - **Product reclassification.** Firms have an incentive to reclassify into untreated lines, which appears as treated-product exit plus control-product entry.
-- **Exclusions are not in the schedule.** Estimates are intention-to-treat with respect to the statutory list, not treatment-on-the-treated.
+- **Exclusions cannot be put in the schedule.** They are granted at a finer granularity than import statistics are published, so estimates are intention-to-treat with respect to the statutory list and the gap is bounded rather than removed: the realised-versus-statutory shortfall runs 4.4% before the first exclusion and 18.7% after, and that is an upper bound because preference programmes leave the same signature.
 
 ---
 
 ## Reproducibility
 
-- run id: `20260810T174643Z-b1495fb3`
-- git commit: `266e6a0-dirty`
+- run id: `20260810T183723Z-b1495fb3`
+- git commit: `f0032db-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T17:46:43.142574+00:00
+- generated: 2026-08-10T18:37:23.953474+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._
