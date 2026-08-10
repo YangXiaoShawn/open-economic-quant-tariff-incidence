@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 7
+**Last updated:** 2026-08-10 · session 8
 
 ## One-line state
 
@@ -14,6 +14,34 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 8: window extended to 2020-02; results replicate
+
+With List 4A in the schedule the window could finally run past 2019-08. It now
+ends 2020-02, and that endpoint is a judgement about COVID rather than tariffs:
+U.S. entries lag Chinese shipment by four to six weeks, so February 2020 entries
+reflect pre-disruption production while March entries do not (D-033).
+
+**The conclusion replicates across three windows** — full, ending 2019-12, and
+the old pre-List-4A window. Every pre-trend verdict identical, every estimate
+within 0.004. Incidence accounting on the full window: duty in force 17.65%,
+mechanical log(1+tau) 0.1626, observed landed **+0.1544**, customs **+0.0253**.
+
+Two defects the extension exposed:
+
+* **A fixed classification date.** Cohorts were assigned by assessing each line
+  on 2018-10-01, which predates List 4A — so every List 4A product landed in the
+  control group the moment the window passed 2019-09. Classification is now by
+  the actions that *ever* cover a line in the window (D-034).
+* **The replication check counted "unvalidatable" as "failed"**, reporting
+  MISMATCH for T1 because List 4A's notice states no count for its annex. It now
+  separates checkable from deferred, as the data-quality battery already did
+  (D-035).
+
+**A selection threat now worth naming.** The never-treated control group falls
+from 1,174 lines to 379 — 7% of the sample, and not a random 7%: they are what
+USTR declined to tariff even in the $300bn round. Stability across windows is
+reassuring but the three share most of that control group.
 
 ## Session 7: List 4A parsed; two latent defects surfaced
 

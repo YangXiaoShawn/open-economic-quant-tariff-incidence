@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260809T215130Z-597ee5ff` · git `f505959-dirty` · config `sample_slice.yaml` (sha256 `597ee5ffe47a`) · data period 2018-06-20 to 2019-05-10 · generated 2026-08-09T21:51:30.942800+00:00
+> run_id `20260810T140836Z-b1495fb3` · git `43a1a31-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2018-06-20 to 2019-05-10 · generated 2026-08-10T14:08:36.293641+00:00
 
 
 What this project attempts to reproduce from the published tariff literature, specified in advance.
@@ -18,8 +18,8 @@ Each target is specified before it is attempted, so a target cannot be quietly r
 | target_id | name | original_source | original_definition | original_sample | our_data | our_implementation | status | replication_type |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | T1_STATUTORY_COVERAGE | Number of 8-digit tariff lines covered by each Section 301 action | USTR notices themselves: 83 FR 28710 (List 1), 83 FR 40823 (List 2), 83 FR 47974 (List 3). Each notice states its own line count. | Count of 8-digit HTSUS subheadings, full and partial, subject to the additional duty under the corresponding Chapter 99 heading. | All products of China covered by the action. | Same notices, parsed from the GPO typeset PDF annexes. | Anchor on the operative sentence for heading 9903.88.0X; count unique 8-digit codes plus partial lines named in the associated U.S. note; exclude Chapter 98/99 provisions. | EXECUTED | EXACT_COUNT_COMPARISON |
-| T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES | Pass-through of tariffs into duty-inclusive U.S. import prices | Amiti, Redding and Weinstein (2019), 'The Impact of the 2018 Tariffs on Prices and Welfare', Journal of Economic Perspectives 33(4). | Regression of the change in log duty-inclusive import price on the change in log(1 + tariff), by HS10 variety and month. | U.S. Census HS10 x country x month imports, 2017-2018. | BLOCKED: requires official Census import data (CENSUS_API_KEY). | Implemented and tested: `log_landed_unit_value` regressed on the additional duty with flow and month fixed effects. The specification runs today; only the data is missing. | BLOCKED_ON_DATA | CONCEPTUAL_NOT_EXACT |
-| T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS | Decline in imports of targeted products from China | Fajgelbaum, Goldberg, Kennedy and Khandelwal (2020), 'The Return to Protectionism', Quarterly Journal of Economics 135(1). | Import-demand elasticity with respect to the tariff-inclusive price, estimated on HS10 x country x month U.S. import data. | U.S. imports, 2017-2019. | BLOCKED: requires official Census import data. | PPML on customs value and quantity in levels with flow and month fixed effects, retaining zero flows. | BLOCKED_ON_DATA | CONCEPTUAL_NOT_EXACT |
+| T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES | Pass-through of tariffs into duty-inclusive U.S. import prices | Amiti, Redding and Weinstein (2019), 'The Impact of the 2018 Tariffs on Prices and Welfare', Journal of Economic Perspectives 33(4). | Regression of the change in log duty-inclusive import price on the change in log(1 + tariff), by HS10 variety and month. | U.S. Census HS10 x country x month imports, 2017-2018. | Official Census HS10 x country x month imports, 2017-01..2020-02. | Stacked multi-wave event study on `log_landed_unit_value`, one sub-experiment per Section 301 wave, controls drawn from never-treated products. Pre-trend verdict CLEAN. Mean post-treatment effect +0.154 against a mechanical log(1+tau) of +0.163. | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT |
+| T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS | Decline in imports of targeted products from China | Fajgelbaum, Goldberg, Kennedy and Khandelwal (2020), 'The Return to Protectionism', Quarterly Journal of Economics 135(1). | Import-demand elasticity with respect to the tariff-inclusive price, estimated on HS10 x country x month U.S. import data. | U.S. imports, 2017-2019. | Official Census HS10 x country x month imports, 2017-01..2020-02. | PPML on customs value and quantity in levels with flow and month fixed effects, retaining zero flows, plus a stacked event study on log quantity. Mean post-treatment effect -0.379, pre-trend verdict NOISY_PRE_PERIOD_NO_SLOPE, so the estimate is reported as a qualified reading rather than a clean causal one. | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT |
 | T4_SHORT_RUN_WELFARE_ACCOUNTING | Short-run aggregate welfare accounting | Amiti, Redding and Weinstein (2019); Fajgelbaum et al. (2020). | Deadweight loss plus terms-of-trade effects. |  | BLOCKED on data and on a structural module. | None. No structural module has been implemented (decision D-017), and the reporting guard blocks quantified welfare claims outright. | NOT_ATTEMPTED | NOT_ATTEMPTED |
 
 
@@ -34,12 +34,12 @@ Each target is specified before it is attempted, so a target cannot be quietly r
 
 ## Reproducibility
 
-- run id: `20260809T215130Z-597ee5ff`
-- git commit: `f505959-dirty`
-- configuration: `sample_slice.yaml` (sha256 `597ee5ffe47af577cc12c18a77fbd8ceb65895fed1ca83ff18eb0e2ce7bb7338`)
+- run id: `20260810T140836Z-b1495fb3`
+- git commit: `43a1a31-dirty`
+- configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2018-06-20 to 2019-05-10
-- generated: 2026-08-09T21:51:30.942800+00:00
+- generated: 2026-08-10T14:08:36.293641+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

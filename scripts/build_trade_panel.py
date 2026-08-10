@@ -174,15 +174,30 @@ def main() -> int:
         # specific time variation cannot be separated from treatment dynamics.
         # Three waves at three effective dates break that collinearity and are
         # what the stacked design consumes.
+        # Classify by the actions that EVER cover a line within the sample
+        # window, not by its status on one chosen date. A fixed date silently
+        # mislabels any action that takes effect after it: with the window
+        # extended past 2019-09, assessing at 2018-10 put every List 4A product
+        # in the never-treated control group -- precisely the contamination the
+        # window extension was meant to avoid.
         codes = staged_full[product_col].unique().to_list()
-        as_of = date(2018, 10, 1)
+        probe_months = [
+            date(y, m, 28)
+            for y, m in census_trade.iter_months(sample.start_month, sample.end_month)
+        ]
         cohorts: dict[str, list[str]] = {}
         control, other = [], []
         for c in codes:
-            a = engine.assess(c, sample.treated_country_code, as_of)
-            if a.is_treated and len(a.active_action_ids) == 1:
-                cohorts.setdefault(a.active_action_ids[0], []).append(c)
-            elif a.coverage_share == 0.0 and not a.is_treated:
+            acting: set[str] = set()
+            for when in probe_months:
+                a = engine.assess(c, sample.treated_country_code, when)
+                if a.is_treated:
+                    acting.update(a.active_action_ids)
+                elif not a.status.usable_for_treatment:
+                    acting.add("__AMBIGUOUS__")
+            if len(acting) == 1 and "__AMBIGUOUS__" not in acting:
+                cohorts.setdefault(next(iter(acting)), []).append(c)
+            elif not acting:
                 control.append(c)
             else:
                 other.append(c)

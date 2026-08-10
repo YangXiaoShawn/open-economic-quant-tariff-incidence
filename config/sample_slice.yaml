@@ -34,16 +34,29 @@ sample:
     - "2010"   # Mexico
     - "1220"   # Canada
   start_month: "2017-01"
-  end_month: "2019-08"
+  end_month: "2020-02"
   max_api_calls: 400
 
 # Sample-window rationale
 # -----------------------
-# The window ends 2019-08 on purpose. Section 301 List 4A took effect
-# 2019-09-01 and covers most remaining consumer goods, which would contaminate
-# the never-treated control group. Extending past that date without a List 4A
-# parser would mislabel treated products as controls. The current-data
-# extension (milestone M9) is descriptive only and is reported separately.
+# Previously the window ended 2019-08, because List 4A took effect 2019-09-01
+# and, unparsed, would have put genuinely treated products in the never-treated
+# control group. List 4A is now in the tariff schedule, so those products are
+# classified as their own cohort and the control group stays clean.
+#
+# The window now ends 2020-02, and that endpoint is a judgement about COVID-19
+# rather than about tariffs. U.S. "imports for consumption" are recorded when
+# goods enter the United States, so entries lag Chinese shipment by roughly four
+# to six weeks. February 2020 entries therefore reflect December-January
+# shipments, before Chinese production was disrupted; March 2020 entries reflect
+# January-February shipments and are unambiguously contaminated. Stopping at
+# 2020-02 keeps six post-List-4A months without importing a pandemic supply
+# shock into a tariff estimate.
+#
+# The 2020-02-14 reduction of List 4A from 15% to 7.5% falls inside the final
+# month. The panel's day-weighted statutory rate handles that correctly, and a
+# sensitivity ending 2019-12 -- before both the rate change and any plausible
+# COVID effect -- is reported alongside.
 
 estimation:
   event_window_pre: 12

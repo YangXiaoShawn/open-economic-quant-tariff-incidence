@@ -68,18 +68,22 @@ TARGETS = [
             "in log(1 + tariff), by HS10 variety and month."
         ),
         "original_sample": "U.S. Census HS10 x country x month imports, 2017-2018.",
-        "our_data": "BLOCKED: requires official Census import data (CENSUS_API_KEY).",
+        "our_data": "Official Census HS10 x country x month imports, 2017-01..2020-02.",
         "our_implementation": (
-            "Implemented and tested: `log_landed_unit_value` regressed on the "
-            "additional duty with flow and month fixed effects. The specification "
-            "runs today; only the data is missing."
+            "Stacked multi-wave event study on `log_landed_unit_value`, one "
+            "sub-experiment per Section 301 wave, controls drawn from never-treated "
+            "products. Pre-trend verdict CLEAN. Mean post-treatment effect +0.154 "
+            "against a mechanical log(1+tau) of +0.163."
         ),
-        "status": "BLOCKED_ON_DATA",
+        "status": "EXECUTED_CONCEPTUALLY",
         "replication_type": "CONCEPTUAL_NOT_EXACT",
         "why_not_exact": (
-            "This project builds an HS6 panel, not HS10; uses monthly levels with "
-            "fixed effects rather than first differences; and cannot adjust for "
-            "product exclusions, which are unparsed."
+            "Monthly levels with fixed effects rather than first differences; a "
+            "restricted set of ten HS chapters and eight comparison partners; and "
+            "intention-to-treat status, because product exclusions cannot be mapped "
+            "to statistical lines (see reports/product_exclusions.md). The direction "
+            "and rough magnitude agree with the published finding of near-complete "
+            "pass-through; the estimates are not directly comparable in level."
         ),
     },
     {
@@ -94,17 +98,21 @@ TARGETS = [
             "estimated on HS10 x country x month U.S. import data."
         ),
         "original_sample": "U.S. imports, 2017-2019.",
-        "our_data": "BLOCKED: requires official Census import data.",
+        "our_data": "Official Census HS10 x country x month imports, 2017-01..2020-02.",
         "our_implementation": (
             "PPML on customs value and quantity in levels with flow and month fixed "
-            "effects, retaining zero flows."
+            "effects, retaining zero flows, plus a stacked event study on log "
+            "quantity. Mean post-treatment effect -0.379, pre-trend verdict "
+            "NOISY_PRE_PERIOD_NO_SLOPE, so the estimate is reported as a qualified "
+            "reading rather than a clean causal one."
         ),
-        "status": "BLOCKED_ON_DATA",
+        "status": "EXECUTED_CONCEPTUALLY",
         "replication_type": "CONCEPTUAL_NOT_EXACT",
         "why_not_exact": (
-            "Different aggregation (HS6 vs HS10), a restricted partner set, a window "
-            "ending 2019-08, and intention-to-treat status because exclusions are "
-            "unparsed."
+            "A restricted set of ten HS chapters and eight comparison partners; "
+            "intention-to-treat status; and a quantity outcome whose pre-period is "
+            "noisier than the threshold this project applies, which the published "
+            "work does not have to contend with at this aggregation."
         ),
     },
     {
@@ -153,7 +161,14 @@ def main() -> int:
             }
         )
     t1 = pl.DataFrame(rows, strict=False)
-    all_match = bool(t1["match"].fill_null(False).all()) if t1.height else False
+    # A notice that states no count for an annex cannot be validated this way;
+    # its row carries match=None and is reported as "validated by another route"
+    # rather than silently counted as a failure. Treating None as False made the
+    # whole target read MISMATCH the moment List 4A was added, even though
+    # Lists 1-3 still reconciled exactly.
+    checkable = t1.filter(pl.col("match").is_not_null()) if t1.height else t1
+    deferred = t1.filter(pl.col("match").is_null()) if t1.height else t1
+    all_match = bool(checkable["match"].all()) if checkable.height else False
 
     stamp = RunStamp.create(
         config_name=cfg.config_name,
@@ -208,11 +223,17 @@ def main() -> int:
 
     # ---- comparison -----------------------------------------------------
     verdict = (
-        "**Reproduced exactly.** All three parsed actions match the line count stated in "
-        "their own notice."
+        f"**Reproduced exactly** for all {checkable.height} actions whose notice states a "
+        "line count: each matches its own notice."
         if all_match
         else "**Not fully reproduced.** See the difference column."
     )
+    if deferred.height:
+        verdict += (
+            f" A further {deferred.height} action(s) cannot be checked this way, because "
+            "their notice states no count for the annex in isolation; those are validated "
+            "by internal cross-checks instead and are marked accordingly."
+        )
     comp_rows = []
     for t in TARGETS:
         comp_rows.append(
@@ -221,12 +242,15 @@ def main() -> int:
                 "status": t["status"],
                 "replication_type": t["replication_type"],
                 "our_estimate": (
-                    "818 / 279 / 5,745 lines (Lists 1 / 2 / 3)"
+                    f"exact match on {checkable.height} checkable actions; "
+                    f"{deferred.height} deferred to internal cross-checks"
                     if t["target_id"] == "T1_STATUTORY_COVERAGE"
                     else "not produced"
                 ),
                 "difference_from_published": (
-                    "0 for all three" if t["target_id"] == "T1_STATUTORY_COVERAGE" else "n/a"
+                    "0 on every checkable action"
+                    if t["target_id"] == "T1_STATUTORY_COVERAGE"
+                    else "n/a"
                 ),
                 "plausible_reasons_for_difference": (
                     "none; exact match"
@@ -273,7 +297,11 @@ def main() -> int:
         out_path=REPORTS / "replication_comparison.md",
     )
 
-    print(f"T1 statutory coverage: {'EXACT MATCH' if all_match else 'MISMATCH'}")
+    print(
+        f"T1 statutory coverage: {'EXACT MATCH' if all_match else 'MISMATCH'} on "
+        f"{checkable.height} checkable action(s); {deferred.height} deferred to "
+        "internal cross-checks"
+    )
     print(t1)
     print(f"\nCensus available: {census_trade.available()}")
     print("wrote reports/replication_protocol.md and reports/replication_comparison.md")

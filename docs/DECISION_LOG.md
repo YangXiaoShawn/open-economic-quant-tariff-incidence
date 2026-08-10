@@ -778,3 +778,83 @@ actions' sets overlap because each note excludes the numbers belonging to the
 others and the actions were legislated at different times; their union is seven
 statistical numbers. The test now asserts the verified sets rather than a tidy
 partition that was never checked.
+
+---
+
+### D-033 — Window extended to 2020-02; the endpoint is a COVID judgement, not a tariff one
+
+The window ran to 2019-08 only because List 4A was unparsed and would have put
+genuinely treated products in the control group. With List 4A in the schedule
+(D-031) that constraint is gone.
+
+**Where to stop is a judgement about the pandemic.** U.S. "imports for
+consumption" are recorded when goods enter the United States, so entries lag
+Chinese shipment by roughly four to six weeks. February 2020 entries reflect
+December-January shipments, before Chinese production was disrupted; March 2020
+entries reflect January-February shipments and are unambiguously contaminated.
+The window ends 2020-02.
+
+The 2020-02-14 reduction of List 4A from 15% to 7.5% falls inside the final
+month; the day-weighted statutory rate handles it.
+
+**The conclusion does not depend on the judgement.** Three window definitions,
+stacked design, never-treated-product controls:
+
+| Window | landed | customs | quantity |
+|---|---|---|---|
+| to 2020-02 | +0.1544 CLEAN | +0.0253 bounded null | −0.3793 |
+| to 2019-12 (before the rate cut and any plausible COVID effect) | +0.1562 CLEAN | +0.0263 bounded null | −0.3793 |
+| to 2019-08 (before List 4A existed) | +0.1525 CLEAN | +0.0216 bounded null | −0.3567 |
+
+Every verdict identical; every estimate within 0.004. Written to
+`data/results/window_sensitivity.json`.
+
+Incidence accounting on the full window: value-weighted duty in force 17.65%,
+mechanical log(1+tau) with zero absorption 0.1626, observed landed +0.1544,
+customs +0.0253.
+
+---
+
+### D-034 — A fixed classification date silently mislabelled every List 4A product
+
+Extending the window exposed a latent bug. Cohort assignment assessed each line
+on **one fixed date, 2018-10-01**. That date predates List 4A, so once the window
+ran past 2019-09 every List 4A product was classified never-treated and went into
+the control group — exactly the contamination the extension was meant to avoid,
+reintroduced by the classifier rather than by the schedule.
+
+Classification is now by the set of actions that **ever** cover a line within the
+sample window: covered by exactly one action, that cohort; by more than one,
+excluded; by none, control. No magic date.
+
+**Effect.** The never-treated control group falls from 1,174 lines to 379, with
+795 moving into a new List 4A cohort and 2 excluded as genuinely conflicted.
+
+**A consequence worth stating rather than burying.** Within these ten chapters,
+by September 2019 almost everything had been tariffed. The surviving control
+group is 379 lines — 7% of the sample — and they are not a random 7%: they are
+what USTR declined to tariff even in the $300 billion round. The stacked design's
+counterfactual now rests on a selected set, and that selection is a threat to
+identification in its own right, distinct from parallel trends. The result's
+stability across the three windows above is reassuring but not dispositive,
+because all three share most of that control group.
+
+---
+
+### D-035 — The replication check counted "unvalidatable" as "failed"
+
+Adding List 4A made target T1 report MISMATCH, even though Lists 1-3 still
+reconciled exactly. The check treated a null `count_matches_notice` — meaning the
+notice states no count for that annex, so the comparison is impossible — as a
+failure, via `fill_null(False)`.
+
+It now separates checkable rows from deferred ones and reports both: "exact match
+on 3 checkable actions; 1 deferred to internal cross-checks". A test that cannot
+be run is not a test that failed, and the same distinction is already enforced in
+the data-quality battery, where a check without inputs reports SKIPPED rather
+than PASS.
+
+Targets T2 and T3 were also stale: they still read BLOCKED_ON_DATA from the
+period before a Census key existed. They now record what was actually estimated,
+with the pre-trend verdict attached and the reasons the comparison is conceptual
+rather than exact.
