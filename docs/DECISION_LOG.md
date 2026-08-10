@@ -1160,3 +1160,20 @@ subset that happened to be cached, because a silently changed sample is worse
 than no result. The per-request cache has been replaced with a **per-series**
 cache so a re-run fetches only what is genuinely missing rather than re-requesting
 every chunk whenever the industry set changes by one code.
+
+**Addendum, what the detail level shows before any estimate is run.** The
+summary level classed 19 of 71 industries as exposed on both sides; the detail
+level classes **142 of 401**, and turns up two `PROTECTED_ONLY` industries that
+could not exist at summary level because aggregation always mixed some tariffed
+input into them. Within the single summary industry `3361MV` the detail level
+separates heavy-duty truck manufacturing (input cost 0.112, protection 0.162)
+from motor-vehicle steering and suspension components (0.094, 0.250) — very
+different positions that a 71-industry axis reports as one number.
+
+It also makes an asymmetry visible that the summary level obscured: protection
+carries the statutory rate of a single commodity (mean 0.076, max 0.250) while
+input cost is an average over the whole purchase basket, most of it untariffed
+(mean 0.023, max 0.112). 255 of 402 industries have input cost above protection,
+almost all of them industries with no protection at all. The two channels are
+therefore not comparable **as levels**, independently of the reason they are
+never netted, and the module docstring now says so.

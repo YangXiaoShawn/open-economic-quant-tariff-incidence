@@ -22,6 +22,17 @@ An industry can be strongly exposed on both sides at once -- U.S. steel-using
 manufacturers in 2018 are the textbook case -- and reporting a net figure hides
 precisely the distributional question the analysis is for.
 
+The two channels are also **not on a comparable scale**, which is a second and
+independent reason never to difference them. Protection is the tariff rate on
+one commodity, so it inherits the statutory rate directly and tops out at it
+(0.25 at detail level, mean 0.076). Input cost is an average over the industry's
+whole purchase basket, most of which -- services, domestic materials, untariffed
+imports -- carries no tariff at all, so it is mechanically diluted (max 0.112,
+mean 0.023). A larger protection number than cost number therefore says nothing
+about which channel dominates. Only the separately estimated coefficients, each
+scaled by its own regressor, carry that information, and
+``net_contrast_do_not_use_alone`` is named to make misuse deliberate.
+
 All weights come from a **pre-treatment** IO table. Contemporaneous weights would
 respond to the tariff and would build the outcome into the exposure measure.
 """
