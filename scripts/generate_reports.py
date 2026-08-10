@@ -97,6 +97,8 @@ def main() -> int:  # noqa: C901, PLR0915
         else []
     )
     list4a_parsed = any(a.endswith("LIST4A") for a in parsed_actions)
+    panel_p = layer_path("analytical", "trade_panel.parquet")
+    panel_is_hs10 = panel_p.exists() and "hs10" in pl.read_parquet(panel_p, n_rows=1).columns
     truth_p = layer_path("analytical", "synthetic_ground_truth.json")
     truth = json.loads(truth_p.read_text()) if truth_p.exists() else None
 
@@ -744,10 +746,19 @@ def main() -> int:  # noqa: C901, PLR0915
                     "Customs value excludes freight and insurance; import charges are carried "
                     "as a separate column and the CIF and duty-inclusive concepts are built "
                     "explicitly rather than assumed.",
-                    "Section 301 lists are legislated at 8 digits. An HS6 panel therefore has "
-                    "headings that are only partly covered; those are excluded from both "
-                    "treatment groups rather than assigned a coverage-weighted rate, and the "
-                    "count of excluded headings is reported.",
+                    (
+                        "Section 301 lists are legislated at 8 digits. The panel is keyed on "
+                        "the 10-digit statistical reporting number, which is finer, so a line "
+                        "is either covered or not and no coverage-weighted rate is ever "
+                        "assigned. Partial-line carve-outs named in the notices are matched at "
+                        "10 digits rather than inherited from the 8-digit parent."
+                        if panel_is_hs10
+                        else "Section 301 lists are legislated at 8 digits. An HS6 panel "
+                        "therefore has headings that are only partly covered; those are "
+                        "excluded from both treatment groups rather than assigned a "
+                        "coverage-weighted rate, and the count of excluded headings is "
+                        "reported."
+                    ),
                     "A duty effective mid-month applies to part of that month. The panel "
                     "carries a day-weighted average statutory rate, plus month-start and "
                     "month-end variants, so the event-time-zero coefficient is not an artefact "
@@ -1117,16 +1128,34 @@ def main() -> int:  # noqa: C901, PLR0915
                         "model-implied counterfactual or welfare number exists anywhere in "
                         "this repository**.\n\n"
                         "The brief requires the reduced-form vertical slice to be stable and "
-                        "passing tests before the structural extension begins. It now is. The "
-                        "remaining blocker is different: a partial-equilibrium Armington or CES "
-                        "sourcing model calibrated on synthetic trade flows would produce "
-                        "counterfactuals with the full appearance of substance and none of the "
-                        "content. Sourcing shares, expenditure levels and the domestic "
-                        "alternative would all be simulated, so every simulated outcome would "
-                        "be a restatement of the generator's parameters.\n\n"
-                        "Publishing that, however carefully labelled, would be the most "
-                        "misleading artefact the project could produce. It is therefore not "
-                        "produced. See docs/DECISION_LOG.md, D-017."
+                        "passing tests before the structural extension begins. It now is."
+                        + (
+                            "\n\nD-017 deferred this on the ground that a partial-equilibrium "
+                            "Armington or CES model calibrated on synthetic flows would restate "
+                            "the generator's parameters with the full appearance of substance. "
+                            "**That reason has expired**: the flows are official. What remains "
+                            "is narrower and is listed under *What is missing* below -- there is "
+                            "no domestic-alternative expenditure series, so the domestic nest of "
+                            "an Armington system is unidentified, and the substitution "
+                            "elasticities would have to be borrowed rather than estimated here. "
+                            "Neither is fatal, and both change what the output may be called: a "
+                            "counterfactual resting on a borrowed elasticity and an assumed "
+                            "domestic nest is a calibrated illustration, not an estimate. "
+                            "Building it is a live choice rather than a settled one, and it is "
+                            "recorded here as open instead of being carried as though the "
+                            "original objection still held."
+                            if empirical
+                            else "\n\nThe remaining blocker is different: a partial-equilibrium "
+                            "Armington or CES sourcing model calibrated on synthetic trade flows "
+                            "would produce counterfactuals with the full appearance of substance "
+                            "and none of the content. Sourcing shares, expenditure levels and "
+                            "the domestic alternative would all be simulated, so every simulated "
+                            "outcome would be a restatement of the generator's parameters.\n\n"
+                            "Publishing that, however carefully labelled, would be the most "
+                            "misleading artefact the project could produce. It is therefore not "
+                            "produced."
+                        )
+                        + " See docs/DECISION_LOG.md, D-017."
                     ),
                 ),
                 Section(
@@ -1150,7 +1179,8 @@ def main() -> int:  # noqa: C901, PLR0915
                     "What is missing",
                     "\n".join(
                         [
-                            "- Official trade flows (the binding constraint).",
+                            *([] if empirical else
+                              ["- Official trade flows (the binding constraint)."]),
                             "- A domestic-alternative expenditure series; without it the "
                             "domestic nest of an Armington system is unidentified.",
                             "- Country substitution elasticities with citable provenance. "

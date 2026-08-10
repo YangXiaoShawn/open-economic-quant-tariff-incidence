@@ -49,10 +49,12 @@ build-io-exposure: ## Map tariff exposure into industries via BEA input-output
 estimate-propagation: ## Test whether exposure shows up in domestic producer prices
 	$(PY) scripts/estimate_propagation.py
 
-structural: ## Structural counterfactuals (deliberately not implemented; see D-017)
-	@echo "Not implemented. The brief requires the reduced-form slice to be stable first;"
-	@echo "it now is, but calibrating a structural model on synthetic trade flows would"
-	@echo "produce counterfactuals with no informational content. See docs/DECISION_LOG.md D-017."
+structural: ## Structural counterfactuals (not implemented; an open choice, see D-017/D-045)
+	@echo "Not implemented. D-017 deferred this because the flows were synthetic; they are"
+	@echo "official now, so that reason has expired. What remains: no domestic-alternative"
+	@echo "expenditure series, so the domestic nest is unidentified, and the substitution"
+	@echo "elasticities would be borrowed rather than estimated. Output would be a calibrated"
+	@echo "illustration, not an estimate. See docs/DECISION_LOG.md D-017 and D-045."
 	@exit 1
 
 test: ## Run the test suite

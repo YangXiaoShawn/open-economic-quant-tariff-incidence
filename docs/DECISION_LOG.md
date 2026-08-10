@@ -1239,3 +1239,43 @@ taken from the latest vintage alone, and the limitation that remains is stated
 instead of engineered around: "absent from the latest file" is a superset of
 "retired by the revision", so every substitution is returned and reported rather
 than applied invisibly.
+
+### D-045 — D-017's reason for deferring the structural module has expired
+
+Reading the nine generated reports end to end, rather than checking that they
+generate, turned up a document contradicting its own banner.
+`structural_counterfactuals.md` carries **DATA PROVENANCE: OFFICIAL** at the top
+and then gives the reason for not building a structural module as "calibrated on
+synthetic trade flows would produce counterfactuals with the full appearance of
+substance and none of the content", and lists "Official trade flows (the binding
+constraint)" under what is missing. The flows have been official since session 9.
+
+That is the sharpest kind of stale claim: not a number that drifted, but a
+*reason* that stopped applying while the conclusion it supported stayed put. The
+same text was in the `make structural` message.
+
+**What actually remains**, from the report's own list:
+
+* There is no domestic-alternative expenditure series, so the domestic nest of an
+  Armington system is unidentified. Import-side data alone cannot say how much of
+  a fall in imports went to domestic producers rather than out of consumption —
+  which is the same gap the executive memo already names as binding.
+* The country substitution elasticities would have to be borrowed from the
+  literature rather than estimated here.
+
+Neither is fatal, and that is the point: they do not block the module, they
+change what its output may be called. A counterfactual resting on a borrowed
+elasticity and an assumed domestic nest is a **calibrated illustration**, not an
+estimate, and the project's own rules (acceptance criterion 8, and the
+build-failing language guard) require it to be labelled that way in a table
+separating data moments, estimated parameters, calibrated parameters and
+model-implied outcomes.
+
+**Status: open, and deliberately not decided here.** Whether a calibrated
+illustration is worth having is a research judgement about what the project is
+for, not a gap to be closed autonomously — it would be the first artefact in the
+repository whose headline numbers come from assumptions rather than from data,
+which is exactly the class of thing the brief is most careful about. It is
+recorded as an open choice rather than carried as though the original objection
+still held. D-017 stands as the record of why it was deferred; it no longer
+stands as the reason it should stay deferred.
