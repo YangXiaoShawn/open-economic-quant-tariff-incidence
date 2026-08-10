@@ -263,4 +263,52 @@ def run_all(results_dir: Path, panel: pl.DataFrame | None = None) -> list[CheckR
         check_specification_level_matches_panel(results_dir, panel),
         check_reported_incidence_matches_estimates(results_dir),
         check_exclusion_bound_population(results_dir),
+        check_placebo_covers_every_verdicted_outcome(results_dir),
     ]
+
+
+def check_placebo_covers_every_verdicted_outcome(results_dir: Path) -> CheckResult:
+    """Every outcome carrying a pre-trend verdict must also carry a date placebo.
+
+    The placebo ran on ``log_quantity`` alone and recorded no outcome at all, so
+    the report showed a check reporting a significant effect with nothing saying
+    what it applied to -- and the two price outcomes the incidence claim rests on
+    were never date-placebo-tested. An outcome licensed for a causal reading by
+    one test and untested by the other is a gap the reader cannot see.
+    """
+    cid = "PLACEBO_COVERS_EVERY_VERDICTED_OUTCOME"
+    desc = "each outcome with a pre-trend verdict also has a date-placebo result naming it"
+    import json
+
+    p = results_dir / "identification_checks.json"
+    if not p.exists():
+        return _skip(cid, desc, "identification checks not present")
+    doc = json.loads(p.read_text())
+
+    verdicted = {
+        k[len("pretrend_stacked_") : -len("_never_treated_products")]
+        for k in doc.get("pretrend_tests", {})
+        if k.startswith("pretrend_stacked_") and k.endswith("_never_treated_products")
+    }
+    placeboed = {
+        c["outcome"]
+        for c in doc.get("checks", [])
+        if c.get("check") == "placebo_treatment_date_minus_12m" and c.get("outcome")
+    }
+    if not verdicted:
+        return _skip(cid, desc, "no stacked pre-trend verdicts present")
+
+    missing = sorted(verdicted - placeboed)
+    return CheckResult(
+        check_id=cid,
+        description=desc,
+        severity=Severity.ERROR,
+        passed=not missing,
+        n_flagged=len(missing),
+        n_total=len(verdicted),
+        detail=(
+            f"outcomes with a verdict but no date placebo: {missing}"
+            if missing
+            else f"all {len(verdicted)} verdicted outcomes carry a named placebo result"
+        ),
+    )

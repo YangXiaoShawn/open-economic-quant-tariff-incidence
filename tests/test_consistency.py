@@ -217,5 +217,75 @@ def test_exclusion_bound_must_not_start_before_any_duty_existed(results):
 def test_missing_artefacts_are_skipped_rather_than_failed(results):
     """A partial pipeline run must not be reported as an inconsistency."""
     out = consistency.run_all(results, panel=None)
-    assert len(out) == 5
+    assert out
     assert all(r.passed is None for r in out)
+
+
+def test_run_all_invokes_every_check_defined_in_the_module():
+    """A check that exists but is not wired into run_all protects nothing.
+
+    Asserting a literal count here would just need bumping; asserting against
+    the module's own check functions makes an omission fail instead.
+    """
+    defined = {
+        name for name in dir(consistency)
+        if name.startswith("check_") and callable(getattr(consistency, name))
+    }
+    import inspect
+
+    source = inspect.getsource(consistency.run_all)
+    missing = sorted(n for n in defined if n not in source)
+    assert not missing, f"defined but never run: {missing}"
+
+
+def test_placebo_coverage_check_catches_an_outcome_tested_only_one_way(results, tmp_path):
+    """The date placebo ran on log_quantity alone and named no outcome.
+
+    So the report carried a placebo reporting a significant effect with nothing
+    saying what it applied to, while the two price outcomes the incidence claim
+    rests on were never date-placebo-tested at all. An outcome licensed by one
+    test and untested by the other is a gap a reader cannot see.
+    """
+    import json
+
+    def _ident(placebo_outcomes):
+        return {
+            "pretrend_tests": {
+                f"pretrend_stacked_{o}_never_treated_products": {"verdict": "CLEAN"}
+                for o in ("log_customs_unit_value", "log_landed_unit_value", "log_quantity")
+            },
+            "checks": [
+                {"check": "placebo_treatment_date_minus_12m", "outcome": o}
+                for o in placebo_outcomes
+            ],
+        }
+
+    (results / "identification_checks.json").write_text(json.dumps(_ident(["log_quantity"])))
+    bad = consistency.check_placebo_covers_every_verdicted_outcome(results)
+    assert bad.passed is False
+    assert "log_customs_unit_value" in bad.detail
+    assert "log_landed_unit_value" in bad.detail
+
+    (results / "identification_checks.json").write_text(
+        json.dumps(
+            _ident(["log_customs_unit_value", "log_landed_unit_value", "log_quantity"])
+        )
+    )
+    assert consistency.check_placebo_covers_every_verdicted_outcome(results).passed is True
+
+
+def test_placebo_coverage_check_rejects_an_unnamed_placebo(results):
+    """A placebo row with no outcome field covers nothing, whatever it ran on."""
+    import json
+
+    (results / "identification_checks.json").write_text(
+        json.dumps(
+            {
+                "pretrend_tests": {
+                    "pretrend_stacked_log_quantity_never_treated_products": {"verdict": "CLEAN"}
+                },
+                "checks": [{"check": "placebo_treatment_date_minus_12m"}],
+            }
+        )
+    )
+    assert consistency.check_placebo_covers_every_verdicted_outcome(results).passed is False

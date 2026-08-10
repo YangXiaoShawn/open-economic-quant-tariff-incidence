@@ -168,11 +168,38 @@ def main() -> int:  # noqa: C901, PLR0915
             key = k[len("pretrend_stacked_"): -len("_never_treated_products")]
             bias_by_outcome[key] = v
 
+    # The date placebo is a second, independent test of the same assumption, and
+    # it disagrees with the pre-trend verdict for one outcome. It used to run on
+    # `log_quantity` alone and record no outcome, so a reader met a placebo
+    # reporting a significant effect with nothing saying what it applied to.
+    placebo_by_outcome: dict[str, dict] = {
+        c["outcome"]: c
+        for c in (ident or {}).get("checks", [])
+        if c.get("check") == "placebo_treatment_date_minus_12m" and c.get("outcome")
+    }
+
+    def _placebo_clause(outcome: str) -> str:
+        c = placebo_by_outcome.get(outcome)
+        if not c or c.get("any_post_significant_5pct") is None:
+            return ""
+        if c["any_post_significant_5pct"]:
+            return (
+                " It also **fails the date placebo**: moving the treatment date 12 months "
+                f"earlier on pre-period data alone still produces a significant coefficient "
+                f"(max |post| {c['max_abs_post_coef']:.4f}), which is the same differential "
+                "trend showing up a second way."
+            )
+        return (
+            " It **passes the date placebo**: a treatment date moved 12 months earlier on "
+            f"pre-period data alone produces nothing significant (max |post| "
+            f"{c['max_abs_post_coef']:.4f})."
+        )
+
     lines = []
     for o in sorted(set(verdicts) | set(stacked_verdicts)):
         v, design = best(o)
         if v in OK_VERDICTS:
-            reading = "a causal reading is supported by this test"
+            reading = "a causal reading is supported by this test."
         elif v in BOUNDED_VERDICTS:
             det = bias_by_outcome.get(o, {})
             bd = det.get("effect_bound_abs")
@@ -212,6 +239,7 @@ def main() -> int:  # noqa: C901, PLR0915
                 if o in stacked_verdicts and o in verdicts and verdicts[o] != v
                 else ""
             )
+            + _placebo_clause(o)
         )
     verdict_note = "\n".join(lines)
 

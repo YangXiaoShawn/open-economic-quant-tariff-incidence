@@ -435,29 +435,50 @@ def main() -> int:
         (pl.col("month_index") - (pl.col("first_treated_month_index") - 12)).alias("event_time")
     )
     if placebo.height > 500:
-        try:
-            fit, _, coefs = event_study(
-                placebo, "log_quantity",
-                fixed_effects=fe_flow_time, cluster_vars=cluster,
-                window=(-6, 5), reference=-1,
-            )
-            post = coefs.filter((pl.col("event_time") >= 0) & (pl.col("std_error") > 0))
-            checks.append(
-                {
-                    "check": "placebo_treatment_date_minus_12m",
-                    "description": "treatment date moved 12 months earlier, pre-period sample only",
-                    "n_obs": fit.n_obs,
-                    "max_abs_post_coef": float(np.max(np.abs(post["estimate"].to_numpy()))) if post.height else None,
-                    "any_post_significant_5pct": bool((post["p_value"] < 0.05).any()) if post.height else None,
-                    "interpretation": (
-                        "a significant 'effect' here means the design picks up differential trends "
-                        "rather than the tariff"
-                    ),
-                }
-            )
-            _write(coefs, "placebo_event_study_date", stamp)
-        except Exception as exc:  # noqa: BLE001
-            checks.append({"check": "placebo_treatment_date_minus_12m", "error": str(exc)})
+        # Run on every outcome, and say which. It used to run on `log_quantity`
+        # alone and record no outcome at all, so a reader met a placebo reporting
+        # a significant effect with no way to tell whether it threatened the
+        # incidence claim -- which rests on the two price outcomes -- or the
+        # quantity result, which already carries a qualified reading. Testing
+        # only the outcome that fails its own pre-trend test, and not the two
+        # carrying the conclusion, is the wrong way round.
+        for outcome in ["log_customs_unit_value", "log_landed_unit_value", "log_quantity"]:
+            try:
+                fit, _, coefs = event_study(
+                    placebo, outcome,
+                    fixed_effects=fe_flow_time, cluster_vars=cluster,
+                    window=(-6, 5), reference=-1,
+                )
+                post = coefs.filter((pl.col("event_time") >= 0) & (pl.col("std_error") > 0))
+                sig = bool((post["p_value"] < 0.05).any()) if post.height else None
+                checks.append(
+                    {
+                        "check": "placebo_treatment_date_minus_12m",
+                        "outcome": outcome,
+                        "description": (
+                            "treatment date moved 12 months earlier, pre-period sample only"
+                        ),
+                        "n_obs": fit.n_obs,
+                        "max_abs_post_coef": (
+                            float(np.max(np.abs(post["estimate"].to_numpy())))
+                            if post.height
+                            else None
+                        ),
+                        "any_post_significant_5pct": sig,
+                        "status": "FAIL" if sig else "PASS",
+                        "interpretation": (
+                            "a significant 'effect' here means the design picks up differential "
+                            "trends rather than the tariff, for this outcome"
+                        ),
+                    }
+                )
+                _write(coefs.with_columns(pl.lit(outcome).alias("outcome")),
+                       f"placebo_event_study_date_{outcome}", stamp)
+            except Exception as exc:  # noqa: BLE001
+                checks.append(
+                    {"check": "placebo_treatment_date_minus_12m",
+                     "outcome": outcome, "error": str(exc)}
+                )
     else:
         checks.append(
             {"check": "placebo_treatment_date_minus_12m", "status": "SKIPPED",

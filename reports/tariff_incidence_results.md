@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T195522Z-b1495fb3` · git `0afb1d8-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T19:55:22.453085+00:00
+> run_id `20260810T235051Z-b1495fb3` · git `571f53d-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T23:50:51.427940+00:00
 
 
 Estimates of how the additional duty maps into customs unit values, duty-inclusive landed unit values, quantities and trade values. The customs unit value is tariff-exclusive and is a proxy for the foreign border price; it is a value-over-quantity ratio across a heterogeneous bundle of transactions and is **not** a transaction price. The duty-inclusive landed unit value is what the U.S. importer faces at the border, excluding freight. Reading incidence requires both.
@@ -13,9 +13,9 @@ Estimates of how the additional duty maps into customs unit values, duty-inclusi
 
 The parallel-trends assumption is tested per outcome, and it does not hold uniformly. The verdict below governs how each result may be read; it is placed first so it cannot be skipped.
 
-- `log_customs_unit_value`: **PRECISE_NULL_EFFECT_BOUNDED** under the stacked multi-wave design -> **the effect is bounded near zero**. The post-treatment path does not rise clear of the pre-period noise, so the design cannot separate the effect from zero — which for a near-null outcome is a finding, not a failure. Taking the observed path and the slope bias together, the effect is at most 0.076 log points in absolute value.
-- `log_landed_unit_value`: **CLEAN** under the stacked multi-wave design -> a causal reading is supported by this test
-- `log_quantity`: **NOISY_PRE_PERIOD_NO_SLOPE** under the stacked multi-wave design -> **a qualified causal reading** — no differential trend is detectable, but the pre-period is noisy, so the estimate is less precise than the interval alone suggests. The pre-period slope is not statistically distinguishable from zero; extrapolated across the post window it would shift the estimate by +0.033 against a post-treatment RMS of 0.418.
+- `log_customs_unit_value`: **PRECISE_NULL_EFFECT_BOUNDED** under the stacked multi-wave design -> **the effect is bounded near zero**. The post-treatment path does not rise clear of the pre-period noise, so the design cannot separate the effect from zero — which for a near-null outcome is a finding, not a failure. Taking the observed path and the slope bias together, the effect is at most 0.076 log points in absolute value. It **passes the date placebo**: a treatment date moved 12 months earlier on pre-period data alone produces nothing significant (max |post| 0.0351).
+- `log_landed_unit_value`: **CLEAN** under the stacked multi-wave design -> a causal reading is supported by this test. It **passes the date placebo**: a treatment date moved 12 months earlier on pre-period data alone produces nothing significant (max |post| 0.0349).
+- `log_quantity`: **NOISY_PRE_PERIOD_NO_SLOPE** under the stacked multi-wave design -> **a qualified causal reading** — no differential trend is detectable, but the pre-period is noisy, so the estimate is less precise than the interval alone suggests. The pre-period slope is not statistically distinguishable from zero; extrapolated across the post window it would shift the estimate by +0.033 against a post-treatment RMS of 0.418. It also **fails the date placebo**: moving the treatment date 12 months earlier on pre-period data alone still produces a significant coefficient (max |post| 0.0934), which is the same differential trend showing up a second way.
 
 ## Incidence: who paid
 
@@ -607,10 +607,10 @@ How much weight each wave carries, reported rather than buried.
 
 | stack_id | n_obs | n_treated_obs | n_products | treatment_month_index | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Pre-treatment trend tests
@@ -644,13 +644,15 @@ Each check is reported whether or not it is favourable.
 
 **checks**
 
-| check | description | n_obs | max_abs_post_coef | any_post_significant_5pct | interpretation | status | note | treatment_used | label | n_variants | estimate_spread | min | max |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| placebo_treatment_date_minus_12m | treatment date moved 12 months earlier, pre-period sample only | 268029 | 0.0934 | yes | a significant 'effect' here means the design picks up differential trends rather than the tariff |  |  |  |  |  |  |  |  |
-| placebo_product_group | half the never-treated products labelled treated at the real date | 37035 | 0.2286 | no |  |  |  |  |  |  |  |  |  |
-| announcement_vs_effective |  |  |  |  |  | PARTIAL | the tariff schedule stores announcement and effective dates separately and the event study uses the effective date; an announcement-dated variant requires re-deriving event time from announcement_date and is listed as a remaining milestone | additional_tariff_rate | effective_date_treatment |  |  |  |  |
-| leave_one_chapter_out |  |  |  |  |  |  |  |  |  | 10 | 0.2253 | -1.9512 | -1.7259 |
-| leave_one_country_out |  |  |  |  |  |  |  |  |  | 8 |  |  |  |
+| check | outcome | description | n_obs | max_abs_post_coef | any_post_significant_5pct | status | interpretation | note | treatment_used | label | n_variants | estimate_spread | min | max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| placebo_treatment_date_minus_12m | log_customs_unit_value | treatment date moved 12 months earlier, pre-period sample only | 268029 | 0.0351 | no | PASS | a significant 'effect' here means the design picks up differential trends rather than the tariff, for this outcome |  |  |  |  |  |  |  |
+| placebo_treatment_date_minus_12m | log_landed_unit_value | treatment date moved 12 months earlier, pre-period sample only | 268029 | 0.0349 | no | PASS | a significant 'effect' here means the design picks up differential trends rather than the tariff, for this outcome |  |  |  |  |  |  |  |
+| placebo_treatment_date_minus_12m | log_quantity | treatment date moved 12 months earlier, pre-period sample only | 268029 | 0.0934 | yes | FAIL | a significant 'effect' here means the design picks up differential trends rather than the tariff, for this outcome |  |  |  |  |  |  |  |
+| placebo_product_group |  | half the never-treated products labelled treated at the real date | 37035 | 0.2286 | no |  |  |  |  |  |  |  |  |  |
+| announcement_vs_effective |  |  |  |  |  | PARTIAL |  | the tariff schedule stores announcement and effective dates separately and the event study uses the effective date; an announcement-dated variant requires re-deriving event time from announcement_date and is listed as a remaining milestone | additional_tariff_rate | effective_date_treatment |  |  |  |  |
+| leave_one_chapter_out |  |  |  |  |  |  |  |  |  |  | 10 | 0.2253 | -1.9512 | -1.7259 |
+| leave_one_country_out |  |  |  |  |  |  |  |  |  |  | 8 |  |  |  |
 
 
 ## Leave-one-chapter-out
@@ -659,16 +661,16 @@ Each check is reported whether or not it is favourable.
 
 | dropped_chapter | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 39 | -1.7357 | 0.1008 | 546665 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 40 | -1.8282 | 0.0963 | 569735 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 44 | -1.8423 | 0.0974 | 575929 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 48 | -1.8462 | 0.0992 | 571760 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 73 | -1.9128 | 0.1012 | 528068 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 76 | -1.8403 | 0.0965 | 583266 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 84 | -1.9512 | 0.1214 | 423070 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 85 | -1.7259 | 0.1084 | 472615 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 87 | -1.8904 | 0.0987 | 556899 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 94 | -1.7949 | 0.0952 | 574540 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 39 | -1.7357 | 0.1008 | 546665 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 40 | -1.8282 | 0.0963 | 569735 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 44 | -1.8423 | 0.0974 | 575929 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 48 | -1.8462 | 0.0992 | 571760 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 73 | -1.9128 | 0.1012 | 528068 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 76 | -1.8403 | 0.0965 | 583266 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 84 | -1.9512 | 0.1214 | 423070 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 85 | -1.7259 | 0.1084 | 472615 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 87 | -1.8904 | 0.0987 | 556899 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 94 | -1.7949 | 0.0952 | 574540 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Leave-one-country-out
@@ -677,26 +679,26 @@ Each check is reported whether or not it is favourable.
 
 | dropped_country | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1220 | -1.9766 | 0.0983 | 500201 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 2010 | -1.8373 | 0.0982 | 520487 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5330 | -1.7561 | 0.0957 | 544622 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5490 | -1.7864 | 0.0955 | 559330 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5520 | -1.6898 | 0.0940 | 567820 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5590 | -1.8550 | 0.0970 | 578901 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5800 | -1.8500 | 0.0973 | 535633 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5880 | -1.9438 | 0.0976 | 516324 | 20260810T195154Z-b1495fb3 | 0afb1d8-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 1220 | -1.9766 | 0.0983 | 500201 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 2010 | -1.8373 | 0.0982 | 520487 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5330 | -1.7561 | 0.0957 | 544622 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5490 | -1.7864 | 0.0955 | 559330 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5520 | -1.6898 | 0.0940 | 567820 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5590 | -1.8550 | 0.0970 | 578901 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5800 | -1.8500 | 0.0973 | 535633 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5880 | -1.9438 | 0.0976 | 516324 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ---
 
 ## Reproducibility
 
-- run id: `20260810T195522Z-b1495fb3`
-- git commit: `0afb1d8-dirty`
+- run id: `20260810T235051Z-b1495fb3`
+- git commit: `571f53d-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T19:55:22.453085+00:00
+- generated: 2026-08-10T23:50:51.427940+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

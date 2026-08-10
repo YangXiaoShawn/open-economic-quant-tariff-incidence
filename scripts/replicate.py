@@ -125,7 +125,10 @@ TARGETS = [
         "name": "Short-run aggregate welfare accounting",
         "original_source": "Amiti, Redding and Weinstein (2019); Fajgelbaum et al. (2020).",
         "original_definition": "Deadweight loss plus terms-of-trade effects.",
-        "our_data": "BLOCKED on data and on a structural module.",
+        "our_data": (
+            "Not blocked on data. The trade panel is official; what is missing is a "
+            "domestic-alternative expenditure series and a structural module."
+        ),
         "our_implementation": (
             "None. No structural module has been implemented (decision D-017), and "
             "the reporting guard blocks quantified welfare claims outright."
@@ -175,14 +178,32 @@ def main() -> int:
     deferred = t1.filter(pl.col("match").is_null()) if t1.height else t1
     all_match = bool(checkable["match"].all()) if checkable.height else False
 
+    # The stamp used to carry the Federal Register date range, hardcoded, from
+    # when T1 was the only executed target. It was wrong twice over once T2 and
+    # T3 started reporting estimates: their figures come from the trade panel,
+    # and the hardcoded legal range predated the List 4A parse by two actions.
+    # The period is the sample the trade-based targets rest on; the legal range
+    # is derived from the schedule and recorded in the note beside it.
+    sched_p = layer_path("normalized", "tariff_schedule.parquet")
+    legal_note = "Federal Register + USITC HTS"
+    if sched_p.exists():
+        sc = pl.read_parquet(sched_p)
+        legal_note = (
+            f"Federal Register notices dated {sc['announcement_date'].min()} to "
+            f"{sc['announcement_date'].max()}, effective {sc['effective_date'].min()} to "
+            f"{sc['effective_date'].max()}, plus USITC HTS"
+        )
     stamp = RunStamp.create(
         config_name=cfg.config_name,
         config_bytes=cfg.raw_bytes,
         # T1 uses only official legal sources, regardless of the trade panel.
         data_provenance=DataProvenance.OFFICIAL,
-        data_period_start="2018-06-20",
-        data_period_end="2019-05-10",
-        notes="statutory coverage replication uses Federal Register + USITC HTS only",
+        data_period_start=cfg.sample.start_month,
+        data_period_end=cfg.sample.end_month,
+        notes=(
+            f"T1 statutory coverage uses {legal_note} and no trade data; the period above "
+            "is the trade sample the conceptual targets T2 and T3 rest on"
+        ),
     )
     t1.write_parquet(layer_path("results", "replication_statutory_coverage.parquet"))
 

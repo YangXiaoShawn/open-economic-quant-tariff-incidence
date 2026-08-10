@@ -1402,3 +1402,54 @@ Writing the tests found one defect in the checks themselves: the exclusion-bound
 check floored to the month in its pass condition and compared raw dates when
 counting flagged rows, so it would have failed correctly and then miscounted why
 — July 2018 contains the first effective date and is legitimately in the frame.
+
+### D-051 — The date placebo tested the one outcome that already failed, and said so nowhere
+
+Finishing the report read-through — `tariff_incidence_results.md` had been read
+to line 120 of 702, and `replication_protocol.md` not at all, while STATUS
+claimed all eleven were read end to end — turned up a placebo reporting a
+significant effect with no indication of what it applied to.
+
+`placebo_treatment_date_minus_12m` moves the treatment date twelve months
+earlier and estimates on pre-period data alone, where nothing should be found.
+It was reporting `any_post_significant_5pct: true`. Two things were wrong with
+how that reached a reader:
+
+*It ran on `log_quantity` alone*, hardcoded, and **recorded no outcome**. So the
+check appeared in the report as a bare failure. A reader could not tell whether
+it threatened the incidence claim, which rests on the two price outcomes, or the
+quantity result, which already carries a qualified reading — and had no way to
+find out from the artefact.
+
+*It tested the wrong outcome.* `log_quantity` is the outcome that already fails
+its own pre-trend magnitude test. The two outcomes carrying the conclusion were
+never date-placebo-tested at all. Testing the one that already fails and not the
+ones the argument depends on is exactly backwards.
+
+Run on all three, and named:
+
+| outcome | date placebo | max abs post coefficient |
+|---|---|---|
+| `log_customs_unit_value` | **PASS** | 0.0351 |
+| `log_landed_unit_value` | **PASS** | 0.0349 |
+| `log_quantity` | **FAIL** | 0.0934 |
+
+**This strengthens the incidence account rather than weakening it.** The failure
+is confined to quantity, and it is the same differential trend that the pre-trend
+test already reports as `NOISY_PRE_PERIOD_NO_SLOPE`, now visible a second and
+independent way — which is a more honest description of the quantity result than
+the pre-trend verdict alone. The two price outcomes, on which the pass-through
+conclusion rests, were previously untested by this placebo and now pass it.
+
+The per-outcome verdict list at the top of the incidence report states the
+placebo result beside the pre-trend verdict, so the two tests of the same
+assumption are read together. A consistency check asserts every outcome carrying
+a verdict also carries a placebo result naming it, because an outcome licensed by
+one test and untested by the other is a gap a reader cannot see.
+
+**Two smaller things in the same pass.** `replication_protocol.md` recorded T4 as
+"BLOCKED on data and on a structural module" when the data is official, and its
+stamp carried a hardcoded Federal Register range — 2018-06-20 to 2019-05-10 —
+that both predated the List 4A parse by two actions and described the wrong
+period now that T2 and T3 report trade-based estimates. The period is the trade
+sample; the legal range is derived from the schedule and recorded beside it.
