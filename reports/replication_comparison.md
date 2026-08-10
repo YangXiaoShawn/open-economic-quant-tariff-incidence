@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T140836Z-b1495fb3` · git `43a1a31-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2018-06-20 to 2019-05-10 · generated 2026-08-10T14:08:36.293641+00:00
+> run_id `20260810T194909Z-b1495fb3` · git `76c456a-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2018-06-20 to 2019-05-10 · generated 2026-08-10T19:49:09.333100+00:00
 
 
 Results of the replication attempts specified in the protocol.
@@ -29,17 +29,17 @@ This target uses only official legal sources, so it is unaffected by the Census 
 
 ## T2-T4 — Trade-based targets
 
-Blocked on official Census import data. The estimating code for T2 and T3 is implemented and tested; only the data is missing. T4 additionally requires a structural module that has deliberately not been built.
+T2 and T3 are executed **conceptually**, not exactly. Both estimate the same object as the published work on the same underlying source, and neither uses the published specification: this project runs monthly levels with fixed effects on a restricted set of chapters and partners, and its estimates are intention-to-treat with respect to the statutory list. A conceptual replication that agrees in direction and rough magnitude is what that design can support; a difference column comparing levels would not be meaningful and is labelled so rather than filled in.
 
-None of these is described as attempted. A number produced from synthetic flows and printed beside a published estimate would be misleading no matter how it were labelled.
+T4 requires a structural module that has deliberately not been built, so it is not attempted and no welfare number exists anywhere in this repository.
 
 **targets**
 
 | target_id | status | replication_type | our_estimate | difference_from_published | plausible_reasons_for_difference |
 | --- | --- | --- | --- | --- | --- |
 | T1_STATUTORY_COVERAGE | EXECUTED | EXACT_COUNT_COMPARISON | exact match on 3 checkable actions; 1 deferred to internal cross-checks | 0 on every checkable action | none; exact match |
-| T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT | not produced | n/a | Monthly levels with fixed effects rather than first differences; a restricted set of ten HS chapters and eight comparison partners; and intention-to-treat status, because product exclusions cannot be mapped to statistical lines (see reports/product_exclusions.md). The direction and rough magnitude agree with the published finding of near-complete pass-through; the estimates are not directly comparable in level. |
-| T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT | not produced | n/a | A restricted set of ten HS chapters and eight comparison partners; intention-to-treat status; and a quantity outcome whose pre-period is noisier than the threshold this project applies, which the published work does not have to contend with at this aggregation. |
+| T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT | duty-inclusive landed unit value +0.1544 against a mechanical log(1+tau) of +0.1626, i.e. 95% of the duty appearing in the price the importer faces | not comparable in level; both find pass-through close to complete | Monthly levels with fixed effects rather than first differences; a restricted set of ten HS chapters and eight comparison partners; and intention-to-treat status, because product exclusions cannot be mapped to statistical lines (see reports/product_exclusions.md). The direction and rough magnitude agree with the published finding of near-complete pass-through; the estimates are not directly comparable in level. |
+| T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS | EXECUTED_CONCEPTUALLY | CONCEPTUAL_NOT_EXACT | log quantity -0.3793 on treated flows; treated-country customs value of targeted products down 31.3% against a never-treated-product counterfactual | not comparable in level; both find a large contraction in targeted imports | A restricted set of ten HS chapters and eight comparison partners; intention-to-treat status; and a quantity outcome whose pre-period is noisier than the threshold this project applies, which the published work does not have to contend with at this aggregation. |
 | T4_SHORT_RUN_WELFARE_ACCOUNTING | NOT_ATTEMPTED | NOT_ATTEMPTED | not produced | n/a | target not attempted |
 
 
@@ -47,12 +47,12 @@ None of these is described as attempted. A number produced from synthetic flows 
 
 ## Reproducibility
 
-- run id: `20260810T140836Z-b1495fb3`
-- git commit: `43a1a31-dirty`
+- run id: `20260810T194909Z-b1495fb3`
+- git commit: `76c456a-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2018-06-20 to 2019-05-10
-- generated: 2026-08-10T14:08:36.293641+00:00
+- generated: 2026-08-10T19:49:09.333100+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

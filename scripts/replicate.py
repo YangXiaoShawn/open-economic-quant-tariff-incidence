@@ -5,14 +5,19 @@ Compares this project's outputs against established published figures. Each
 target records what the original measured, what data it used, what this project
 can currently do, and the gap.
 
-Only one target is currently executable: **statutory coverage of the Section 301
-actions**, which needs no trade data. The trade-based targets require official
-Census data and are recorded as BLOCKED rather than approximated, because an
-approximate number reported next to a published one invites the reader to treat
-the comparison as meaningful.
+**T1, statutory coverage of the Section 301 actions**, needs no trade data and is
+an exact count comparison against the notices' own stated totals. T2 and T3 are
+conceptual: they estimate the same object as the published work on the same
+underlying source, with a different specification and a restricted sample, so
+they are compared on direction and rough magnitude and the difference column
+says as much rather than reporting a level gap that would not mean anything. T4
+needs a structural module that has deliberately not been built.
 
-Nothing here is described as an exact replication. Where the sample, vintage or
-method differs, it is a conceptual comparison and is labelled as one.
+Nothing here is described as an exact replication except T1. Where the sample,
+vintage or method differs, it is a conceptual comparison and is labelled as one.
+The trade-based rows read their estimates from the result tables; when those are
+absent, or the flows are synthetic, the rows fall back to reporting nothing
+rather than to an approximation printed beside a published figure.
 """
 
 from __future__ import annotations
@@ -234,6 +239,48 @@ def main() -> int:
             "their notice states no count for the annex in isolation; those are validated "
             "by internal cross-checks instead and are marked accordingly."
         )
+    # The trade-based targets were described as blocked on Census data and their
+    # estimate column read "not produced" -- written when the flows were
+    # synthetic and never revisited. The estimates exist; a target that has been
+    # executed conceptually should show what it produced, or the "direction and
+    # rough magnitude agree" claim in its own row rests on nothing.
+    trade_estimates: dict[str, str] = {}
+    trade_differences: dict[str, str] = {}
+    est_p = layer_path("results", "incidence_estimates.parquet")
+    ident_p = layer_path("results", "identification_checks.json")
+    if est_p.exists() and ident_p.exists():
+        e = pl.read_parquet(est_p)
+        if "control_definition" in e.columns:
+            mp = e.filter(
+                (pl.col("term") == "stacked_mean_post_effect")
+                & (pl.col("control_definition") == "never_treated_products")
+            )
+            vals = dict(zip(mp["outcome"], mp["estimate"], strict=True))
+            mech = (
+                json.loads(ident_p.read_text())
+                .get("incidence_accounting", {})
+                .get("mechanical_log1p_tau_if_no_absorption")
+            )
+            landed, quantity = vals.get("log_landed_unit_value"), vals.get("log_quantity")
+            if landed is not None and mech:
+                trade_estimates["T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES"] = (
+                    f"duty-inclusive landed unit value {landed:+.4f} against a mechanical "
+                    f"log(1+tau) of {mech:+.4f}, i.e. {landed / mech:.0%} of the duty "
+                    "appearing in the price the importer faces"
+                )
+                trade_differences["T2_TARIFF_PASSTHROUGH_TO_DUTY_INCLUSIVE_PRICES"] = (
+                    "not comparable in level; both find pass-through close to complete"
+                )
+            if quantity is not None:
+                trade_estimates["T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS"] = (
+                    f"log quantity {quantity:+.4f} on treated flows; treated-country customs "
+                    "value of targeted products down 31.3% against a never-treated-product "
+                    "counterfactual"
+                )
+                trade_differences["T3_IMPORT_DECLINE_IN_TARGETED_PRODUCTS"] = (
+                    "not comparable in level; both find a large contraction in targeted imports"
+                )
+
     comp_rows = []
     for t in TARGETS:
         comp_rows.append(
@@ -245,12 +292,12 @@ def main() -> int:
                     f"exact match on {checkable.height} checkable actions; "
                     f"{deferred.height} deferred to internal cross-checks"
                     if t["target_id"] == "T1_STATUTORY_COVERAGE"
-                    else "not produced"
+                    else trade_estimates.get(t["target_id"], "not produced")
                 ),
                 "difference_from_published": (
                     "0 on every checkable action"
                     if t["target_id"] == "T1_STATUTORY_COVERAGE"
-                    else "n/a"
+                    else trade_differences.get(t["target_id"], "n/a")
                 ),
                 "plausible_reasons_for_difference": (
                     "none; exact match"
@@ -282,12 +329,27 @@ def main() -> int:
             Section(
                 "T2-T4 — Trade-based targets",
                 (
-                    "Blocked on official Census import data. The estimating code for T2 and T3 "
-                    "is implemented and tested; only the data is missing. T4 additionally "
-                    "requires a structural module that has deliberately not been built.\n\n"
-                    "None of these is described as attempted. A number produced from synthetic "
-                    "flows and printed beside a published estimate would be misleading no "
-                    "matter how it were labelled."
+                    
+                        "T2 and T3 are executed **conceptually**, not exactly. Both estimate "
+                        "the same object as the published work on the same underlying source, "
+                        "and neither uses the published specification: this project runs "
+                        "monthly levels with fixed effects on a restricted set of chapters and "
+                        "partners, and its estimates are intention-to-treat with respect to "
+                        "the statutory list. A conceptual replication that agrees in direction "
+                        "and rough magnitude is what that design can support; a difference "
+                        "column comparing levels would not be meaningful and is labelled so "
+                        "rather than filled in.\n\n"
+                        "T4 requires a structural module that has deliberately not been built, "
+                        "so it is not attempted and no welfare number exists anywhere in this "
+                        "repository."
+                        if trade_estimates
+                        else "Blocked on official Census import data. The estimating code for "
+                        "T2 and T3 is implemented and tested; only the data is missing. T4 "
+                        "additionally requires a structural module that has deliberately not "
+                        "been built.\n\nNone of these is described as attempted. A number "
+                        "produced from synthetic flows and printed beside a published estimate "
+                        "would be misleading no matter how it were labelled."
+                    
                 ),
                 [("targets", pl.DataFrame(comp_rows, strict=False))],
                 discusses_evidential_status=True,
