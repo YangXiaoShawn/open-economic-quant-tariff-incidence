@@ -116,7 +116,17 @@ bit-identical after the fix, and a test now pins the invariant.
 A sweep for the same defect class found one more — which I had introduced myself
 one tick after fixing D-046's. It is computed now.
 
-**All eleven reports have now been read end to end**, not merely regenerated.
+**All eleven reports have now been read end to end**, not merely regenerated —
+a claim that was premature when first written here: `tariff_incidence_results.md`
+had been read to line 120 of 702 and `replication_protocol.md` not at all.
+Finishing it found a sixth defect, the sharpest of them (D-051): the date placebo
+ran on `log_quantity` alone and recorded no outcome, so it appeared as a bare
+failing check with nothing saying what it applied to — and the two price outcomes
+carrying the incidence conclusion had never been date-placebo-tested at all. Run
+on all three, **both price outcomes pass** (max |post| 0.0351 and 0.0349) and the
+failure is confined to quantity (0.0934), where it is the same differential trend
+the pre-trend verdict already reports, showing up a second and independent way.
+That strengthens the pass-through account rather than weakening it.
 Beyond the incidence literals above, four more defects came out of it:
 
 - *Diversion heterogeneity inflated 3.16x* (D-047). `pretreatment_treated_country_share`
