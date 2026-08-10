@@ -96,16 +96,6 @@ correctly reporting the gap as bounded. The panel manifest described an HS6
 panel ending 2019-08, contradicting the data period in the same document. All
 now read from the artefacts rather than from fixed strings.
 
-The load-bearing one is **D-045**: `structural_counterfactuals.md` carries
-DATA PROVENANCE: OFFICIAL at the top and then gives the reason for deferring the
-structural module as "calibrated on synthetic trade flows", listing official
-flows as the binding constraint. The flows have been official since session 9 —
-a *reason* that stopped applying while the conclusion it supported stayed in
-place. What remains is narrower: no domestic-alternative expenditure series, so
-the Armington domestic nest is unidentified, and elasticities would be borrowed
-rather than estimated. Neither blocks the module; both change what its output may
-be called. **Left open for a decision rather than closed autonomously.**
-
 **The headline incidence numbers were typed into the report** (D-046). Reading
 `tariff_incidence_results.md` line by line found the two figures the whole
 incidence conclusion rests on sitting in the generator as string literals inside
