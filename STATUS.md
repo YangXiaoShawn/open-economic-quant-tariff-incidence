@@ -116,6 +116,29 @@ bit-identical after the fix, and a test now pins the invariant.
 A sweep for the same defect class found one more — which I had introduced myself
 one tick after fixing D-046's. It is computed now.
 
+**All eleven reports have now been read end to end**, not merely regenerated.
+Beyond the incidence literals above, four more defects came out of it:
+
+- *Diversion heterogeneity inflated 3.16x* (D-047). `pretreatment_treated_country_share`
+  is a 10-digit attribute; `.unique()` over (hs6, share) kept one row per distinct
+  share and the join fanned each heading out — 4,355 rows for 1,376 headings, one
+  heading having 40. The percentage change survived, because numerator and
+  denominator inflate together, so the table looked right while disagreeing with
+  the totals in the same document. Corrected, the result is sharper: products the
+  U.S. relied on China for most replaced **14%** of the lost value from elsewhere,
+  those it relied on least replaced **57%**.
+- *The exclusion bound was diluted* (D-048). It conditioned on a positive *total*
+  rate, which includes baseline MFN, so six pre-tariff months and $42.6bn of
+  MFN-only trade sat in the denominator contributing zero. Baseline **10.9%**, not
+  4.4%; the exclusion-attributable increase **+9.0pp**, not +14.3pp. The error made
+  the exclusion problem look larger than it is.
+- *Replication T2/T3 reported as blocked while producing estimates.* The rows said
+  "not produced" and the prose said "blocked on Census data", while the same row
+  asserted agreement with the published finding. T2 now reports **95% of the duty
+  appearing in the price the importer faces**.
+- *The specification register said `hs6`* (D-049) when every design runs on `hs10`
+  — off by a factor of 2.6 in the cells behind every coefficient.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
