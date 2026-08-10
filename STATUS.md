@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 12
+**Last updated:** 2026-08-10 · session 13
 
 ## One-line state
 
@@ -14,6 +14,53 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 13: the power limit had a published answer
+
+Session 12 closed with the propagation test underpowered at 22 clusters and
+three named ways out. The one that costs nothing turned out to be sitting in a
+file the project had been downloading since session 8.
+
+BEA publishes **detail-level** input-output tables — roughly 400 industries
+against the summary level's 71 — for benchmark years only: 2007, 2012, 2017.
+This project's pre-treatment year is 2017, so the finest published industry
+breakdown exists exactly where a shift-share design needs its weights. Only the
+summary members of `AllTablesSUP.zip` were being read.
+
+| | summary | detail |
+|---|---|---|
+| BEA industries in the IO table | 71 | 401 |
+| panel NAICS codes mapped | 219 → 19 commodities | 211 of 219 |
+| customs value covered | 99.8% | 97.8% |
+| industries with tariff exposure | 24 | 148 |
+| **industries with a matched PPI series** | **22** | **125** |
+
+125 clusters puts cluster-robust inference back inside the range where it
+behaves. The wild cluster bootstrap (D-042) stays anyway.
+
+**Three things this turned up that were not the point.** Each is in D-043.
+
+1. *BEA already publishes the hierarchy I hand-coded.* Every detail workbook
+   ships a `NAICS Codes` sheet with BEA's own Sector/Summary/U.Summary/Detail
+   nesting. `bls_ppi.BEA_TO_NAICS` was hand-written in session 12 — the same
+   mistake in kind as D-011 and D-037. Checked against the published sheet, it
+   **agrees exactly**, so no prior result changes; a test now holds it there.
+2. *The two workbooks disagree on header row order.* Summary writes codes above
+   the label row, detail below it. Taking them by position returned industry
+   *titles* where codes belonged, and nothing would have raised — the downstream
+   join would simply have matched nothing.
+3. *A footnote had been an industry since session 8.* `Note. Detail may not add
+   to total due to rounding.` was a 72nd row of the summary exposure table, zero
+   exposure, never in an estimate, but present in a published result table. The
+   71 real industries are unchanged to 1e-17 after the fix.
+
+**The detail estimate has not been run.** BLS v1 allows only a few requests per
+address per day and the coverage probes exhausted today's allowance. The script
+refused to estimate on whichever series happened to be cached, because a sample
+that changed silently is worse than no result. The cache is now **per series and
+per year** rather than per request payload, and existing raw responses were
+re-read into it at no cost: of the 472 series the detail run needs for 2017-2019,
+176 are already complete, leaving 296 — twelve requests once the allowance resets.
 
 ## Session 12: the last data source, and the first honest power result
 
@@ -390,14 +437,20 @@ tables were missing. Fixed, and reports regenerated with content.
 
 ## Next actions, in priority order
 
-1. **Parse product exclusions.** `DUTY_VS_ENGINE` flags 12,861 of 102,950
-   dutiable observations (12.5%) where the realised duty departs from the
-   statutory schedule — a direct, measurable floor on how much
-   intention-to-treat differs from treatment-on-the-treated.
-3. **List 4A parser**, to extend past 2019-08.
-4. Stacked staggered design for Lists 1-3 jointly.
-5. Official HS→NAICS concordance.
-6. BLS PPI (M9), then the structural module (M10, D-017).
+1. **Run the detail-level propagation estimate** once the BLS daily allowance
+   resets: `make estimate-propagation-detail`. Twelve requests are needed; the
+   per-series cache holds the rest. This is the first time the two exposure
+   channels can be separated with enough clusters to mean anything, and the
+   answer may well still be "no detectable effect" — which would then be a
+   result rather than a power limit.
+2. **Re-read the summary-level result against it.** If the detail estimate
+   sharpens the intervals, D-041's "power result, not a null" verdict needs
+   restating in whichever direction the evidence goes.
+3. Structural Armington/CES module (M10, D-017), still deliberately deferred:
+   calibrating it would produce counterfactuals with no informational content
+   beyond the reduced-form slice.
+4. Portfolio polish: dashboard pages for the detail exposure, and a pass over
+   the reports now that the industry axis is ten times finer.
 
 ## Known gaps carried forward
 

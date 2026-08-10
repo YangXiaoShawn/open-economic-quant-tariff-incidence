@@ -189,35 +189,84 @@ def _post(
     return doc
 
 
-def _series_cache_path(sid: str, y0: int, y1: int) -> Path:
+def _series_cache_path(sid: str, year: int) -> Path:
     from .base import RAW
 
-    return RAW / "bls" / "series" / f"{sid}_{y0}_{y1}.json"
+    return RAW / "bls" / "series" / f"{sid}_{year}.json"
 
 
 def _load_cached_series(ids: list[str], y0: int, y1: int) -> tuple[dict[str, Any], list[str]]:
     """Split requested series into those already cached and those still needed.
 
-    The v1 endpoint allows only a small number of requests per day per address,
-    and hashing the whole request payload meant that changing the industry set
-    by one code invalidated every chunk. Caching per series instead makes the
-    cost proportional to what is genuinely new.
+    The v1 endpoint allows only a small number of requests per address per day,
+    so the cache granularity decides how much of that allowance a re-run costs.
+    Hashing the whole request payload meant one extra industry invalidated every
+    chunk. Caching **per series and per year** means a run that already holds
+    2019 and now wants 2017-2019 asks only for what it is missing -- BLS tags
+    every observation with its year, so splitting a response is exact rather
+    than an approximation.
+
+    A year with no observations is cached as an empty list on purpose: "this
+    series does not cover 2017" is a fact worth remembering, and re-asking for
+    it every run would spend the allowance on a known answer.
     """
     have: dict[str, Any] = {}
     missing: list[str] = []
     for sid in ids:
-        p = _series_cache_path(sid, y0, y1)
-        if p.exists():
-            have[sid] = json.loads(p.read_text())
-        else:
+        paths = [_series_cache_path(sid, y) for y in range(y0, y1 + 1)]
+        if not all(p.exists() for p in paths):
             missing.append(sid)
+            continue
+        data: list[Any] = []
+        for p in paths:
+            data.extend(json.loads(p.read_text()))
+        have[sid] = {"seriesID": sid, "data": data}
     return have, missing
 
 
 def _write_cached_series(sid: str, y0: int, y1: int, payload: Any) -> None:
-    p = _series_cache_path(sid, y0, y1)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(payload))
+    """Split one series response into per-year files covering the whole window."""
+    by_year: dict[int, list[Any]] = {y: [] for y in range(y0, y1 + 1)}
+    for obs in payload.get("data", []):
+        try:
+            year = int(obs["year"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if year in by_year:
+            by_year[year].append(obs)
+    for year, obs_list in by_year.items():
+        p = _series_cache_path(sid, year)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(obs_list))
+
+
+def seed_series_cache_from_raw_responses() -> int:
+    """Populate the per-series cache from raw responses already on disk.
+
+    Raw request/response bodies are kept for provenance; earlier runs and
+    coverage probes left many of them. Reading them back costs no allowance and
+    is exactly equivalent to having fetched those series-years today.
+    """
+    from .base import RAW
+
+    n = 0
+    for path in sorted((RAW / "bls").glob("bls_ppi_*.json")):
+        stem = path.stem.split("_")
+        try:
+            y0, y1 = int(stem[2]), int(stem[3])
+        except (IndexError, ValueError):
+            continue
+        try:
+            doc = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue
+        for s in doc.get("Results", {}).get("series", []):
+            sid = s.get("seriesID")
+            if not sid:
+                continue
+            _write_cached_series(sid, y0, y1, s)
+            n += 1
+    return n
 
 
 def fetch_industry_ppi(

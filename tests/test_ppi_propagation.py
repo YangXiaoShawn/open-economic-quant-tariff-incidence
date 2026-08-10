@@ -132,3 +132,78 @@ def test_bootstrap_tests_the_requested_coefficient():
     assert r1["coefficient"] == "b"
     assert r0["bootstrap_p_value"] > 0.10
     assert r1["bootstrap_p_value"] < 0.05
+
+
+def test_series_cache_splits_and_rejoins_by_year(tmp_path, monkeypatch):
+    """A window already held in part must not cost a fresh request.
+
+    BLS allows only a handful of requests per address per day. Caching whole
+    request payloads meant that asking for 2017-2019 after having fetched 2019
+    re-requested everything; per-year files make the cost proportional to what
+    is actually missing.
+    """
+    from tariff_incidence.adapters import base, bls_ppi
+
+    monkeypatch.setattr(base, "RAW", tmp_path)
+    sid = "PCU325---325---"
+    payload = {
+        "seriesID": sid,
+        "data": [
+            {"year": "2019", "period": "M01", "value": "110.0"},
+            {"year": "2018", "period": "M01", "value": "105.0"},
+            {"year": "2017", "period": "M01", "value": "100.0"},
+        ],
+    }
+    bls_ppi._write_cached_series(sid, 2017, 2019, payload)
+
+    have, missing = bls_ppi._load_cached_series([sid], 2017, 2019)
+    assert missing == []
+    assert {o["year"] for o in have[sid]["data"]} == {"2017", "2018", "2019"}
+
+    # A window extending past what was cached is still a miss, not a partial.
+    have, missing = bls_ppi._load_cached_series([sid], 2017, 2020)
+    assert missing == [sid]
+    assert have == {}
+
+
+def test_year_with_no_observations_is_remembered_as_empty(tmp_path, monkeypatch):
+    """"This series does not cover 2017" is an answer worth caching."""
+    from tariff_incidence.adapters import base, bls_ppi
+
+    monkeypatch.setattr(base, "RAW", tmp_path)
+    sid = "PCU333911333911"
+    bls_ppi._write_cached_series(
+        sid, 2017, 2019, {"seriesID": sid, "data": [{"year": "2019", "period": "M01", "value": "1"}]}
+    )
+    have, missing = bls_ppi._load_cached_series([sid], 2017, 2019)
+    assert missing == []
+    assert len(have[sid]["data"]) == 1
+
+
+def test_seeding_from_raw_responses_costs_no_requests(tmp_path, monkeypatch):
+    """Raw bodies are kept for provenance; reading them back is free."""
+    import json
+
+    from tariff_incidence.adapters import base, bls_ppi
+
+    monkeypatch.setattr(base, "RAW", tmp_path)
+    (tmp_path / "bls").mkdir(parents=True)
+    (tmp_path / "bls" / "bls_ppi_2017_2019_abc123.json").write_text(
+        json.dumps(
+            {
+                "status": "REQUEST_SUCCEEDED",
+                "Results": {
+                    "series": [
+                        {
+                            "seriesID": "PCU326---326---",
+                            "data": [{"year": "2018", "period": "M03", "value": "99.9"}],
+                        }
+                    ]
+                },
+            }
+        )
+    )
+    assert bls_ppi.seed_series_cache_from_raw_responses() == 1
+    have, missing = bls_ppi._load_cached_series(["PCU326---326---"], 2017, 2019)
+    assert missing == []
+    assert have["PCU326---326---"]["data"][0]["value"] == "99.9"
