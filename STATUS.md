@@ -139,6 +139,17 @@ Beyond the incidence literals above, four more defects came out of it:
 - *The specification register said `hs6`* (D-049) when every design runs on `hs10`
   — off by a factor of 2.6 in the cells behind every coefficient.
 
+**The class is now checked, not just the instances** (D-050). The suite was
+green through all five defects, which is a gap in kind rather than in coverage:
+a test exercises code against fixtures, and each of these was a disagreement
+between two finished artefacts that nothing compared. `make check-consistency`
+evaluates five stated identities — a partition sums to what it partitions, the
+register names the level the panel is keyed on, the bound covers the population
+it claims to — and `reproduce-sample` fails on a blocking one rather than
+emitting documents that disagree with each other. Each check is tested by
+rebuilding the artefact as it was when the defect was live; a check that only
+passes on corrected data proves nothing.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
