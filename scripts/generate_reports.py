@@ -547,6 +547,49 @@ def main() -> int:  # noqa: C901, PLR0915
                 ],
             }
         )
+        # Pick the illustration from the data rather than naming industries and
+        # numbers by hand: whichever summary industry its detail children spread
+        # across most widely on the protection channel. Writing this example as
+        # a literal is the defect D-046 records, and it was introduced here one
+        # session after that one was fixed.
+        spread_note = ""
+        hier = None
+        try:
+            from tariff_incidence.adapters import bea_io
+
+            hier = bea_io.load_naics_hierarchy().select(["bea_detail", "bea_summary"])
+        except (OSError, ValueError, ImportError):
+            hier = None
+        if hier is not None:
+            j = expo_d.join(hier, left_on="industry_code", right_on="bea_detail", how="inner")
+            spread = (
+                j.group_by("bea_summary")
+                .agg(
+                    (pl.col("output_protection_exposure").max()
+                     - pl.col("output_protection_exposure").min()).alias("range"),
+                    pl.len().alias("n_children"),
+                )
+                .filter(pl.col("n_children") >= 3)
+                .sort("range", descending=True)
+            )
+            if spread.height:
+                top = spread.row(0, named=True)
+                kids = j.filter(pl.col("bea_summary") == top["bea_summary"]).sort(
+                    "output_protection_exposure", descending=True
+                )
+                hi, lo = kids.row(0, named=True), kids.row(-1, named=True)
+                spread_note = (
+                    f"inside summary industry `{top['bea_summary']}`, which the detail "
+                    f"level splits into {top['n_children']} industries, "
+                    f"{hi['industry_name'].lower()} carries output protection "
+                    f"{hi['output_protection_exposure']:.3f} against input cost "
+                    f"{hi['imported_input_cost_exposure']:.3f}, while "
+                    f"{lo['industry_name'].lower()} carries "
+                    f"{lo['output_protection_exposure']:.3f} against "
+                    f"{lo['imported_input_cost_exposure']:.3f} — reported as one number by "
+                    "a 71-industry axis."
+                )
+
         secs.append(
             Section(
                 "The same exposure at ten times the industry resolution",
@@ -558,10 +601,8 @@ def main() -> int:  # noqa: C901, PLR0915
                     "raises rather than interpolating, because interpolated weights would be "
                     "invented ones.\n\n"
                     "The coarser axis was not merely less precise. It reported as one number "
-                    "positions that differ substantially within a single summary industry: "
-                    "inside `3361MV`, heavy-duty truck manufacturing carries input-cost "
-                    "exposure 0.112 against protection 0.162, while motor-vehicle steering and "
-                    "suspension components carry 0.094 against 0.250."
+                    "positions that differ substantially within a single summary industry"
+                    + (f":\n\n{spread_note}" if spread_note else ".")
                 ),
                 [("granularity", grain)],
             )
