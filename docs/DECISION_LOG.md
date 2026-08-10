@@ -651,3 +651,59 @@ full over this window, with no detectable exporter absorption.
 The accounting is written into `identification_checks.json` by the estimation
 script so the mechanical benchmark is a recorded result rather than an
 after-the-fact calculation.
+
+---
+
+### D-030 — List 4A: legal facts verified, parser generalised, list withheld pending validation
+
+**A session-1 assumption was wrong.** The note in D-001 said List 4 notices
+"enumerate 10-digit statistical lines" and therefore needed their own parser.
+They do not. 84 FR 43304's annexes contain **no 10-digit codes at all** — 3,238
+unique 8-digit subheadings in the Annex A region, 560 in the Annex C region. The
+only difference from Lists 1-3 is an enumeration prefix in the operative
+sentence, because a second clause follows:
+
+    Lists 1-3:  "Heading 9903.88.01 applies to all products of China that are
+                 classified in the following 8-digit subheadings:"
+    List 4:     "Heading 9903.88.15 applies to: i) all products of China that
+                 are classified in the following 8-digit subheadings:"
+
+The `ii)` clause is the same partial-line construction as List 3's note 20(g),
+differing only by writing "provided for in **subheading** 4901.99.00". So three
+small regex generalisations serve both rather than a second parser that would
+drift out of step. Lists 1-3 were re-run as a regression: still 818 / 279 /
+5,745 exactly.
+
+**Legal facts, each read from the source.**
+
+| Fact | Value | Source |
+|---|---|---|
+| List 4A effective | 2019-09-01 | 84 FR 43304 |
+| List 4A rate | **15%, never 10%** | 84 FR 45821 |
+| List 4A reduced | 7.5% on 2020-02-14 | 85 FR 3741 |
+| List 4B scheduled | 2019-12-15 at 15% | 84 FR 43304 + 45821 |
+| List 4B status | **suspended indefinitely; never took effect** | 84 FR 69447 |
+
+The rate detail matters. The August notice specified 10%, but 84 FR 45821 states
+the rate "will be 15 percent on the current effective date of September 1, 2019"
+and "does not change the effective date". So List 4A was 15% from day one;
+modelling a 10% → 15% transition would invent a rate change that never happened.
+
+List 4B must not be encoded as a duty at all. It was suspended before its
+effective date and never collected.
+
+**Why the list is not yet in the episode config.** D-002 requires validating a
+parsed line list against a count the notice states itself. This notice states no
+separate count for Annex A. The 3,805 figure in its preamble refers to the May
+2019 *proposal* covering the whole $300 billion action — "invited public comment
+on ... products from China classified in 3,805 full and partial tariff
+subheadings" — which was then split into Annex A and Annex C. The parser's
+"closest stated count" heuristic picked it and reported a 565-line shortfall
+against the wrong referent.
+
+Annex A (3,238) plus Annex C (560) is 3,798, close to 3,805, which suggests the
+right validation is a **combined** check across both annexes. That requires
+multi-annex parsing, which `parse_annex` does not yet do — it returns the first
+anchor only. Until that check passes, List 4A stays out of the tariff schedule:
+shipping an unvalidated statutory list would break the rule that makes the other
+three trustworthy.

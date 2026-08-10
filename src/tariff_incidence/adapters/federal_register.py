@@ -43,9 +43,17 @@ GOVINFO_PDF = "https://www.govinfo.gov/content/pkg/FR-{ymd}/pdf/{doc}.pdf"
 CHINA_CENSUS_CODE = "5700"
 
 # The operative sentence. Tolerant of the line breaks PDF extraction inserts.
+# The operative sentence. Lists 1-3 write it as
+#   "Heading 9903.88.01 applies to all products of China that are classified in
+#    the following 8-digit subheadings:"
+# List 4 adds an enumeration because a second clause follows:
+#   "Heading 9903.88.15 applies to: i) all products of China that are
+#    classified in the following 8-digit subheadings:"
+# The optional ": i)" is the only difference; the covered-line grid that follows
+# is identical in shape, so one parser serves both rather than two diverging ones.
 _ANCHOR = re.compile(
-    r"[Hh]eading\s+(9903\.88\.\d{2})\s+applies\s+to\s+all\s+products\s+of\s+China\s+that\s+are\s+"
-    r"classified\s+in\s+the\s+following\s+8-?digit\s+subheadings",
+    r"[Hh]eading\s+(9903\.88\.\d{2})\s+applies\s+to\s*:?\s*(?:i\))?\s*all\s+products\s+of\s+"
+    r"China\s+that\s+are\s+classified\s+in\s+the\s+following\s+8-?digit\s+subheadings",
     re.IGNORECASE,
 )
 _ANNEX_HEAD = re.compile(r"(?m)^\s*ANNEX\s+[B-Z]\b")
@@ -63,13 +71,19 @@ _STATED_COUNT = re.compile(
 # Partial-line construction in a U.S. note:
 #   "... provided for in 2931.90.90, except for such compounds provided for in
 #    statistical reporting number 2931.90.9051;"
+# Lists 1-3 write "provided for in 2931.90.90, except for such compounds ...";
+# List 4 writes "provided for in subheading 4901.99.00, except for such ...".
 _PARTIAL_ITEM = re.compile(
-    r"provided\s+for\s+in\s+(\d{4}\.\d{2}\.\d{2})\s*,\s*except\s+for\s+such\s+[^;]{0,90}?"
-    r"provided\s+for\s+in\s+statistical\s+reporting\s+numbers?\s+([^;]{0,160})",
+    r"provided\s+for\s+in\s+(?:subheading\s+)?(\d{4}\.\d{2}\.\d{2})\s*,\s*except\s+for\s+such\s+"
+    r"[^;]{0,90}?provided\s+for\s+in\s+statistical\s+reporting\s+numbers?\s+([^;]{0,200})",
     re.IGNORECASE | re.DOTALL,
 )
+# The note that introduces partially covered lines. Lists 1-3: "For the purposes
+# of heading 9903.88.04, products of China, ...". List 4: "Heading 9903.88.15
+# applies to: ... ii) the following products of China: ...".
 _NOTE_HEADER = re.compile(
-    r"For\s+the\s+purposes\s+of\s+heading\s+(9903\.88\.\d{2})\s*,\s*products\s+of\s+China",
+    r"(?:For\s+the\s+purposes\s+of\s+heading\s+(?:9903\.88\.\d{2})\s*,\s*products\s+of\s+China"
+    r"|ii\)\s*the\s+following\s+products\s+of\s+China)",
     re.IGNORECASE,
 )
 
