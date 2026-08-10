@@ -1011,3 +1011,85 @@ which is the honest form of the answer when two official vintages disagree.
 A silent trap worth recording: ``xlrd`` returns numeric cells as floats, so the
 commodity code 0101210010 arrives as 101210010.0 and a naive digit check drops
 it. Leading zeros are restored explicitly and a test asserts it.
+
+---
+
+### D-040 — BLS PPI: the industry classification, not the commodity one
+
+The PPI is published under two systems, commodity (`WPU...`) and NAICS industry
+(`PCU...`). This project's exposure measure is built at NAICS through the
+official Census import concordance, so the industry series match it directly.
+The commodity series would require a second crosswalk between classifications
+that were never designed to align — precisely the "forcing a product
+classification onto a broad price series" the project's own data rules warn
+against.
+
+Series IDs follow `PCU` + industry + product, each hyphen-padded to six, so
+NAICS 325 is `PCU325---325---` and 3361 is `PCU3361--3361--`.
+
+**What is genuinely missing, recorded rather than substituted.** Agriculture and
+forestry (NAICS 111-115, BEA `111CA` and `113FF`) have no NAICS-industry PPI at
+all; they are absent from the estimation panel. NAICS 316 has no series, so BEA
+`315AL` is matched by its 315 component alone. Where a BEA industry aggregates
+several NAICS groups the component series are averaged **unweighted**, because
+NAICS-component output weights do not exist in the BEA summary tables. Every
+industry carries a match-quality flag and a partial match is never presented as
+exact.
+
+Result: 29 of 35 requested series, covering 22 of 24 BEA industries over 48
+months.
+
+---
+
+### D-041 — Propagation into producer prices: a power result, not a null
+
+The exposure channels have until now been an accounting construct. Whether they
+predict anything is a separate question, and this is the first test of it.
+
+| Channel | Coefficient | 95% CI | analytic p | bootstrap p |
+|---|---|---|---|---|
+| imported-input cost | +1.230 | [−0.450, +2.909] | 0.143 | 0.110 |
+| output protection | +0.374 | [−0.050, +0.797] | 0.081 | 0.084 |
+| downstream (Leontief) | +0.164 | [−0.050, +0.379] | 0.126 | 0.112 |
+
+**All three carry the expected positive sign and none is distinguishable from
+zero.** That is a statement about power, not about the world. The interval on
+input-cost exposure spans roughly −1% to +9% of producer prices at mean
+exposure: uninformative, not a bound near zero. This is deliberately *not*
+labelled `PRECISE_NULL_EFFECT_BOUNDED` — that verdict is earned by a tight
+interval around zero, and this interval is the opposite.
+
+Two reasons power is low, both structural:
+
+* **22 clusters.** Cluster-robust standard errors over-reject badly at that
+  count, so a wild cluster bootstrap with the null imposed and Rademacher
+  weights at the cluster level is reported for every coefficient (D-042). Here
+  the two broadly agree, which is itself worth knowing.
+* **An aggregation gap.** PPI industry indices cover an entire NAICS group while
+  exposure is built from 10-digit trade lines. That attenuates any true
+  relationship toward zero, in the same direction for every channel.
+
+**Entering both channels together halves the input-cost coefficient** (+1.23 to
++0.35). The two exposures are positively correlated across industries: an
+industry that buys tariffed inputs tends also to sell tariffed output. Reporting
+either channel alone attributes the other's variation to it, which is a concrete
+reason beyond the distributional one for never netting them.
+
+---
+
+### D-042 — Wild cluster bootstrap, because 22 clusters is not enough
+
+Cluster-robust inference is asymptotic in the number of clusters. The
+propagation panel has 22, well under the range where the analytic formula is
+trustworthy, and the project's brief lists a wild or clustered bootstrap as the
+appropriate remedy.
+
+`wild_cluster_bootstrap` implements the bootstrap-t with **the null imposed**:
+residuals come from the restricted model, so the bootstrap distribution is
+generated under `beta = 0` rather than around the estimate, and Rademacher
+weights are applied at the cluster level to preserve within-cluster dependence.
+
+Both p-values are always returned so they can be compared rather than one
+silently replacing the other. Tests check that it does not reject when there is
+no effect at 22 clusters, does reject a large true effect, and selects the
+right coefficient when several are present.

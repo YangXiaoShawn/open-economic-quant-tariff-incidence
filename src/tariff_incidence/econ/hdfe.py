@@ -330,3 +330,92 @@ def ppml_hdfe(
         pseudo_r2=pr2,
         notes=notes,
     )
+
+
+def wild_cluster_bootstrap(
+    y: np.ndarray,
+    X: np.ndarray,
+    names: list[str],
+    fe_groups: dict[str, np.ndarray],
+    cluster: np.ndarray,
+    test_index: int = 0,
+    n_boot: int = 999,
+    seed: int = 20180924,
+    weights: np.ndarray | None = None,
+) -> dict:
+    """Wild cluster bootstrap-t p-value for one coefficient.
+
+    Cluster-robust standard errors rely on the number of clusters being large.
+    With a couple of dozen they over-reject badly, and this project has designs
+    with exactly that problem: the domestic-propagation panel has one cluster per
+    industry, of which there are 22. The wild cluster bootstrap (Cameron, Gelbach
+    and Miller) is the standard remedy.
+
+    Imposing the null when resampling is what makes it work: residuals come from
+    the restricted model, so the bootstrap distribution is generated under
+    ``beta = 0`` rather than around the estimate. Rademacher weights are applied
+    at the **cluster** level, which is what preserves within-cluster dependence.
+
+    Returns the bootstrap p-value alongside the analytic one, so the two can be
+    compared rather than one quietly replacing the other.
+    """
+    y = np.asarray(y, dtype=np.float64).ravel()
+    X = np.asarray(X, dtype=np.float64)
+    fe_list = list(fe_groups.values())
+    codes = _factorize(cluster)
+    n_clusters = int(codes.max() + 1)
+
+    full = ols_hdfe(y, X, names, fe_groups, {"cluster": cluster}, weights)
+    t_obs = full.tstat(names[test_index])
+
+    # Restricted model: drop the tested regressor and impose the null.
+    keep = [j for j in range(X.shape[1]) if j != test_index]
+    if keep:
+        Xr = X[:, keep]
+        rnames = [names[j] for j in keep]
+        restricted = ols_hdfe(y, Xr, rnames, fe_groups, {"cluster": cluster}, weights)
+        beta_r = np.array([restricted.params[nm] for nm in rnames])
+        Xr_t, _, _ = absorb(Xr, fe_list, weights)
+        fitted = Xr_t @ beta_r
+    else:
+        Xr_t = np.zeros((y.size, 0))
+        fitted = np.zeros_like(y)
+
+    yt, _, _ = absorb(y[:, None], fe_list, weights)
+    resid_r = yt.ravel() - fitted
+
+    rng = np.random.default_rng(seed)
+    t_boot = np.empty(n_boot)
+    n_failed = 0
+    for b in range(n_boot):
+        signs = rng.choice((-1.0, 1.0), size=n_clusters)[codes]
+        y_star = fitted + resid_r * signs
+        try:
+            fit_b = ols_hdfe(
+                y_star, X, names, {"_none": np.zeros_like(codes)}, {"cluster": cluster}, weights
+            )
+            t_boot[b] = fit_b.tstat(names[test_index])
+        except (np.linalg.LinAlgError, ValueError):
+            t_boot[b] = np.nan
+            n_failed += 1
+
+    valid = t_boot[np.isfinite(t_boot)]
+    p_boot = (
+        float((np.abs(valid) >= abs(t_obs)).mean()) if valid.size else float("nan")
+    )
+    return {
+        "coefficient": names[test_index],
+        "estimate": full.params[names[test_index]],
+        "analytic_std_error": full.std_errors[names[test_index]],
+        "analytic_p_value": full.pvalue(names[test_index]),
+        "t_observed": t_obs,
+        "bootstrap_p_value": p_boot,
+        "n_clusters": n_clusters,
+        "n_boot": int(valid.size),
+        "n_boot_failed": n_failed,
+        "caveat": (
+            "Wild cluster bootstrap-t with the null imposed and Rademacher weights at the "
+            "cluster level. With few clusters the analytic p-value over-rejects; where the "
+            "two disagree, the bootstrap is the one to read."
+        ),
+    }

@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 11
+**Last updated:** 2026-08-10 · session 12
 
 ## One-line state
 
@@ -14,6 +14,40 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 12: the last data source, and the first honest power result
+
+BLS PPI is back up (it was 503 in session 1). The adapter uses the **NAICS
+industry** classification, matching the classification the exposure measure is
+already built in, rather than the commodity system which would need a second
+undocumented crosswalk (D-040). 29 of 35 series returned, covering 22 of 24 BEA
+industries over 48 months. Agriculture has no industry-classification PPI and is
+reported unmatched, not substituted.
+
+**Does exposure show up in domestic producer prices?** All three channels carry
+the expected positive sign and none is statistically distinguishable from zero:
+
+| Channel | Coefficient | 95% CI | bootstrap p |
+|---|---|---|---|
+| imported-input cost | +1.230 | [−0.450, +2.909] | 0.110 |
+| output protection | +0.374 | [−0.050, +0.797] | 0.084 |
+| downstream (Leontief) | +0.164 | [−0.050, +0.379] | 0.112 |
+
+This is a **power result, not a null** (D-041). The input-cost interval spans
+roughly −1% to +9% of producer prices at mean exposure — uninformative, and
+deliberately not labelled `PRECISE_NULL_EFFECT_BOUNDED`, which is earned by a
+tight interval around zero and this is the opposite. Two structural reasons: 22
+clusters, and PPI indices covering whole NAICS groups while exposure comes from
+10-digit lines.
+
+Entering both channels together halves the input-cost coefficient (+1.23 to
++0.35): the two exposures are correlated across industries, so reporting either
+alone attributes the other's variation to it — a concrete reason beyond the
+distributional one for never netting them.
+
+With 22 clusters the analytic standard errors over-reject, so every coefficient
+carries a **wild cluster bootstrap** p-value with the null imposed and
+Rademacher weights at the cluster level (D-042). Here the two broadly agree.
 
 ## Session 11: per-year concordance vintages
 

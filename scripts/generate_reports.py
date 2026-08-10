@@ -464,6 +464,56 @@ def main() -> int:  # noqa: C901, PLR0915
                 ).head(15))],
             )
         )
+    prop = _read("propagation_ppi_estimates")
+    prop_q = _json("propagation_quality")
+    if prop is not None and prop_q:
+        secs.append(
+            Section(
+                "Does exposure show up in domestic producer prices?",
+                (
+                    "Exposure is an accounting construct built from input-output weights. "
+                    "Whether it predicts anything is a separate question, tested here against "
+                    "BLS producer prices in the **NAICS industry** classification — the same "
+                    "classification the exposure measure is built in, so no second undocumented "
+                    "crosswalk is involved.\n\n"
+                    "**All three channels carry the expected positive sign and none is "
+                    "statistically distinguishable from zero.** This is a power result, not "
+                    "evidence of no effect: the confidence interval on imported-input cost "
+                    "exposure spans roughly −1% to +9% of producer prices at mean exposure, "
+                    "which is uninformative rather than a bound near zero.\n\n"
+                    f"Why power is low is not a mystery. There are {prop_q['n_industries']} "
+                    "industries with a matched series, so 22 clusters; cluster-robust standard "
+                    "errors over-reject at that count, so every coefficient also carries a "
+                    "wild cluster bootstrap p-value with the null imposed. And PPI industry "
+                    "indices cover an entire NAICS group while exposure is built from 10-digit "
+                    "trade lines, which attenuates any true relationship toward zero.\n\n"
+                    "Entering both channels together halves the input-cost coefficient, "
+                    "because the two exposures are correlated across industries: an industry "
+                    "that buys tariffed inputs tends also to sell tariffed output. Reporting "
+                    "either alone would attribute the other's variation to it."
+                ),
+                [("estimates", prop.select(
+                    ["channel", "estimate", "ci_low", "ci_high", "analytic_p_value",
+                     "bootstrap_p_value", "n_obs", "n_clusters"]
+                ))],
+                discusses_evidential_status=True,
+            )
+        )
+        match = _read("ppi_industry_match")
+        if match is not None:
+            secs.append(
+                Section(
+                    "Which industries have a producer-price series at all",
+                    (
+                        "Agriculture and forestry have no NAICS-industry PPI. They are "
+                        "reported unmatched rather than substituted from the commodity "
+                        "classification, which would be a second crosswalk presented as a "
+                        "measurement."
+                    ),
+                    [("PPI match quality", match)],
+                )
+            )
+
     if q:
         secs.append(
             Section(

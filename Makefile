@@ -45,6 +45,9 @@ estimate-diversion: ## Trade-diversion decomposition
 build-io-exposure: ## Map tariff exposure into industries via BEA input-output
 	$(PY) scripts/build_io_exposure.py
 
+estimate-propagation: ## Test whether exposure shows up in domestic producer prices
+	$(PY) scripts/estimate_propagation.py
+
 structural: ## Structural counterfactuals (deliberately not implemented; see D-017)
 	@echo "Not implemented. The brief requires the reduced-form slice to be stable first;"
 	@echo "it now is, but calibrating a structural model on synthetic trade flows would"
@@ -69,7 +72,7 @@ dashboard: ## Launch the Streamlit dashboard
 	.venv/bin/streamlit run dashboard/app.py
 
 reproduce-sample: build-tariff-schedule build-trade-panel validate-data descriptive \
-                  replicate estimate-incidence estimate-diversion build-io-exposure report ## Full end-to-end small run
+                  replicate estimate-incidence estimate-diversion build-io-exposure estimate-propagation report ## Full end-to-end small run
 	@echo ""
 	@echo "End-to-end run complete. Reports are in reports/."
 	@echo "Provenance is recorded in each report's banner."
