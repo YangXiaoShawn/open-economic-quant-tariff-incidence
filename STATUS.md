@@ -5,10 +5,15 @@
 ## One-line state
 
 Official Census data at HS10, all three Section 301 waves, stacked multi-wave
-design, and a **corrected pre-trend test** that separates bias from imprecision.
-Landed cost is **CLEAN**; quantity has **no detectable differential trend** and
-earns a qualified reading; the customs unit value is the one genuinely
-compromised outcome.
+design, and a pre-trend test that separates bias from imprecision from a
+near-null effect. **The incidence account closes**: the tariff was passed
+through to the U.S. importer close to in full, with no detectable exporter
+absorption, and the bound on the customs unit value is what carries the claim.
+Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
+**no detectable differential trend**, qualified reading.
+
+The sections below are in reverse chronological order; earlier sections record
+what was true at the time and are superseded by later ones.
 
 ## Session 6: the incidence conclusion closes
 

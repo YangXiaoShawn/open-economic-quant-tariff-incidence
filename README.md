@@ -85,19 +85,36 @@ The fix is a **stacked design** — one sub-experiment per Section 301 wave,
 controls drawn from never-treated products only, so no already-treated unit is
 ever used as a control:
 
-| Outcome | Mean post effect | Pre-trend ratio | Verdict |
-|---|---|---|---|
-| log landed unit value (duty-**inclusive**) | **+0.149** | 0.16 | **CLEAN** |
-| log customs unit value (tariff-**exclusive**) | +0.023 | 1.30 | IMPRECISE |
-| log quantity | −0.350 | 0.54 | PRETREND_PRESENT |
+| Outcome | Mean post effect | Verdict |
+|---|---|---|
+| log landed unit value (duty-**inclusive**) | **+0.149** | **CLEAN** |
+| log customs unit value (tariff-**exclusive**) | +0.023 | PRECISE_NULL, bounded at 0.072 |
+| log quantity | −0.350 | NOISY_PRE_PERIOD_NO_SLOPE (qualified) |
 
-The duty-inclusive landed cost of treated Chinese imports runs ~15 log points
-above the never-treated counterfactual, on a design that clears its pre-trend
-test. The foreign border price moves ~2 log points and cannot be distinguished
-from zero — the tariff is not being absorbed by the exporter in these data.
+### Incidence: who paid
 
-Reading incidence requires both numbers; one alone cannot separate exporter
-absorption from importer cost.
+The value-weighted additional duty actually in force on treated flows is
+**15.3%**. If the exporter absorbed none of it, the duty-inclusive landed unit
+value would rise by log(1.153) = **0.1424**. Observed: **+0.1494**.
+
+But that figure is **not independent evidence** — the landed measure contains
+the duty by construction, so most of its rise is arithmetic, and quoting it
+alone is close to quoting the tariff rate back.
+
+The behavioural quantity is the **customs unit value**, which falls only if the
+exporter cuts its border price. It did not: the point estimate is +0.023,
+slightly *positive*, and the effect is bounded at 0.072 in absolute value.
+
+**The tariff was passed through to the U.S. importer close to in full over this
+window, with no detectable exporter absorption.** It is the bound that carries
+that claim.
+
+A note on the verdicts: a relative-magnitude pre-trend test systematically
+punishes an outcome whose true effect is near zero, because the denominator is
+small. The customs unit value was mislabelled unusable for exactly that reason
+until its pre-period was plotted against the landed measure's and found to be
+identical (RMS 0.0183 against 0.0169, differing by a constant +0.010 — the MFN
+duty). A near-null effect now gets a **bound** rather than a failing grade.
 
 ### Sourcing did not visibly relocate in this sample
 
