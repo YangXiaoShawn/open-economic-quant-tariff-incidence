@@ -1338,3 +1338,27 @@ preference programmes and Chapter 98 entry leave the same signature.
 Found by reading `product_exclusions.md` against its own by-month table: six
 leading months of exactly 0.0000 in a column whose denominator was supposed to
 be tariffed trade.
+
+### D-049 — The specification register claimed the wrong estimation level
+
+Read against the panel it describes, the specification register said every
+design was estimated at `hs6 x country x month`. The panel has 923,440 rows,
+which is exactly its count of distinct `(hs10, country, month)` cells; the
+heading-level count is 353,188. Every regression runs on the 10-digit
+statistical reporting number and had done since session 9.
+
+`aggregation_level` was a fixed string in each of the three `DesignSpec`
+constructions, written when the panel was keyed on the heading. It is derived
+from the panel's own columns now, so a future change of level carries into the
+register instead of leaving it behind.
+
+This one matters more than its size suggests. The register is the artefact that
+answers "what was estimated, at what level, under what assumption" — it exists so
+a reader does not have to trust the prose — and it was off by a factor of 2.6 in
+the number of cells behind every coefficient in the project. Clustering is on
+`hs6`, which is correct and unchanged: the treatment is assigned at the 8-digit
+line, so the heading is the conservative cluster. But the observation is the
+10-digit line, and the register now says so.
+
+Found by reading `technical_report.md` and checking the register's claim against
+`trade_panel.parquet` rather than against the surrounding prose.

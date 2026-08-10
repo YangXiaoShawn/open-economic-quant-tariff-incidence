@@ -104,6 +104,21 @@ def descriptive_event_means(
     )
 
 
+def _observation_level(panel: pl.DataFrame) -> str:
+    """The level a specification is actually estimated at, read off the panel.
+
+    This was the fixed string "hs6 x country x month", written when the panel was
+    keyed on the 6-digit heading. The panel moved to the 10-digit statistical
+    reporting number, and the specification register -- the project's own record
+    of what estimand was estimated at what level -- went on claiming 353,188
+    heading-level cells for regressions running on 923,440 line-level ones.
+    """
+    for col in ("hs10", "hs8", "hs6"):
+        if col in panel.columns:
+            return f"{col} x country x month"
+    return "unknown x country x month"
+
+
 def two_way_fe_regression(
     panel: pl.DataFrame,
     outcome: str,
@@ -138,7 +153,7 @@ def two_way_fe_regression(
         cluster_vars=cluster_vars,
         sample_filter="non-missing, finite outcome",
         weighting=weights_col or "unweighted",
-        aggregation_level="hs6 x country x month",
+        aggregation_level=_observation_level(panel),
         estimand="average effect of the additional duty on the outcome",
         identifying_assumption=(
             "conditional on the absorbed effects, treated and untreated flows would have "
@@ -287,7 +302,7 @@ def event_study(
         cluster_vars=cluster_vars,
         sample_filter=f"event window [{window[0]}, {window[1]}] with binned endpoints",
         weighting=weights_col or "unweighted",
-        aggregation_level="hs6 x country x month",
+        aggregation_level=_observation_level(panel),
         estimand="dynamic effect of the tariff action relative to the reference month",
         identifying_assumption="parallel trends absent treatment, no anticipation before the window",
         falsification="pre-period coefficients jointly different from zero",
@@ -498,7 +513,7 @@ def ppml_trade_flow(
         cluster_vars=cluster_vars,
         sample_filter="non-negative outcome, zeros retained",
         weighting="PPML (implicit)",
-        aggregation_level="hs6 x country x month",
+        aggregation_level=_observation_level(panel),
         estimand="semi-elasticity of the trade flow in levels with respect to the tariff term",
         identifying_assumption=(
             "correct conditional mean given the absorbed effects; tariff variation is "
