@@ -6,7 +6,7 @@ UV := $(shell command -v uv 2>/dev/null || echo "$$HOME/.local/bin/uv")
 .PHONY: help setup download-sample build-tariff-schedule build-trade-panel validate-data \
         descriptive replicate estimate-incidence estimate-diversion build-io-exposure \
         structural test lint typecheck reproduce-sample report dashboard clean check \
-        build-io-exposure-detail estimate-propagation-detail
+        build-io-exposure-detail estimate-propagation-detail check-consistency
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
@@ -49,6 +49,9 @@ build-io-exposure: ## Map tariff exposure into industries via BEA input-output
 estimate-propagation: ## Test whether exposure shows up in domestic producer prices
 	$(PY) scripts/estimate_propagation.py
 
+check-consistency: ## Do the result tables agree with each other?
+	$(PY) scripts/check_consistency.py --fail-on-error
+
 structural: ## Structural counterfactuals (not implemented; see D-017)
 	@echo "Not implemented. There is no domestic-alternative expenditure series, so the"
 	@echo "domestic nest of an Armington system is unidentified, and the substitution"
@@ -73,7 +76,8 @@ dashboard: ## Launch the Streamlit dashboard
 	.venv/bin/streamlit run dashboard/app.py
 
 reproduce-sample: build-tariff-schedule build-trade-panel validate-data descriptive \
-                  replicate estimate-incidence estimate-diversion build-io-exposure estimate-propagation report ## Full end-to-end small run
+                  replicate estimate-incidence estimate-diversion build-io-exposure \
+                  estimate-propagation check-consistency report ## Full end-to-end small run
 	@echo ""
 	@echo "End-to-end run complete. Reports are in reports/."
 	@echo "Provenance is recorded in each report's banner."

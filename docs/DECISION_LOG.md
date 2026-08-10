@@ -1362,3 +1362,43 @@ line, so the heading is the conservative cluster. But the observation is the
 
 Found by reading `technical_report.md` and checking the register's claim against
 `trade_panel.parquet` rather than against the surrounding prose.
+
+### D-050 — Checking artefacts against each other, not just code against fixtures
+
+Five defects came out of reading the eleven generated reports end to end, and
+the test suite was green through all of them. That is not a gap in coverage; it
+is a gap in *kind*. A test exercises code against fixtures. Every one of these
+was a disagreement between two finished artefacts that no code compared:
+
+* a heterogeneity table summing to 3.16x the totals it partitioned (D-047);
+* an exclusion bound whose denominator held six months of trade the tariff never
+  touched (D-048);
+* a specification register naming a level the panel had not used for four
+  sessions (D-049);
+* headline incidence figures typed into a report as literals and drifted from
+  the estimates printed below them (D-046);
+* replication rows reporting "not produced" beside a claim about how the result
+  compared to the published one.
+
+The unifying property is a **stated identity that nothing evaluated**. A
+partition sums to what it partitions. A register names the level the panel is
+keyed on. A bound covers the population it claims to. None of those needs a
+fixture — they need two artefacts and a comparison.
+
+`quality/consistency.py` evaluates them, `scripts/check_consistency.py` runs
+them between the estimation scripts and the reports, and `make reproduce-sample`
+now fails on a blocking inconsistency rather than producing documents that
+disagree with each other. Every check is tested by rebuilding the artefact as it
+was when the defect was live and asserting the check fails on it: a check that
+only passes on corrected data proves nothing.
+
+Two things this deliberately does **not** try to be. It does not parse prose for
+numbers — the fix for typed-in figures is that reports read from tables, and the
+check asserts the row they read from is present and unique rather than trying to
+police English. And it skips rather than fails when an artefact is absent, so a
+partial pipeline run is not reported as an inconsistency.
+
+Writing the tests found one defect in the checks themselves: the exclusion-bound
+check floored to the month in its pass condition and compared raw dates when
+counting flagged rows, so it would have failed correctly and then miscounted why
+— July 2018 contains the first effective date and is legitimately in the frame.
