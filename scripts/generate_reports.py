@@ -232,7 +232,8 @@ def main() -> int:  # noqa: C901, PLR0915
                 )
             )
 
-    for ctrl in ["never_treated_products", "never_treated_products_treated_country_only"]:
+    for ctrl in ["never_treated_products", "not_yet_treated",
+                 "never_treated_products_treated_country_only"]:
         for outcome in ["log_landed_unit_value", "log_customs_unit_value", "log_quantity"]:
             sv = _read(f"stacked_event_study_{outcome}_{ctrl}")
             if sv is None:

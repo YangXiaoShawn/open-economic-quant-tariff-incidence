@@ -553,26 +553,62 @@ def build_stacked_design(
 
     ``control_definition``
         ``"never_treated_products"`` -- controls are never-treated products,
-        all partners. Largest comparison group.
+        all partners.
         ``"never_treated_products_treated_country_only"`` -- controls are
         never-treated products imported from the treated country only. Immune to
         the diversion spillover that makes third-country suppliers invalid
         controls, at the cost of a weaker common-shock argument.
+        ``"not_yet_treated"`` -- never-treated products **plus** products
+        belonging to a cohort whose own treatment falls entirely after this
+        sub-experiment's window, so they are untreated throughout it.
+
+    Why ``not_yet_treated`` matters here
+    ------------------------------------
+
+    By September 2019 almost every line in the sampled chapters had been
+    tariffed. The never-treated residual is 379 lines -- 7% of the sample -- and
+    not a random 7%: they are what USTR declined to tariff even in the $300
+    billion round, so the counterfactual rests on a selected set. Products
+    tariffed *later* are untreated during an earlier wave's window and are
+    economically far closer to the treated group, which is the point of the
+    not-yet-treated comparison.
+
+    Admissibility is checked per sub-experiment rather than assumed: a cohort
+    qualifies only if its treatment month falls strictly after the end of this
+    window. Using a unit that becomes treated inside the window would reintroduce
+    the forbidden comparison this design exists to avoid, so the rule is
+    enforced, not left to the caller.
     """
     if not cohort_months:
         raise ValueError("cohort_months is empty; nothing to stack")
     lo, hi = window
     frames: list[pl.DataFrame] = []
 
+    admissible_by_stack: dict[str, list[str]] = {}
     for g, m_g in sorted(cohort_months.items()):
+        keep = [g, never_treated_label]
+        if control_definition == "not_yet_treated":
+            # A later cohort is admissible only if its own treatment starts after
+            # this window ends, so it is untreated for every period used here.
+            not_yet = [
+                h
+                for h, m_h in cohort_months.items()
+                if h != g and m_h > m_g + hi
+            ]
+            keep += not_yet
+            admissible_by_stack[g] = not_yet
+        elif control_definition not in (
+            "never_treated_products",
+            "never_treated_products_treated_country_only",
+        ):
+            raise ValueError(f"unknown control_definition {control_definition!r}")
+
         sub = panel.filter(
             pl.col("month_index").is_between(m_g + lo, m_g + hi)
-            & (pl.col(cohort_col).is_in([g, never_treated_label]))
+            & (pl.col(cohort_col).is_in(keep))
         )
         if control_definition == "never_treated_products_treated_country_only":
             sub = sub.filter(pl.col(treat_country_col))
-        elif control_definition != "never_treated_products":
-            raise ValueError(f"unknown control_definition {control_definition!r}")
         if sub.height == 0:
             continue
         frames.append(
@@ -581,6 +617,9 @@ def build_stacked_design(
                 (pl.col("month_index") - m_g).alias("event_time"),
                 ((pl.col(cohort_col) == g) & pl.col(treat_country_col)).alias("stack_treated"),
                 pl.lit(m_g).alias("stack_treatment_month"),
+                pl.lit(
+                    "|".join(sorted(admissible_by_stack.get(g, []))) or "none"
+                ).alias("not_yet_treated_cohorts"),
             )
         )
     if not frames:

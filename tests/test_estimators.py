@@ -564,3 +564,74 @@ def test_noisy_pre_period_with_a_detectable_effect_keeps_its_own_verdict():
     t = pretrend_test(c, _dummy_fit())
     assert t["verdict"] == "NOISY_PRE_PERIOD_NO_SLOPE"
     assert t["effect_separable_from_pre_noise"]
+
+
+# --------------------------------------------------------------------- #
+# not-yet-treated controls
+# --------------------------------------------------------------------- #
+
+
+def test_not_yet_treated_admits_only_cohorts_treated_after_the_window():
+    """The rule that keeps this from becoming a forbidden comparison."""
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    panel = _multiwave_panel()
+    st = build_stacked_design(
+        panel, WAVES, window=(-6, 6), control_definition="not_yet_treated"
+    )
+    # W1 at 24218 with window +6 ends at 24224. W2 (24224) is treated ON the
+    # boundary and must be refused; W3 (24230) is safe.
+    w1 = st.filter(pl.col("stack_id") == "W1")
+    cohorts = set(w1["treatment_cohort"].unique())
+    assert "W3" in cohorts, "a cohort treated after the window is admissible"
+    assert "W2" not in cohorts, "a cohort treated inside the window must be refused"
+
+
+def test_not_yet_treated_controls_are_never_flagged_treated():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    st = build_stacked_design(
+        _multiwave_panel(), WAVES, window=(-6, 6), control_definition="not_yet_treated"
+    )
+    later = st.filter(
+        (pl.col("treatment_cohort") != pl.col("stack_id"))
+        & (pl.col("treatment_cohort") != "NEVER_TREATED")
+    )
+    assert later.height > 0
+    assert not later["stack_treated"].any()
+
+
+def test_not_yet_treated_never_admits_an_already_treated_unit():
+    """The last stack has no safe later cohort, so it falls back to never-treated."""
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    st = build_stacked_design(
+        _multiwave_panel(), WAVES, window=(-6, 6), control_definition="not_yet_treated"
+    )
+    last = st.filter(pl.col("stack_id") == "W3")
+    assert set(last["treatment_cohort"].unique()) == {"W3", "NEVER_TREATED"}
+
+
+def test_not_yet_treated_enlarges_the_control_group_without_changing_the_estimate():
+    from tariff_incidence.econ.designs import stacked_event_study
+
+    panel = _multiwave_panel()
+    out = {}
+    for ctrl in ("never_treated_products", "not_yet_treated"):
+        fit, _, coefs, _ = stacked_event_study(
+            panel, "y", WAVES, cluster_vars=["hs6"], window=(-6, 6), reference=-3,
+            control_definition=ctrl,
+        )
+        post = coefs.filter((pl.col("event_time") >= 0) & (pl.col("std_error") > 0))
+        out[ctrl] = (float(post["estimate"].mean()), fit.n_obs)
+    assert out["not_yet_treated"][1] > out["never_treated_products"][1], "larger sample"
+    assert out["not_yet_treated"][0] == pytest.approx(
+        out["never_treated_products"][0], abs=0.08
+    ), "and the same answer"
+
+
+def test_unknown_control_definition_is_still_rejected():
+    from tariff_incidence.econ.designs import build_stacked_design
+
+    with pytest.raises(ValueError, match="unknown control_definition"):
+        build_stacked_design(_multiwave_panel(), WAVES, control_definition="whatever")

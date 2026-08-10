@@ -192,6 +192,7 @@ def main() -> int:
     if len(cohort_months) >= 2:
         for ctrl in [
             "never_treated_products",
+            "not_yet_treated",
             "never_treated_products_treated_country_only",
         ]:
             for outcome in [

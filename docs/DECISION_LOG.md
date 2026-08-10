@@ -858,3 +858,44 @@ Targets T2 and T3 were also stale: they still read BLOCKED_ON_DATA from the
 period before a Census key existed. They now record what was actually estimated,
 with the pre-trend verdict attached and the reasons the comparison is conceptual
 rather than exact.
+
+---
+
+### D-036 — Not-yet-treated controls answer the selection threat
+
+D-034 recorded a threat rather than solving it: after extending the window, only
+379 never-treated lines survived, and they are not a random 7% of the sample —
+they are what USTR declined to tariff even in the $300 billion round. The
+counterfactual rested on a selected set.
+
+**The fix uses variation already in the panel.** Products tariffed *later* are
+untreated during an earlier wave's window, and they are economically far closer
+to the treated group than the never-treated residual, because USTR did
+eventually target them. A third control definition, ``not_yet_treated``, admits
+never-treated products plus any cohort whose own treatment begins strictly after
+the sub-experiment's window ends.
+
+**Admissibility is enforced, not assumed.** A cohort qualifies only if its
+treatment month falls after the window; admitting one that becomes treated inside
+the window would reintroduce the forbidden comparison the stacked design exists
+to avoid. Here the arithmetic is favourable: Lists 1, 2 and 3 have windows ending
+at month indices 24233-24235 and List 4A begins at 24237, so List 4A's 795 lines
+are untreated throughout all three. The List 4A sub-experiment has no later
+cohort and correctly falls back to never-treated only. A test asserts that a
+cohort treated *on the window boundary* is refused.
+
+**Result.** The control group roughly triples (379 to 1,174 lines) and the sample
+grows 35%, and the answer does not move:
+
+| Controls | landed | customs | quantity | n |
+|---|---|---|---|---|
+| never-treated | +0.1544 CLEAN | +0.0253 bounded null | −0.3793 | 395,468 |
+| not-yet-treated | +0.1513 CLEAN | +0.0259 bounded null | −0.3710 | 535,132 |
+
+Every verdict identical, every estimate within 0.008. A completely different
+comparison group — one built from products the same agency did choose to tariff —
+gives the same answer. The selection concern is real in principle and is not
+driving this result.
+
+All three control definitions are now estimated and reported side by side on
+every run, so the choice is visible rather than buried in a default.

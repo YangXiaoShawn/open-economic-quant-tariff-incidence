@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 8
+**Last updated:** 2026-08-10 · session 9
 
 ## One-line state
 
@@ -14,6 +14,31 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 9: the selection threat is answered, not just noted
+
+Session 8 left a real threat: only 379 never-treated lines survived the window
+extension, and they are what USTR declined to tariff even in the $300bn round.
+
+The answer uses variation already in the panel. Products tariffed *later* are
+untreated during an earlier wave's window, and being eventual targets they are
+economically much closer to the treated group. A third control definition,
+`not_yet_treated`, admits them — but only where the arithmetic permits: a cohort
+qualifies only if its treatment starts strictly after the sub-experiment's window
+ends. Lists 1-3 end at month indices 24233-24235 and List 4A starts at 24237, so
+its 795 lines are clean controls for all three; the List 4A stack has no later
+cohort and falls back to never-treated. A test refuses a cohort treated on the
+boundary (D-036).
+
+| Controls | landed | customs | quantity | n |
+|---|---|---|---|---|
+| never-treated | +0.1544 CLEAN | +0.0253 bounded null | −0.3793 | 395,468 |
+| not-yet-treated | +0.1513 CLEAN | +0.0259 bounded null | −0.3710 | 535,132 |
+
+Control group roughly triples, sample grows 35%, every verdict identical and
+every estimate within 0.008. A comparison group built from products the same
+agency *did* tariff gives the same answer, so selection is not driving the
+result. All three control definitions now run and are reported side by side.
 
 ## Session 8: window extended to 2020-02; results replicate
 
