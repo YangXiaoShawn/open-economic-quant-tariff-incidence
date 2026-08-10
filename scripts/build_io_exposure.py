@@ -99,9 +99,12 @@ def main() -> int:
                         "NAICS industry codes are assigned to BEA detail industries by longest "
                         "matching prefix from BEA's published 'Related 2017 NAICS Codes' column. "
                         "Codes claimed by two industries at equal depth are left unassigned "
-                        "rather than broken by an arbitrary rule. Unmapped codes are 2012-vintage "
-                        "NAICS that 2017 NAICS retired, which is a product-code revision, not a "
-                        "parser gap."
+                        "rather than broken by an arbitrary rule. Codes that reach no industry "
+                        "have two distinct causes and are not one category: a 2012-vintage NAICS "
+                        "the revision retired on a line with no successor in the revised file, "
+                        "and Census pseudo-industries 91xxxx/93xxxx for scrap and used goods, "
+                        "which have no producing industry at all and which BEA likewise carries "
+                        "as special rows with no NAICS counterpart."
                     ),
                 }
                 print(

@@ -120,14 +120,48 @@ with tabs[1]:
     ppath = layer_path("analytical", "trade_panel.parquet")
     if ppath.exists():
         panel = pl.read_parquet(ppath)
+        # The panel's unit is the 10-digit line. Selecting an HS6 and charting it
+        # directly would silently pool several statistical numbers whose tariff
+        # treatment, units of quantity and unit values all differ -- and a unit
+        # value pooled across unlike quantity units is not a quantity at all. So
+        # the HS6 box narrows the choice and the 10-digit box makes it.
         products = sorted(panel["hs6"].unique().to_list())
-        sel = st.selectbox("HS6 product", products)
-        sub = panel.filter(pl.col("hs6") == sel)
+        sel6 = st.selectbox("HS6 heading", products)
+        within = panel.filter(pl.col("hs6") == sel6)
+        ranked = (
+            within.group_by("hs10")
+            .agg(pl.col("customs_value").sum().alias("v"))
+            .sort("v", descending=True)
+        )
+        lines = ranked["hs10"].to_list()
+        if len(lines) > 1:
+            st.caption(
+                f"{len(lines)} ten-digit lines sit under {sel6}; they are shown one at a "
+                "time rather than pooled, because their tariff treatment and units of "
+                "quantity need not agree."
+            )
+        sel = st.selectbox("10-digit line (largest by customs value first)", lines)
+        sub = panel.filter(pl.col("hs10") == sel)
         meta = sub.row(0, named=True)
+        # `tariff_status` is the engine's match status for one line-country-month,
+        # not a property of the product: it reads OK exactly on the observations
+        # that are actually dutied and NO_MATCH everywhere else, so showing the
+        # first row's value would report whichever row happened to sort first.
+        # The product-level facts are when the duty started and how high it went.
+        treated_obs = sub.filter(pl.col("treated"))
+        peak = treated_obs["additional_tariff_rate"].max() if treated_obs.height else None
+        first_month = treated_obs["month_date"].min() if treated_obs.height else None
         m1, m2, m3 = st.columns(3)
         m1.metric("ever treated", "yes" if meta["ever_treated_product"] else "no")
         m2.metric("pre-treatment China share", f"{meta['pretreatment_treated_country_share']:.1%}")
-        m3.metric("tariff status", meta["tariff_status"])
+        m3.metric(
+            "peak additional rate",
+            f"{peak:.1%}" if peak is not None else "—",
+            help=(
+                f"first dutied month {first_month}" if first_month is not None
+                else "no dutied observation in this window"
+            ),
+        )
 
         st.subheader("Customs value by partner")
         wide = sub.pivot(on="country_code", index="month_date", values="customs_value")
@@ -274,11 +308,31 @@ with tabs[4]:
                        f"{q['concordance']['aggregation_loss']}")
             dm = q.get("naics_to_bea_detail") or {}
             if dm.get("n_naics_unmapped"):
+                # Two distinct reasons a code reaches no industry, and calling
+                # them both "retired" would be wrong: 91xxxx/93xxxx are Census
+                # pseudo-industries for scrap and used goods, which have no
+                # producing industry at all and which BEA also carries as
+                # special rows with no NAICS counterpart.
+                unmapped = list(dm["unmapped_naics"])
+                pseudo = [c for c in unmapped if c[:2] in {"91", "93"}]
+                retired = [c for c in unmapped if c not in pseudo]
+                parts = []
+                if retired:
+                    parts.append(
+                        f"{', '.join(retired)} — a NAICS code the 2012-to-2017 revision "
+                        "retired on a line that no longer exists in the revised file, so "
+                        "there is no successor to read off"
+                    )
+                if pseudo:
+                    parts.append(
+                        f"{', '.join(pseudo)} — Census pseudo-industries for scrap and used "
+                        "or second-hand goods, which have no producing industry at all"
+                    )
                 st.caption(
-                    f"{dm['n_naics_unmapped']} NAICS codes map to no BEA detail industry "
-                    f"({', '.join(dm['unmapped_naics'])}): 2017 NAICS retired them. "
-                    f"{dm.get('n_naics_ambiguous', 0)} are claimed by two industries at equal "
-                    "depth and are left unassigned rather than broken arbitrarily."
+                    f"{dm['n_naics_unmapped']} NAICS codes reach no BEA detail industry: "
+                    + "; ".join(parts)
+                    + f". {dm.get('n_naics_ambiguous', 0)} are claimed by two industries at "
+                    "equal depth and are left unassigned rather than broken arbitrarily."
                 )
     else:
         st.info(f"Run `make build-io-exposure{'-detail' if level == 'detail' else ''}`.")

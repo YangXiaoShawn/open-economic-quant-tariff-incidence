@@ -1,8 +1,8 @@
 {
   "run": {
-    "run_id": "20260810T174609Z-b1495fb3",
-    "created_utc": "2026-08-10T17:46:09.586293+00:00",
-    "git_commit": "266e6a0-dirty",
+    "run_id": "20260810T175317Z-b1495fb3",
+    "created_utc": "2026-08-10T17:53:17.900810+00:00",
+    "git_commit": "6cfdf6c-dirty",
     "config_name": "sample_slice.yaml",
     "config_sha256": "b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3",
     "data_provenance": "OFFICIAL",
@@ -35,32 +35,32 @@
     "n_reclassified_vs_primary": 172,
     "reclassified_examples": [
       {
-        "hs10": "8544429090",
-        "naics_2017": "335999",
-        "naics_2018": "335929"
-      },
-      {
-        "hs10": "8518908100",
-        "naics_2017": "334310",
-        "naics_2018": "334220"
-      },
-      {
-        "hs10": "9101192040",
-        "naics_2017": "316998",
-        "naics_2018": "334519"
-      },
-      {
-        "hs10": "8479907500",
-        "naics_2017": "335228",
-        "naics_2019": "335220"
-      },
-      {
-        "hs10": "8716905059",
-        "naics_2017": "336390",
-        "naics_2019": "336214"
+        "hs10": "8504909690",
+        "naics_2017": "334416",
+        "naics_2018": "334419"
       },
       {
         "hs10": "8543908850",
+        "naics_2017": "339999",
+        "naics_2018": "335999"
+      },
+      {
+        "hs10": "8543709940",
+        "naics_2017": "339999",
+        "naics_2018": "335999"
+      },
+      {
+        "hs10": "2603000010",
+        "naics_2017": "212234",
+        "naics_2019": "212230"
+      },
+      {
+        "hs10": "8516604060",
+        "naics_2017": "335221",
+        "naics_2019": "335220"
+      },
+      {
+        "hs10": "8543709940",
         "naics_2017": "339999",
         "naics_2019": "335999"
       }
@@ -103,6 +103,6 @@
         "len": 94
       }
     ],
-    "note": "NAICS industry codes are assigned to BEA detail industries by longest matching prefix from BEA's published 'Related 2017 NAICS Codes' column. Codes claimed by two industries at equal depth are left unassigned rather than broken by an arbitrary rule. Unmapped codes are 2012-vintage NAICS that 2017 NAICS retired, which is a product-code revision, not a parser gap."
+    "note": "NAICS industry codes are assigned to BEA detail industries by longest matching prefix from BEA's published 'Related 2017 NAICS Codes' column. Codes claimed by two industries at equal depth are left unassigned rather than broken by an arbitrary rule. Codes that reach no industry have two distinct causes and are not one category: a 2012-vintage NAICS the revision retired on a line with no successor in the revised file, and Census pseudo-industries 91xxxx/93xxxx for scrap and used goods, which have no producing industry at all and which BEA likewise carries as special rows with no NAICS counterpart."
   }
 }
