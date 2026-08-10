@@ -106,6 +106,26 @@ the Armington domestic nest is unidentified, and elasticities would be borrowed
 rather than estimated. Neither blocks the module; both change what its output may
 be called. **Left open for a decision rather than closed autonomously.**
 
+**The headline incidence numbers were typed into the report** (D-046). Reading
+`tariff_incidence_results.md` line by line found the two figures the whole
+incidence conclusion rests on sitting in the generator as string literals inside
+an f-string that interpolates nothing — while tau, log(1+tau) and the effect
+bound in the same sentence were all computed. They had drifted: the report
+printed +0.1494 and +0.0225 against the true +0.1544 and +0.0253, contradicting
+its own tables. The values were never missing; `estimate_incidence.py` already
+wrote them, and the report had no way to select the headline design because the
+row carried no `control_definition`. Both fixed. The conclusion is unchanged.
+
+Two smaller ones from the same read-through: the binned event-study endpoints
+were labelled post-period (`is_pre` was `k is not None and k < 0`, and they have
+no event time) and printed as unlabelled blank rows; and `pretrend_test` kept
+them out of both trend statistics only because a non-null-event-time guard
+happened to sit on the post side alone. All fifteen pre-trend tests are
+bit-identical after the fix, and a test now pins the invariant.
+
+A sweep for the same defect class found one more — which I had introduced myself
+one tick after fixing D-046's. It is computed now.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
