@@ -76,6 +76,16 @@ Detail coverage rises to **99.71%** of panel customs value. Summary-level
 exposure is identical to 1e-17. The fix reads the successor off the same HS10
 line in the revised vintage — one official source, nothing mapped by hand.
 
+**The dashboard had never actually been run.** Compiling it is not running it.
+Loading it in a browser turned up a fatal defect that predates this session: the
+product tab still selected an HS6 and pivoted, but the panel moved to HS10 lines
+several sessions ago, so polars raised and the exception halted the whole
+script — every tab below it, including the exposure tab added today, was dead.
+It now selects the panel's real unit. Two smaller defects went with it: a
+"tariff status" metric read off row 0 of an observation-level column, and a
+caption of mine from earlier today that repeated the D-043 error of calling all
+unmapped NAICS codes retired. Both fixed and verified in a browser.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
