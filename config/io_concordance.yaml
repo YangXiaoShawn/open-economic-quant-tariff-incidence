@@ -1,12 +1,20 @@
 # HS chapter -> BEA summary commodity concordance.
 #
-# STATUS: COARSE_APPROXIMATION.
+# STATUS: FALLBACK ONLY. Superseded by the official Census import concordance.
 #
-# The authoritative route is the Census HS-to-NAICS import concordance mapped
-# onward to BEA IO codes. Those Census reference files returned HTTP 404/403 at
-# build time (see docs/DECISION_LOG.md, D-011), so this hand-built HS2-chapter
-# map is used instead and every artefact derived from it is labelled
-# COARSE_APPROXIMATION.
+# The pipeline now uses `impconcordNN.xlsx` from
+# https://www.census.gov/foreign-trade/reference/codes/concordance/, which is
+# keyed on the 10-digit commodity code and gives each line one NAICS industry.
+# This chapter map is retained only for the case where that file cannot be
+# fetched or parsed, and `--force-chapter-map` selects it deliberately for
+# comparison. See docs/DECISION_LOG.md D-037.
+#
+# It is kept rather than deleted because the comparison it enables is itself
+# informative: the chapter map systematically UNDERSTATED exposure. Against the
+# official concordance it classified 48 of 72 industries as having little direct
+# exposure where the true figure is 24, and reported zero output protection for
+# chemicals, food and beverage, nonmetallic minerals and other transportation
+# equipment, all of which carry 0.22-0.25.
 #
 # What the approximation costs, stated plainly:
 #   * It maps whole HS2 chapters, so within-chapter heterogeneity is lost. If a

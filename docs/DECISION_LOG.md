@@ -899,3 +899,75 @@ driving this result.
 
 All three control definitions are now estimated and reported side by side on
 every run, so the choice is visible rather than buried in a default.
+
+---
+
+### D-037 — The official HS-to-NAICS concordance exists; my URL guesses were wrong
+
+D-011 recorded that the Census concordance was unavailable because the reference
+URLs returned 404/403, and fell back to a hand-built HS2-chapter map labelled
+COARSE_APPROXIMATION. That conclusion was wrong in an instructive way: the
+resource existed the whole time. The 404s came from guessing URL patterns
+(`/naics/concordances/2022_NAICS_to_HS.xlsx`, `/foreign-trade/reference/codes/
+naics/`) rather than reading the index Census publishes. Fetching
+`/foreign-trade/reference/codes/concordance/index.html` with a browser
+user-agent — a plain urllib request is 403'd — lists every file, import and
+export, back to 2002.
+
+**What the official file gives.** `impconcord20.xlsx`: 19,137 rows keyed on the
+**10-digit commodity code**, each carrying one 6-digit NAICS industry, plus SITC
+and end-use codes. Because the key is the same level this project's panel is
+built at, there is no weighting assumption at all — the chapter map had to
+assign a whole HS2 chapter to one BEA commodity.
+
+NAICS is then mapped to BEA summary industries by BEA's published summary
+definitions (334 is NAICS 334; 3361MV is NAICS 3361-3363; 311FT is 311+312, and
+so on). That is a documented aggregation, not a judgement.
+
+**Coverage.** 98.8% of concordance lines reach a BEA summary industry; 97.4% of
+the panel's customs value is mapped. The 2.5% shortfall is vintage: the 2020
+concordance does not carry every code that existed in 2017-2020. Census
+publishes one file per year for exactly this reason, and the vintage used is
+recorded in the manifest. The 2019 file is `.xls`, which openpyxl cannot read;
+the adapter raises rather than silently substituting a different vintage, since
+that would misassign renumbered lines.
+
+**Two things the source says that are kept rather than smoothed.** Census writes
+an `X` inside a NAICS code where it aggregates detail it will not disclose (198
+lines); those are kept verbatim, because truncating to a shorter code would
+assert precision the source declines to give. And 237 lines map to NAICS outside
+the BEA summary manufacturing and primary groups; they are excluded and counted,
+not forced into a bucket.
+
+---
+
+### D-038 — The coarse map was not merely imprecise; it understated exposure systematically
+
+Replacing the chapter map changed the industry results materially, and in one
+direction:
+
+| Exposure class | HS2 chapter map | Official concordance |
+|---|---|---|
+| Both protected and cost-exposed | 9 | **19** |
+| Input-cost exposed only | 15 | **29** |
+| Little direct exposure | 48 | **24** |
+
+Half the industries the chapter map called barely exposed are exposed. Several
+carried a reported output protection of exactly zero and in fact face
+substantial protection: chemical products 0 → 0.222, food, beverage and tobacco
+0 → 0.250, nonmetallic mineral products 0 → 0.250, other transportation
+equipment 0 → 0.222.
+
+The cause is structural rather than random. The chapter map covered eighteen HS2
+chapters and sent each to a single BEA commodity, so any product whose industry
+differed from its chapter's assigned one was either misassigned or dropped. A
+coarse mapping does not add symmetric noise here; it loses coverage, and lost
+coverage reads as absence of exposure.
+
+Anyone who read the earlier industry-exposure figures got a materially
+understated picture. The chapter map is retained behind `--force-chapter-map`
+precisely so this comparison stays reproducible.
+
+Exposure magnitudes are still not elasticities and still do not feed any welfare
+statement, but they are no longer merely an ordering: the mapping underneath
+them is now official and assumption-free at the product level.

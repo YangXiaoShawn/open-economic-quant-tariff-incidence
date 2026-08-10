@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import polars as pl  # noqa: E402
 import yaml  # noqa: E402
 
-from tariff_incidence.adapters import bea_io  # noqa: E402
+from tariff_incidence.adapters import bea_io, census_concordance  # noqa: E402
 from tariff_incidence.adapters.base import SourceUnavailable  # noqa: E402
 from tariff_incidence.config import load_config  # noqa: E402
 from tariff_incidence.io_exposure.exposure import (  # noqa: E402
@@ -36,6 +36,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="sample_slice.yaml")
     ap.add_argument("--year", type=int, default=2017, help="pre-treatment IO table year")
+    ap.add_argument("--concordance-vintage", type=int, default=2020,
+                    help="Census import concordance vintage (impconcordNN)")
+    ap.add_argument("--force-chapter-map", action="store_true",
+                    help="use the coarse HS2-chapter fallback even if the official file loads")
     args = ap.parse_args()
     ensure_layers()
 
@@ -44,6 +48,48 @@ def main() -> int:
     hs2_map: dict[str, str] = conc["hs2_to_bea_commodity"]
 
     panel = pl.read_parquet(layer_path("analytical", "trade_panel.parquet"))
+
+    # Prefer the official Census import concordance, which is keyed on the
+    # 10-digit commodity code -- exactly the level this panel is built at -- so
+    # each line carries one NAICS industry and no weighting assumption is
+    # involved. The hand-built HS2-chapter map remains only as a fallback, and
+    # which one was used is recorded rather than left implicit.
+    concordance_method = "HS2_CHAPTER_COARSE_APPROXIMATION"
+    concordance_quality: dict = {}
+    hs_to_commodity: dict[str, str] = {}
+    if not args.force_chapter_map:
+        try:
+            path = census_concordance.fetch_concordance(args.concordance_vintage)
+            load = census_concordance.parse_concordance(path, args.concordance_vintage)
+            mapping, concordance_quality = census_concordance.build_hs10_to_bea(load)
+            official = {
+                r["hs10"]: r["bea_summary"]
+                for r in mapping.iter_rows(named=True)
+                if r["bea_summary"]
+            }
+            panel_codes = set(panel["hs10"].unique().to_list()) if "hs10" in panel.columns else set()
+            hs_to_commodity = {k: v for k, v in official.items() if k in panel_codes}
+            concordance_method = (
+                f"CENSUS_IMPORT_CONCORDANCE_{args.concordance_vintage}_HS10_TO_NAICS_TO_BEA"
+            )
+            print(
+                f"official concordance {load.source_file}: {load.n_rows:,} HS10 lines, "
+                f"{concordance_quality['share_mapped']:.1%} reach a BEA industry; "
+                f"{len(hs_to_commodity):,} of {len(panel_codes):,} panel lines matched"
+            )
+            for w in concordance_quality.get("warnings", []):
+                print(f"  ! {w}")
+        except (SourceUnavailable, ValueError, OSError) as exc:
+            print(f"! official concordance unavailable ({exc}); falling back to the chapter map")
+
+    if not hs_to_commodity:
+        product_col = "hs10" if "hs10" in panel.columns else "hs6"
+        hs_to_commodity = {
+            c: hs2_map[c[:2]]
+            for c in panel[product_col].unique().to_list()
+            if c[:2] in hs2_map
+        }
+        concordance_method = "HS2_CHAPTER_COARSE_APPROXIMATION"
     trade_prov = DataProvenance(
         json.loads((layer_path("analytical", "trade_panel.runstamp.json")).read_text())[
             "data_provenance"
@@ -64,21 +110,29 @@ def main() -> int:
         f"{tables.total_requirements.height:,} total-requirement cells"
     )
 
-    hs_to_commodity = {
-        hs6: hs2_map[hs6[:2]]
-        for hs6 in panel["hs6"].unique().to_list()
-        if hs6[:2] in hs2_map
-    }
-
     # Pre-treatment weight window ends the month before the first action takes
     # effect, so exposure weights cannot respond to the tariff.
     first_treated = panel.filter(pl.col("treated"))["month_index"].min()
     pre_idx = (
         int(first_treated) - 1 if first_treated is not None else int(panel["month_index"].max())
     )
+    product_col = "hs10" if "hs10" in panel.columns else "hs6"
     ce, quality = commodity_tariff_exposure(
-        panel, hs_to_commodity, pre_period_end_month_index=pre_idx
+        panel, hs_to_commodity, pre_period_end_month_index=pre_idx,
+        product_col=product_col,
     )
+    if concordance_quality:
+        quality.method = concordance_method
+        quality.level = "HS10 -> NAICS 6-digit -> BEA summary industry"
+        quality.source = f"Census {concordance_quality['source_file']}"
+        quality.aggregation_loss_note = (
+            "Each 10-digit commodity line carries exactly one NAICS industry in the "
+            "official concordance, so no within-line weighting assumption is made. "
+            "Aggregation loss remains only where Census itself writes an 'X' in a NAICS "
+            f"code to hide undisclosed detail ({concordance_quality['n_aggregated_naics']} "
+            "lines), and where a line's NAICS falls outside the BEA summary "
+            "manufacturing and primary groups."
+        )
     print(
         f"commodity exposure: {ce.height} BEA commodities from "
         f"{quality.n_mapped_products} mapped products "
@@ -91,7 +145,7 @@ def main() -> int:
         pl.col("industry_code")
         .replace_strict(tables.industry_names, default=None)
         .alias("industry_name"),
-        pl.lit(conc["status"]).alias("concordance_status"),
+        pl.lit(concordance_method).alias("concordance_status"),
     )
 
     stamp = RunStamp.create(
@@ -118,7 +172,8 @@ def main() -> int:
 
     (layer_path("results", "io_exposure_quality.json")).write_text(
         json.dumps({"run": stamp.to_dict(), "concordance": quality.to_row(),
-                    "concordance_config_status": conc["status"]}, indent=2, default=str) + "\n"
+                    "concordance_config_status": concordance_method,
+                    "official_concordance": concordance_quality}, indent=2, default=str) + "\n"
     )
 
     DatasetManifest.for_file(
@@ -135,8 +190,7 @@ def main() -> int:
         date_range=(str(args.year), str(args.year)),
         known_limitations=[
             quality.aggregation_loss_note,
-            f"HS-to-commodity concordance status: {conc['status']}. Exposure magnitudes are "
-            "an ordering, not elasticities, and must not feed a welfare calculation.",
+            f"HS-to-commodity concordance: {concordance_method}.",
             "Direct requirements are normalised by the intermediate-input column total, not by "
             "total industry output including value added, so shares are input shares of "
             "intermediate purchases.",
@@ -162,7 +216,7 @@ def main() -> int:
         ).head(12)
     )
     print(f"\nwrote {out} (run_id={stamp.run_id})")
-    print(f"NOTE: concordance status is {conc['status']}; see config/io_concordance.yaml")
+    print(f"NOTE: concordance = {concordance_method}")
     return 0
 
 

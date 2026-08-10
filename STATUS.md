@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 9
+**Last updated:** 2026-08-10 · session 10
 
 ## One-line state
 
@@ -14,6 +14,40 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 10: the official concordance existed all along
+
+D-011 concluded the Census HS-to-NAICS concordance was unavailable, after
+reference URLs returned 404/403, and fell back to a hand-built HS2-chapter map.
+That was wrong in an instructive way: the resource existed the whole time. The
+404s came from guessing URL patterns instead of reading the index Census
+publishes — and a plain urllib request to that index is itself 403'd, so it needs
+a browser user-agent (D-037).
+
+`impconcord20.xlsx` is 19,137 rows keyed on the **10-digit commodity code**, the
+exact level this panel is built at, each carrying one NAICS industry. No
+weighting assumption at all, where the chapter map had to send a whole HS2
+chapter to one BEA commodity. 98.8% of lines reach a BEA summary industry;
+97.4% of the panel's customs value is mapped.
+
+**The coarse map was not merely imprecise — it understated exposure
+systematically** (D-038):
+
+| Exposure class | chapter map | official |
+|---|---|---|
+| Both protected and cost-exposed | 9 | **19** |
+| Input-cost exposed only | 15 | **29** |
+| Little direct exposure | 48 | **24** |
+
+Half the industries the chapter map called barely exposed are exposed, and
+chemicals, food and beverage, nonmetallic minerals and other transportation
+equipment all went from a reported zero output protection to 0.22-0.25. A coarse
+mapping loses coverage rather than adding symmetric noise, and lost coverage
+reads as absence of exposure. Anyone who read the earlier exposure figures got a
+materially understated picture.
+
+The chapter map is retained behind `--force-chapter-map` so the comparison stays
+reproducible.
 
 ## Session 9: the selection threat is answered, not just noted
 
@@ -314,7 +348,9 @@ tables were missing. Fixed, and reports regenerated with content.
 - Exclusions unparsed → intention-to-treat only.
 - List 4A unparsed → window ends 2019-08.
 - USITC HTS serves the current vintage, not HTS2018.
-- IO concordance coarse → exposure is an ordering, not a magnitude.
+- IO concordance now official at the 10-digit level; 2.5% of customs value
+  unmapped through vintage mismatch. Exposure magnitudes still do not feed any
+  welfare statement.
 - 42.5% of rows have no single ad valorem MFN baseline (compound duty lines);
   nulls propagate rather than being filled.
 - 34.8% of rows have no usable quantity, so unit values are undefined there.
