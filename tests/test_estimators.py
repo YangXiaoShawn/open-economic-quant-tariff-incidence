@@ -676,3 +676,48 @@ def test_binned_endpoints_are_labelled_by_period_and_excluded_from_trend_stats()
     assert res["rms_post_coef"] == pytest.approx(
         ((0.20**2 + 0.22**2) / 2) ** 0.5, abs=1e-9
     )
+
+
+def test_dependence_split_reconciles_with_the_totals_it_partitions():
+    """A heading-level join keyed on a line-level attribute fans out silently.
+
+    `pretreatment_treated_country_share` is a property of the 10-digit line, and
+    several lines sit under one HS6. Taking `.unique()` over (hs6, share) kept
+    one row per distinct share, so joining it to the per-heading decomposition
+    multiplied every heading by however many shares it had -- 4,355 rows for
+    1,376 headings. Percentage changes survived, because numerator and
+    denominator inflate together, which is why the table looked plausible while
+    its levels disagreed with the totals table in the same report by 3.16x.
+
+    The invariant that catches it: a partition of the headings must sum to what
+    it partitions.
+    """
+    by_product = pl.DataFrame(
+        {
+            "hs6": ["100100", "200200", "300300"],
+            "treated_total": [-100.0, -200.0, -300.0],
+            "alternative_total": [40.0, 50.0, 60.0],
+            "pre_treated_value": [1000.0, 2000.0, 3000.0],
+            "replacement_ratio": [0.4, 0.25, 0.2],
+        }
+    )
+    # Two lines under 100100 carry different shares -- the fan-out trigger.
+    line_level = pl.DataFrame(
+        {
+            "hs6": ["100100", "100100", "200200", "300300"],
+            "pretreatment_treated_country_share": [0.9, 0.1, 0.5, 0.2],
+        }
+    )
+
+    naive = line_level.unique().join(by_product, on="hs6", how="inner")
+    assert naive.height == 4  # the defect: three headings became four rows
+    assert naive["treated_total"].sum() != pytest.approx(by_product["treated_total"].sum())
+
+    # One share per heading, however it is derived, restores the partition.
+    per_heading = line_level.group_by("hs6").agg(
+        pl.col("pretreatment_treated_country_share").mean()
+    )
+    fixed = per_heading.join(by_product, on="hs6", how="inner")
+    assert fixed.height == by_product.height
+    for col in ["treated_total", "alternative_total", "pre_treated_value"]:
+        assert fixed[col].sum() == pytest.approx(by_product[col].sum())

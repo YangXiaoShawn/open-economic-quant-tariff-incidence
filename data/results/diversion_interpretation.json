@@ -1,8 +1,8 @@
 {
   "run": {
-    "run_id": "20260810T140737Z-b1495fb3",
-    "created_utc": "2026-08-10T14:07:37.397459+00:00",
-    "git_commit": "43a1a31-dirty",
+    "run_id": "20260810T194027Z-b1495fb3",
+    "created_utc": "2026-08-10T19:40:27.664316+00:00",
+    "git_commit": "90415a9-dirty",
     "config_name": "sample_slice.yaml",
     "config_sha256": "b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3",
     "data_provenance": "OFFICIAL",
@@ -13,12 +13,18 @@
     "notes": ""
   },
   "counterfactual_adjusted_summary": {
-    "treated_country_excess_change": -2255516923.2664022,
-    "alternative_countries_excess_change": 251662930.8968988,
-    "net_excess_change": -2003853992.3695035,
-    "adjusted_replacement_ratio": 0.11157660946850477,
+    "treated_country_excess_change": -2255516923.2664013,
+    "alternative_countries_excess_change": 251662930.89689898,
+    "net_excess_change": -2003853992.3695023,
+    "adjusted_replacement_ratio": 0.1115766094685049,
     "counterfactual": "country-specific growth of never-treated products over the same calendar months",
     "identifying_assumption": "absent the tariff, treated and never-treated products would have grown at the same rate within each partner country"
+  },
+  "heterogeneity_split": {
+    "n_headings_total": 1376,
+    "n_headings_in_split": 1371,
+    "n_headings_no_pre_window_imports": 5,
+    "note": "Pre-treatment dependence is undefined for a heading with no imports in the pre window, so those headings are excluded from the split rather than assigned a share of zero. The split reconciles with the totals table to within the excluded headings' own value."
   },
   "warnings": [
     "The RAW pre-versus-post decomposition attributes ordinary trade growth to the tariff and its replacement ratio is not interpretable on its own. Use the counterfactual-adjusted figures.",

@@ -128,11 +128,53 @@ def main() -> int:
         )
 
     # Heterogeneity by pre-treatment dependence on the treated country.
-    dep = (
-        treated_products.select(["hs6", "pretreatment_treated_country_share"])
-        .unique()
-        .join(by_product, on="hs6", how="inner")
+    # The dependence share is a property of the 10-digit line, and several lines
+    # sit under one HS6 heading. Taking `.unique()` over (hs6, share) therefore
+    # kept one row per distinct share -- 4,355 rows for 1,376 headings -- and the
+    # join to the per-heading decomposition fanned out 3.16x. Every summed column
+    # in this table was inflated by that factor, and the median replacement ratio
+    # was weighted by how many statistical lines a heading happens to contain.
+    # It went unnoticed because the percentage change survives: numerator and
+    # denominator are inflated together.
+    #
+    # The heading-level share is rebuilt from pre-period values instead, which is
+    # the same definition applied one level up rather than an average of ratios.
+    pre_rows = treated_products.filter(pl.col("event_time").is_between(pre[0], pre[1]))
+    dep_share = (
+        pre_rows.group_by("hs6")
+        .agg(
+            pl.col("customs_value")
+            .filter(pl.col("country_code") == treated_country)
+            .sum()
+            .alias("_pre_treated"),
+            pl.col("customs_value").sum().alias("_pre_total"),
+        )
+        .filter(pl.col("_pre_total") > 0)
+        .with_columns(
+            (pl.col("_pre_treated").fill_null(0.0) / pl.col("_pre_total")).alias(
+                "pretreatment_treated_country_share"
+            )
+        )
+        .select(["hs6", "pretreatment_treated_country_share"])
     )
+    if dep_share.height != dep_share["hs6"].n_unique():
+        raise ValueError(
+            "more than one dependence share per heading; a fan-out here silently "
+            "inflates every summed column in the heterogeneity table"
+        )
+    dep = dep_share.join(by_product, on="hs6", how="inner")
+
+    # Headings with no imports at all in the pre window have no pre-treatment
+    # sourcing mix, so their dependence is undefined rather than zero. They are
+    # dropped and counted, not assigned a share.
+    n_no_pre = by_product.height - dep.height
+    if n_no_pre:
+        excluded = sorted(set(by_product["hs6"]) - set(dep_share["hs6"]))
+        print(
+            f"\n  {n_no_pre} treated heading(s) have no pre-window imports, so "
+            f"pre-treatment dependence is undefined and they are excluded from the "
+            f"heterogeneity split: {', '.join(excluded)}"
+        )
     med = dep["pretreatment_treated_country_share"].median()
     het = (
         dep.with_columns(
@@ -163,6 +205,17 @@ def main() -> int:
             {
                 "run": stamp.to_dict(),
                 "counterfactual_adjusted_summary": adj_summary,
+                "heterogeneity_split": {
+                    "n_headings_total": by_product.height,
+                    "n_headings_in_split": dep.height,
+                    "n_headings_no_pre_window_imports": n_no_pre,
+                    "note": (
+                        "Pre-treatment dependence is undefined for a heading with no imports "
+                        "in the pre window, so those headings are excluded from the split "
+                        "rather than assigned a share of zero. The split reconciles with the "
+                        "totals table to within the excluded headings' own value."
+                    ),
+                },
                 "warnings": [
                     "The RAW pre-versus-post decomposition attributes ordinary trade growth to "
                     "the tariff and its replacement ratio is not interpretable on its own. Use "
