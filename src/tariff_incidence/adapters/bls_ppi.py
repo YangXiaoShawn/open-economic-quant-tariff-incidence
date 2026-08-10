@@ -49,6 +49,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import polars as pl
@@ -74,9 +75,13 @@ class PPIMatchQuality(str, Enum):
     """No industry-classification PPI exists for this industry."""
 
 
-#: BEA summary industry -> the NAICS groups it comprises, from BEA's published
-#: summary definitions. Mirrors the mapping in ``census_concordance`` so the two
-#: sides of the propagation analysis speak the same classification.
+#: BEA summary industry -> the NAICS groups it comprises.
+#:
+#: Originally hand-coded from BEA's published summary definitions. It has since
+#: been checked against the ``NAICS Codes`` sheet that BEA ships in the detail
+#: workbooks (``bea_io.load_naics_hierarchy``), which gives the same grouping;
+#: see ``tests/test_ppi_propagation.py``. The detail level does not use this
+#: dict at all -- it derives components from BEA's own sheet.
 BEA_TO_NAICS: dict[str, tuple[str, ...]] = {
     "111CA": ("111", "112"),
     "113FF": ("113", "114", "115"),
@@ -118,7 +123,7 @@ class PPILoad:
     observations: pl.DataFrame
     """series_id, naics, year, month, month_date, index_value."""
     industry_match: pl.DataFrame
-    """bea_summary, naics_components, matched_components, match_quality."""
+    """bea_industry, naics_components, matched_components, match_quality."""
     n_series_requested: int = 0
     n_series_returned: int = 0
     warnings: list[str] = field(default_factory=list)
@@ -184,13 +189,54 @@ def _post(
     return doc
 
 
+def _series_cache_path(sid: str, y0: int, y1: int) -> Path:
+    from .base import RAW
+
+    return RAW / "bls" / "series" / f"{sid}_{y0}_{y1}.json"
+
+
+def _load_cached_series(ids: list[str], y0: int, y1: int) -> tuple[dict[str, Any], list[str]]:
+    """Split requested series into those already cached and those still needed.
+
+    The v1 endpoint allows only a small number of requests per day per address,
+    and hashing the whole request payload meant that changing the industry set
+    by one code invalidated every chunk. Caching per series instead makes the
+    cost proportional to what is genuinely new.
+    """
+    have: dict[str, Any] = {}
+    missing: list[str] = []
+    for sid in ids:
+        p = _series_cache_path(sid, y0, y1)
+        if p.exists():
+            have[sid] = json.loads(p.read_text())
+        else:
+            missing.append(sid)
+    return have, missing
+
+
+def _write_cached_series(sid: str, y0: int, y1: int, payload: Any) -> None:
+    p = _series_cache_path(sid, y0, y1)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(payload))
+
+
 def fetch_industry_ppi(
-    bea_industries: list[str], start_year: int, end_year: int, *, force: bool = False
+    bea_industries: list[str],
+    start_year: int,
+    end_year: int,
+    *,
+    components: dict[str, tuple[str, ...]] | None = None,
+    force: bool = False,
 ) -> PPILoad:
-    """Fetch NAICS-industry PPI for the NAICS groups behind each BEA industry."""
+    """Fetch NAICS-industry PPI for the NAICS groups behind each BEA industry.
+
+    ``components`` overrides the built-in summary map; the detail level passes
+    the industry-to-NAICS relation read from BEA's own ``NAICS Codes`` sheet.
+    """
+    table = components if components is not None else BEA_TO_NAICS
     wanted: dict[str, list[str]] = {}
     for bea in bea_industries:
-        defined = BEA_TO_NAICS.get(bea)
+        defined = table.get(bea)
         if defined:
             wanted[bea] = list(defined)
 
@@ -199,36 +245,59 @@ def fetch_industry_ppi(
 
     rows: list[dict[str, Any]] = []
     returned: set[str] = set()
-    for i in range(0, len(ids), MAX_SERIES_PER_REQUEST):
-        chunk = ids[i : i + MAX_SERIES_PER_REQUEST]
-        for y0 in range(start_year, end_year + 1, MAX_YEARS_PER_REQUEST):
-            y1 = min(y0 + MAX_YEARS_PER_REQUEST - 1, end_year)
-            doc = _post(chunk, y0, y1, force=force)
-            for s in doc.get("Results", {}).get("series", []):
-                sid = s["seriesID"]
-                if not s.get("data"):
+    quota_exhausted = False
+    for y0 in range(start_year, end_year + 1, MAX_YEARS_PER_REQUEST):
+        y1 = min(y0 + MAX_YEARS_PER_REQUEST - 1, end_year)
+        cached, missing = ({}, list(ids)) if force else _load_cached_series(ids, y0, y1)
+        fetched: dict[str, Any] = dict(cached)
+        for i in range(0, len(missing), MAX_SERIES_PER_REQUEST):
+            chunk = missing[i : i + MAX_SERIES_PER_REQUEST]
+            try:
+                doc = _post(chunk, y0, y1, force=force)
+            except SourceUnavailable as exc:
+                # The daily request allowance is a hard external limit, not a
+                # failure of this code. Estimating on the subset that happened
+                # to be cached would silently change the sample, so the caller
+                # is told and no partial panel is passed off as complete.
+                if "threshold" in str(exc).lower() and fetched:
+                    quota_exhausted = True
+                    break
+                raise
+            by_id = {s["seriesID"]: s for s in doc.get("Results", {}).get("series", [])}
+            for sid in chunk:
+                payload = by_id.get(sid, {"seriesID": sid, "data": []})
+                _write_cached_series(sid, y0, y1, payload)
+                fetched[sid] = payload
+        if quota_exhausted:
+            raise SourceUnavailable(
+                f"BLS daily request allowance reached with {len(ids) - len(fetched)} of "
+                f"{len(ids)} series still unfetched for {y0}-{y1}. Cached series are kept, "
+                "so a re-run after the allowance resets fetches only the remainder."
+            )
+        for sid, s in fetched.items():
+            if not s.get("data"):
+                continue
+            returned.add(sid)
+            naics = sid[3:9].replace("-", "")
+            for obs in s["data"]:
+                period = obs.get("period", "")
+                if not period.startswith("M") or period == "M13":
+                    continue  # M13 is the annual average, not a month
+                month = int(period[1:])
+                try:
+                    value = float(obs["value"])
+                except (TypeError, ValueError):
                     continue
-                returned.add(sid)
-                naics = sid[3:9].replace("-", "")
-                for obs in s["data"]:
-                    period = obs.get("period", "")
-                    if not period.startswith("M") or period == "M13":
-                        continue  # M13 is the annual average, not a month
-                    month = int(period[1:])
-                    try:
-                        value = float(obs["value"])
-                    except (TypeError, ValueError):
-                        continue
-                    rows.append(
-                        {
-                            "series_id": sid,
-                            "naics": naics,
-                            "year": int(obs["year"]),
-                            "month": month,
-                            "month_date": date(int(obs["year"]), month, 1),
-                            "index_value": value,
-                        }
-                    )
+                rows.append(
+                    {
+                        "series_id": sid,
+                        "naics": naics,
+                        "year": int(obs["year"]),
+                        "month": month,
+                        "month_date": date(int(obs["year"]), month, 1),
+                        "index_value": value,
+                    }
+                )
 
     obs_df = (
         pl.DataFrame(rows).unique(subset=["series_id", "month_date"]).sort(["naics", "month_date"])
@@ -255,7 +324,7 @@ def fetch_industry_ppi(
             q = PPIMatchQuality.PARTIAL_COMPOSITE
         match_rows.append(
             {
-                "bea_summary": bea,
+                "bea_industry": bea,
                 "naics_components": "|".join(comps),
                 "matched_components": "|".join(got),
                 "n_components": len(comps),
@@ -304,7 +373,7 @@ def to_bea_panel(load: PPILoad) -> pl.DataFrame:
         for n in (r["matched_components"] or "").split("|"):
             if n:
                 pairs.append(
-                    {"bea_summary": r["bea_summary"], "naics": n, "match_quality": r["match_quality"]}
+                    {"bea_industry": r["bea_industry"], "naics": n, "match_quality": r["match_quality"]}
                 )
     if not pairs:
         return pl.DataFrame()
@@ -312,13 +381,13 @@ def to_bea_panel(load: PPILoad) -> pl.DataFrame:
     link = pl.DataFrame(pairs)
     joined = load.observations.join(link, on="naics", how="inner")
     panel = (
-        joined.group_by(["bea_summary", "month_date"])
+        joined.group_by(["bea_industry", "month_date"])
         .agg(
             pl.col("index_value").mean().alias("ppi_index"),
             pl.col("naics").n_unique().alias("n_component_series"),
             pl.col("match_quality").first().alias("ppi_match_quality"),
         )
-        .sort(["bea_summary", "month_date"])
+        .sort(["bea_industry", "month_date"])
     )
     return panel.with_columns(
         pl.col("ppi_index").log().alias("log_ppi"),

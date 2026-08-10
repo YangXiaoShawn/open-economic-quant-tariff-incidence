@@ -1093,3 +1093,70 @@ Both p-values are always returned so they can be compared rather than one
 silently replacing the other. Tests check that it does not reject when there is
 no effect at 22 clusters, does reject a large true effect, and selects the
 right coefficient when several are present.
+
+### D-043 — BEA detail tables: 125 clusters instead of 22, and a hand-coded map vindicated
+
+D-041 recorded the propagation test as a power result, not a null, and named
+three ways out: widen the chapter set, drop to a finer NAICS level, or accept
+the limit. The finer level turned out to be available in a form that costs
+nothing in data quality.
+
+BEA publishes **detail-level** input-output tables (~400 industries against the
+summary level's 71) for benchmark years only — 2007, 2012, 2017. The pre-treatment
+year of this project is 2017, so the finest published breakdown exists exactly
+where a shift-share design needs its weights. The tables were already inside the
+`AllTablesSUP.zip` the project had been downloading since session 8; only the
+summary members were being read.
+
+**The count.** Mapping the panel's 219 NAICS industry codes into BEA detail
+industries reaches 211 of them, covering **97.8%** of panel customs value, across
+148 detail industries. Of those, 125 have at least one NAICS-industry PPI series.
+That is the cluster count the propagation regression can now use, against 22
+before. The wild cluster bootstrap (D-042) stays regardless — it costs little and
+its p-value is the honest one to read — but 125 clusters puts cluster-robust
+inference back inside the range where it behaves.
+
+**Three things this turned up that were not the point.**
+
+*The hierarchy was already published.* Every detail workbook carries a `NAICS
+Codes` sheet giving BEA's own Sector / Summary / U.Summary / Detail nesting and
+the NAICS codes each detail industry relates to. `bls_ppi.BEA_TO_NAICS` had been
+hand-coded from BEA's summary definitions in session 12 — the same mistake in
+kind as D-011 and D-037, where a source was assumed unavailable and substituted
+for. Checked against the published sheet, **the hand-coded map agrees exactly**;
+no prior exposure result changes. It is now pinned by a test rather than by luck,
+and the detail level does not use the hand-coded dict at all.
+
+*The header layout is not stable across BEA's own workbooks.* Summary writes
+column codes above the label row; detail writes them below it. The original
+parser took them by position, which on the detail file silently returned industry
+*titles* where codes were expected. Nothing would have raised: the downstream
+join would simply have matched nothing and produced an empty exposure table. The
+parser now identifies the code row by content — BEA codes are short and
+space-free, titles are prose.
+
+*A footnote had been an industry since session 8.* `Note. Detail may not add to
+total due to rounding.` sat in the code column of the Use sheet and became a
+72nd row of `industry_tariff_exposure.parquet`, with zero exposure and no PPI
+match. It never entered an estimate, but it was in a published result table and
+would have appeared in a report as an industry. The summary exposure table is now
+71 rows. Re-running the summary level after the parser change leaves all 71 real
+industries identical to **1e-17** — floating-point summation order — so nothing
+that has been reported moves.
+
+**What is not claimed.** Detail industries are pinned to a benchmark year, so
+this level cannot follow a moving IO structure; asking for a non-benchmark year
+raises rather than interpolating. Eight NAICS codes in the panel (333911, 333913,
+335221-8) map to nothing because 2017 NAICS retired them — a product-code
+revision under principle 6, recorded in `io_exposure_quality_detail.json` rather
+than dropped in silence. NAICS codes claimed by two detail industries at equal
+depth are left unassigned instead of being broken by an arbitrary rule; on this
+panel there are none.
+
+**Status: the estimate itself is not yet run.** The BLS v1 endpoint allows a
+small number of requests per address per day, and the coverage probes above
+exhausted it. `estimate_propagation.py --level detail` refused to estimate on the
+subset that happened to be cached, because a silently changed sample is worse
+than no result. The per-request cache has been replaced with a **per-series**
+cache so a re-run fetches only what is genuinely missing rather than re-requesting
+every chunk whenever the industry set changes by one code.

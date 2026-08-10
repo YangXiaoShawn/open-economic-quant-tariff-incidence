@@ -43,7 +43,11 @@ def main() -> int:
                     help="vintage that governs the assignment (should be pre-treatment)")
     ap.add_argument("--force-chapter-map", action="store_true",
                     help="use the coarse HS2-chapter fallback even if the official file loads")
+    ap.add_argument("--level", choices=["summary", "detail"], default="summary",
+                    help="BEA industry granularity; detail is benchmark-year only (~400 "
+                         "industries) and exists to give the propagation test enough clusters")
     args = ap.parse_args()
+    suffix = "" if args.level == "summary" else f"_{args.level}"
     ensure_layers()
 
     cfg = load_config(args.config)
@@ -59,21 +63,61 @@ def main() -> int:
     # which one was used is recorded rather than left implicit.
     concordance_method = "HS2_CHAPTER_COARSE_APPROXIMATION"
     concordance_quality: dict = {}
+    detail_map_quality: dict = {}
     hs_to_commodity: dict[str, str] = {}
     if not args.force_chapter_map:
         try:
             stack = census_concordance.load_vintages(
                 args.concordance_years, primary_year=args.concordance_primary
             )
-            official = {
-                r["hs10"]: r["bea_summary"]
-                for r in stack.mapping.iter_rows(named=True)
-                if r["bea_summary"]
-            }
             panel_codes = (
                 set(panel["hs10"].unique().to_list()) if "hs10" in panel.columns else set()
             )
-            hs_to_commodity = {k: v for k, v in official.items() if k in panel_codes}
+            if args.level == "detail":
+                # HS10 -> NAICS from Census, then NAICS -> BEA detail from BEA's
+                # own published relation. Both legs are official; nothing here is
+                # hand-assigned.
+                in_panel = stack.mapping.filter(pl.col("hs10").is_in(list(panel_codes)))
+                dmap = bea_io.naics_to_bea_detail(in_panel["naics"].unique().to_list())
+                naics_to_detail = dict(
+                    zip(dmap.mapping["naics"], dmap.mapping["bea_detail"], strict=True)
+                )
+                hs_to_commodity = {
+                    r["hs10"]: naics_to_detail[r["naics"]]
+                    for r in in_panel.iter_rows(named=True)
+                    if r["naics"] in naics_to_detail
+                }
+                detail_map_quality = {
+                    "n_naics_mapped": dmap.mapping.height,
+                    "n_naics_unmapped": len(dmap.unmapped_naics),
+                    "unmapped_naics": dmap.unmapped_naics,
+                    "n_naics_ambiguous": dmap.ambiguous.height,
+                    "ambiguous": dmap.ambiguous.to_dicts(),
+                    "match_depth_counts": dmap.mapping.group_by("match_depth")
+                    .len().sort("match_depth").to_dicts(),
+                    "note": (
+                        "NAICS industry codes are assigned to BEA detail industries by longest "
+                        "matching prefix from BEA's published 'Related 2017 NAICS Codes' column. "
+                        "Codes claimed by two industries at equal depth are left unassigned "
+                        "rather than broken by an arbitrary rule. Unmapped codes are 2012-vintage "
+                        "NAICS that 2017 NAICS retired, which is a product-code revision, not a "
+                        "parser gap."
+                    ),
+                }
+                print(
+                    f"NAICS -> BEA detail: {dmap.mapping.height} mapped, "
+                    f"{len(dmap.unmapped_naics)} unmapped, {dmap.ambiguous.height} ambiguous; "
+                    f"{dmap.mapping['bea_detail'].n_unique()} detail industries"
+                )
+                if dmap.unmapped_naics:
+                    print(f"  ! retired/unmatched NAICS: {', '.join(dmap.unmapped_naics)}")
+            else:
+                official = {
+                    r["hs10"]: r["bea_summary"]
+                    for r in stack.mapping.iter_rows(named=True)
+                    if r["bea_summary"]
+                }
+                hs_to_commodity = {k: v for k, v in official.items() if k in panel_codes}
             concordance_quality = {
                 "primary_vintage": stack.primary_year,
                 "vintages_used": stack.years,
@@ -120,14 +164,14 @@ def main() -> int:
     )
 
     try:
-        tables = bea_io.load_tables(args.year)
+        tables = bea_io.load_tables(args.year, level=args.level)
     except (SourceUnavailable, ValueError, KeyError) as exc:
         print(f"BEA input-output tables unavailable: {exc}")
         print("Cannot build industry exposure without them. Nothing written.")
         return 1
 
     print(
-        f"BEA {args.year} summary tables: "
+        f"BEA {args.year} {args.level} tables: "
         f"{tables.direct_requirements['industry_code'].n_unique()} industries, "
         f"{tables.direct_requirements['commodity_code'].n_unique()} commodities, "
         f"{tables.total_requirements.height:,} total-requirement cells"
@@ -146,7 +190,7 @@ def main() -> int:
     )
     if concordance_quality:
         quality.method = concordance_method
-        quality.level = "HS10 -> NAICS 6-digit -> BEA summary industry"
+        quality.level = f"HS10 -> NAICS 6-digit -> BEA {args.level} industry"
         quality.source = (
             f"Census import concordances {concordance_quality['vintages_used']}, "
             f"primary {concordance_quality['primary_vintage']}"
@@ -186,29 +230,31 @@ def main() -> int:
         ),
         data_period_start=str(args.year),
         data_period_end=str(args.year),
-        notes=f"BEA {args.year} summary IO; concordance status {conc['status']}",
+        notes=f"BEA {args.year} {args.level} IO; concordance status {conc['status']}",
     )
-    out = layer_path("results", "industry_tariff_exposure.parquet")
+    out = layer_path("results", f"industry_tariff_exposure{suffix}.parquet")
     exposure.with_columns(
         pl.lit(stamp.run_id).alias("run_id"),
         pl.lit(stamp.git_commit).alias("git_commit"),
         pl.lit(stamp.data_provenance.value).alias("data_provenance"),
     ).write_parquet(out)
-    ce.write_parquet(layer_path("results", "commodity_tariff_exposure.parquet"))
-    summarize(exposure).write_parquet(layer_path("results", "industry_exposure_summary.parquet"))
-    stamp.write(layer_path("results", "io_exposure.runstamp.json"))
+    ce.write_parquet(layer_path("results", f"commodity_tariff_exposure{suffix}.parquet"))
+    summarize(exposure).write_parquet(layer_path("results", f"industry_exposure_summary{suffix}.parquet"))
+    stamp.write(layer_path("results", f"io_exposure{suffix}.runstamp.json"))
 
-    (layer_path("results", "io_exposure_quality.json")).write_text(
+    (layer_path("results", f"io_exposure_quality{suffix}.json")).write_text(
         json.dumps({"run": stamp.to_dict(), "concordance": quality.to_row(),
                     "concordance_config_status": concordance_method,
-                    "official_concordance": concordance_quality}, indent=2, default=str) + "\n"
+                    "official_concordance": concordance_quality,
+                    "bea_level": args.level,
+                    "naics_to_bea_detail": detail_map_quality}, indent=2, default=str) + "\n"
     )
 
     DatasetManifest.for_file(
         out,
-        dataset_id="industry_tariff_exposure",
+        dataset_id=f"industry_tariff_exposure{suffix}",
         layer="results",
-        source=f"BEA Supply-Use summary tables {args.year} + project tariff schedule",
+        source=f"BEA Supply-Use {args.level} tables {args.year} + project tariff schedule",
         source_url=bea_io.BEA_ZIP_URL,
         source_release_or_vintage=tables.source_release,
         schema_version="io_exposure_v1",

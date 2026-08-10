@@ -47,7 +47,7 @@ def test_bea_panel_averages_only_the_matched_components():
     load = _load(
         [
             {
-                "bea_summary": "315AL", "naics_components": "315|316",
+                "bea_industry": "315AL", "naics_components": "315|316",
                 "matched_components": "315", "n_components": 2, "n_matched": 1,
                 "match_quality": PPIMatchQuality.PARTIAL_COMPOSITE.value,
             }
@@ -70,7 +70,7 @@ def test_unmatched_industries_do_not_appear_in_the_panel():
     load = _load(
         [
             {
-                "bea_summary": "111CA", "naics_components": "111|112",
+                "bea_industry": "111CA", "naics_components": "111|112",
                 "matched_components": "", "n_components": 2, "n_matched": 0,
                 "match_quality": PPIMatchQuality.NONE.value,
             }

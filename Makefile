@@ -5,7 +5,8 @@ UV := $(shell command -v uv 2>/dev/null || echo "$$HOME/.local/bin/uv")
 .DEFAULT_GOAL := help
 .PHONY: help setup download-sample build-tariff-schedule build-trade-panel validate-data \
         descriptive replicate estimate-incidence estimate-diversion build-io-exposure \
-        structural test lint typecheck reproduce-sample report dashboard clean check
+        structural test lint typecheck reproduce-sample report dashboard clean check \
+        build-io-exposure-detail estimate-propagation-detail
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
@@ -80,3 +81,9 @@ reproduce-sample: build-tariff-schedule build-trade-panel validate-data descript
 clean: ## Remove derived data (keeps data/raw and manifests)
 	rm -rf data/staged/* data/normalized/* data/analytical/* data/results/*
 	@echo "cleaned derived layers; data/raw and data/manifests kept"
+
+build-io-exposure-detail: ## Industry exposure at BEA detail level (~400 industries)
+	$(PY) scripts/build_io_exposure.py --level detail
+
+estimate-propagation-detail: ## Propagation test with detail-level clusters
+	$(PY) scripts/estimate_propagation.py --level detail

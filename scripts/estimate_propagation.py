@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import numpy as np  # noqa: E402
 import polars as pl  # noqa: E402
 
-from tariff_incidence.adapters import bls_ppi  # noqa: E402
+from tariff_incidence.adapters import bea_io, bls_ppi  # noqa: E402
 from tariff_incidence.adapters.base import SourceUnavailable  # noqa: E402
 from tariff_incidence.config import load_config  # noqa: E402
 from tariff_incidence.econ.hdfe import ols_hdfe, wild_cluster_bootstrap  # noqa: E402
@@ -57,21 +57,35 @@ def main() -> int:
     ap.add_argument("--config", default="sample_slice.yaml")
     ap.add_argument("--first-treatment-month", default="2018-07")
     ap.add_argument("--n-boot", type=int, default=999)
+    ap.add_argument("--level", choices=["summary", "detail"], default="summary",
+                    help="BEA industry granularity of the exposure file to test")
     args = ap.parse_args()
     ensure_layers()
+    suffix = "" if args.level == "summary" else f"_{args.level}"
 
     cfg = load_config(args.config)
-    expo_path = layer_path("results", "industry_tariff_exposure.parquet")
+    expo_path = layer_path("results", f"industry_tariff_exposure{suffix}.parquet")
     if not expo_path.exists():
-        print("industry exposure not found; run make build-io-exposure first")
+        print(f"industry exposure not found at {expo_path.name}; run "
+              f"'make build-io-exposure' (level={args.level}) first")
         return 1
     expo = pl.read_parquet(expo_path)
 
     y0 = int(cfg.sample.start_month.split("-")[0])
     y1 = int(cfg.sample.end_month.split("-")[0])
     industries = expo["industry_code"].unique().to_list()
+
+    # At detail level the industry-to-NAICS relation comes from BEA's own
+    # published 'NAICS Codes' sheet rather than the hand-coded summary map.
+    components: dict[str, tuple[str, ...]] | None = None
+    if args.level == "detail":
+        components = bea_io.detail_naics_components(industries)
+        print(
+            f"{len(components)} of {len(industries)} detail industries have a NAICS relation "
+            "in BEA's own sheet"
+        )
     try:
-        load = bls_ppi.fetch_industry_ppi(industries, y0, y1)
+        load = bls_ppi.fetch_industry_ppi(industries, y0, y1, components=components)
     except SourceUnavailable as exc:
         print(f"BLS PPI unavailable: {exc}")
         print("Cannot test propagation into domestic prices without it. Nothing written.")
@@ -84,7 +98,7 @@ def main() -> int:
 
     print(
         f"PPI: {load.n_series_returned}/{load.n_series_requested} series, "
-        f"{ppi['bea_summary'].n_unique()} BEA industries x {ppi['month_date'].n_unique()} months"
+        f"{ppi['bea_industry'].n_unique()} BEA industries x {ppi['month_date'].n_unique()} months"
     )
     for w in load.warnings:
         print(f"  ! {w}")
@@ -93,14 +107,14 @@ def main() -> int:
     first_idx = yy * 12 + mm
 
     panel = (
-        ppi.join(expo, left_on="bea_summary", right_on="industry_code", how="inner")
+        ppi.join(expo, left_on="bea_industry", right_on="industry_code", how="inner")
         .with_columns(
             (pl.col("month_index") >= first_idx).cast(pl.Float64).alias("post"),
             pl.col("month_date").dt.strftime("%Y-%m").alias("month_key"),
         )
         .drop_nulls(subset=["log_ppi"])
     )
-    n_ind = panel["bea_summary"].n_unique()
+    n_ind = panel["bea_industry"].n_unique()
     print(
         f"\nestimation panel: {panel.height:,} industry-months, {n_ind} industries "
         f"({panel['month_date'].n_unique()} months), post from {args.first_treatment_month}"
@@ -121,8 +135,8 @@ def main() -> int:
         ).drop_nulls(subset=["exposure_x_post"])
         y = d["log_ppi"].to_numpy()
         X = d["exposure_x_post"].to_numpy()[:, None]
-        fe = {"industry": d["bea_summary"].to_numpy(), "month": d["month_key"].to_numpy()}
-        cl = d["bea_summary"].to_numpy()
+        fe = {"industry": d["bea_industry"].to_numpy(), "month": d["month_key"].to_numpy()}
+        cl = d["bea_industry"].to_numpy()
 
         fit = ols_hdfe(y, X, ["exposure_x_post"], fe, {"industry": cl})
         boot = wild_cluster_bootstrap(
@@ -160,8 +174,8 @@ def main() -> int:
     X = np.column_stack(
         [both["input_cost_x_post"].to_numpy(), both["protection_x_post"].to_numpy()]
     )
-    fe = {"industry": both["bea_summary"].to_numpy(), "month": both["month_key"].to_numpy()}
-    cl = both["bea_summary"].to_numpy()
+    fe = {"industry": both["bea_industry"].to_numpy(), "month": both["month_key"].to_numpy()}
+    cl = both["bea_industry"].to_numpy()
     joint = ols_hdfe(y, X, ["input_cost_x_post", "protection_x_post"], fe, {"industry": cl})
     print("\n  both channels entered together (they are never netted):")
     for i, nm in enumerate(["input_cost_x_post", "protection_x_post"]):
@@ -208,17 +222,18 @@ def main() -> int:
         pl.lit(stamp.git_commit).alias("git_commit"),
         pl.lit(stamp.data_provenance.value).alias("data_provenance"),
     )
-    out = layer_path("results", "propagation_ppi_estimates.parquet")
+    out = layer_path("results", f"propagation_ppi_estimates{suffix}.parquet")
     res.write_parquet(out)
-    ppi.write_parquet(layer_path("results", "ppi_industry_month_panel.parquet"))
-    load.industry_match.write_parquet(layer_path("results", "ppi_industry_match.parquet"))
-    stamp.write(layer_path("results", "propagation.runstamp.json"))
+    ppi.write_parquet(layer_path("results", f"ppi_industry_month_panel{suffix}.parquet"))
+    load.industry_match.write_parquet(layer_path("results", f"ppi_industry_match{suffix}.parquet"))
+    stamp.write(layer_path("results", f"propagation{suffix}.runstamp.json"))
 
-    (layer_path("results", "propagation_quality.json")).write_text(
+    (layer_path("results", f"propagation_quality{suffix}.json")).write_text(
         json.dumps(
             {
                 "run": stamp.to_dict(),
                 "n_industries": n_ind,
+                "bea_level": args.level,
                 "n_series_requested": load.n_series_requested,
                 "n_series_returned": load.n_series_returned,
                 "warnings": load.warnings,
@@ -244,7 +259,7 @@ def main() -> int:
 
     DatasetManifest.for_file(
         out,
-        dataset_id="propagation_ppi_estimates",
+        dataset_id=f"propagation_ppi_estimates{suffix}",
         layer="results",
         source="BLS Producer Price Index (NAICS industry classification), API v1",
         source_url=bls_ppi.BLS_V1,
