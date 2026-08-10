@@ -86,6 +86,26 @@ It now selects the panel's real unit. Two smaller defects went with it: a
 caption of mine from earlier today that repeated the D-043 error of calling all
 unmapped NAICS codes retired. Both fixed and verified in a browser.
 
+**Reading the reports found five stale claims, one of them load-bearing.**
+Checking that reports generate is not reading them. `failed_hypotheses.md` — the
+document whose job is honesty about what did not work — still asserted that List
+4A was unparsed and that the Census concordance was unreachable, both solved
+sessions ago; the executive memo listed those same two as evidence that would
+change the recommendation, and called exclusions "not parsed" a paragraph above
+correctly reporting the gap as bounded. The panel manifest described an HS6
+panel ending 2019-08, contradicting the data period in the same document. All
+now read from the artefacts rather than from fixed strings.
+
+The load-bearing one is **D-045**: `structural_counterfactuals.md` carries
+DATA PROVENANCE: OFFICIAL at the top and then gives the reason for deferring the
+structural module as "calibrated on synthetic trade flows", listing official
+flows as the binding constraint. The flows have been official since session 9 —
+a *reason* that stopped applying while the conclusion it supported stayed in
+place. What remains is narrower: no domestic-alternative expenditure series, so
+the Armington domestic nest is unidentified, and elasticities would be borrowed
+rather than estimated. Neither blocks the module; both change what its output may
+be called. **Left open for a decision rather than closed autonomously.**
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
