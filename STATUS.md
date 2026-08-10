@@ -29,14 +29,18 @@ summary members of `AllTablesSUP.zip` were being read.
 
 | | summary | detail |
 |---|---|---|
-| BEA industries in the IO table | 71 | 401 |
-| panel NAICS codes mapped | 219 → 19 commodities | 211 of 219 |
-| customs value covered | 99.8% | 97.8% |
-| industries with tariff exposure | 24 | 148 |
-| **industries with a matched PPI series** | **22** | **125** |
+| BEA industries in the IO table | 71 | 402 |
+| panel NAICS codes mapped | 219 → 19 commodities | 212 of 219 |
+| customs value covered | 99.8% | 99.7% |
+| industries with tariff exposure | 24 | 149 |
+| **industries with a matched PPI series** | **22** | **≥125** |
 
-125 clusters puts cluster-robust inference back inside the range where it
-behaves. The wild cluster bootstrap (D-042) stays anyway.
+The PPI count was probed across the industries the concordance maps to, so it
+is a floor: the estimation panel also admits industries that have a price series
+and no tariff exposure, which are legitimate controls in a continuous-treatment
+design rather than a sample restriction. Either way it puts cluster-robust
+inference back inside the range where it behaves. The wild cluster bootstrap
+(D-042) stays anyway.
 
 **Three things this turned up that were not the point.** Each is in D-043.
 
