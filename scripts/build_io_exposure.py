@@ -36,8 +36,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="sample_slice.yaml")
     ap.add_argument("--year", type=int, default=2017, help="pre-treatment IO table year")
-    ap.add_argument("--concordance-vintage", type=int, default=2020,
-                    help="Census import concordance vintage (impconcordNN)")
+    ap.add_argument("--concordance-years", type=int, nargs="+",
+                    default=[2017, 2018, 2019, 2020],
+                    help="Census import concordance vintages to combine")
+    ap.add_argument("--concordance-primary", type=int, default=2017,
+                    help="vintage that governs the assignment (should be pre-treatment)")
     ap.add_argument("--force-chapter-map", action="store_true",
                     help="use the coarse HS2-chapter fallback even if the official file loads")
     args = ap.parse_args()
@@ -59,25 +62,45 @@ def main() -> int:
     hs_to_commodity: dict[str, str] = {}
     if not args.force_chapter_map:
         try:
-            path = census_concordance.fetch_concordance(args.concordance_vintage)
-            load = census_concordance.parse_concordance(path, args.concordance_vintage)
-            mapping, concordance_quality = census_concordance.build_hs10_to_bea(load)
+            stack = census_concordance.load_vintages(
+                args.concordance_years, primary_year=args.concordance_primary
+            )
             official = {
                 r["hs10"]: r["bea_summary"]
-                for r in mapping.iter_rows(named=True)
+                for r in stack.mapping.iter_rows(named=True)
                 if r["bea_summary"]
             }
-            panel_codes = set(panel["hs10"].unique().to_list()) if "hs10" in panel.columns else set()
+            panel_codes = (
+                set(panel["hs10"].unique().to_list()) if "hs10" in panel.columns else set()
+            )
             hs_to_commodity = {k: v for k, v in official.items() if k in panel_codes}
+            concordance_quality = {
+                "primary_vintage": stack.primary_year,
+                "vintages_used": stack.years,
+                "n_from_primary": stack.n_from_primary,
+                "n_from_later_vintages": stack.n_from_fallback,
+                "n_reclassified_vs_primary": stack.n_reclassified_vs_primary,
+                "reclassified_examples": stack.reclassified_examples,
+                "n_panel_lines_matched": len(hs_to_commodity),
+                "n_panel_lines": len(panel_codes),
+                "warnings": list(stack.warnings),
+                "method": (
+                    "Official Census import concordances, one file per year, keyed on the "
+                    "10-digit commodity code. The pre-treatment vintage governs the industry "
+                    "assignment so it is pre-determined like the weights; later vintages only "
+                    "supply codes created after that year."
+                ),
+            }
             concordance_method = (
-                f"CENSUS_IMPORT_CONCORDANCE_{args.concordance_vintage}_HS10_TO_NAICS_TO_BEA"
+                f"CENSUS_IMPORT_CONCORDANCE_{stack.primary_year}_PRIMARY_"
+                f"{min(stack.years)}_{max(stack.years)}_HS10_TO_NAICS_TO_BEA"
             )
             print(
-                f"official concordance {load.source_file}: {load.n_rows:,} HS10 lines, "
-                f"{concordance_quality['share_mapped']:.1%} reach a BEA industry; "
-                f"{len(hs_to_commodity):,} of {len(panel_codes):,} panel lines matched"
+                f"official concordances {stack.years}, primary {stack.primary_year}: "
+                f"{stack.n_from_primary:,} codes from primary + {stack.n_from_fallback:,} "
+                f"from later; {len(hs_to_commodity):,} of {len(panel_codes):,} panel lines matched"
             )
-            for w in concordance_quality.get("warnings", []):
+            for w in stack.warnings:
                 print(f"  ! {w}")
         except (SourceUnavailable, ValueError, OSError) as exc:
             print(f"! official concordance unavailable ({exc}); falling back to the chapter map")
@@ -124,14 +147,19 @@ def main() -> int:
     if concordance_quality:
         quality.method = concordance_method
         quality.level = "HS10 -> NAICS 6-digit -> BEA summary industry"
-        quality.source = f"Census {concordance_quality['source_file']}"
+        quality.source = (
+            f"Census import concordances {concordance_quality['vintages_used']}, "
+            f"primary {concordance_quality['primary_vintage']}"
+        )
         quality.aggregation_loss_note = (
             "Each 10-digit commodity line carries exactly one NAICS industry in the "
             "official concordance, so no within-line weighting assumption is made. "
             "Aggregation loss remains only where Census itself writes an 'X' in a NAICS "
-            f"code to hide undisclosed detail ({concordance_quality['n_aggregated_naics']} "
-            "lines), and where a line's NAICS falls outside the BEA summary "
-            "manufacturing and primary groups."
+            "code to hide undisclosed detail, and where a line's NAICS falls outside the "
+            "BEA summary manufacturing and primary groups. "
+            f"{concordance_quality['n_reclassified_vs_primary']} codes carry a different "
+            "NAICS in a later vintage; the pre-treatment assignment governs, and that "
+            "count bounds how much the choice matters."
         )
     print(
         f"commodity exposure: {ce.height} BEA commodities from "

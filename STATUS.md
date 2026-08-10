@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 10
+**Last updated:** 2026-08-10 · session 11
 
 ## One-line state
 
@@ -14,6 +14,28 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 11: per-year concordance vintages
+
+Session 10 left 2.5% of customs value unmapped because the 2017-2019
+concordances are legacy `.xls` and openpyxl reads only `.xlsx`. That was the
+same error as D-011 in miniature: one tool failing is not the resource being
+unreadable. `xlrd` reads `.xls` and nothing else — exactly the complement — so
+both readers are now supported (D-039).
+
+Vintages are combined so the industry assignment is **pre-determined**, for the
+same reason the exposure weights are: the 2017 file governs, later vintages
+supply only codes created after 2017, and each code records its source vintage.
+
+| | 2020 alone | 2017 primary + fill |
+|---|---|---|
+| Panel lines reaching a BEA industry | 5,057 | 5,182 |
+| Share of customs value mapped | 97.50% | **99.80%** |
+
+172 codes carry a different NAICS in a later vintage than in 2017 — concentrated
+between the 2018 and 2019 files (2019 vs 2020 differs for only 2). That count is
+reported rather than resolved: it bounds how much the primary-vintage choice
+matters, which is the honest answer when two official vintages disagree.
 
 ## Session 10: the official concordance existed all along
 
@@ -348,9 +370,8 @@ tables were missing. Fixed, and reports regenerated with content.
 - Exclusions unparsed → intention-to-treat only.
 - List 4A unparsed → window ends 2019-08.
 - USITC HTS serves the current vintage, not HTS2018.
-- IO concordance now official at the 10-digit level; 2.5% of customs value
-  unmapped through vintage mismatch. Exposure magnitudes still do not feed any
-  welfare statement.
+- IO concordance official and per-vintage; 99.8% of customs value mapped.
+  Exposure magnitudes still do not feed any welfare statement.
 - 42.5% of rows have no single ad valorem MFN baseline (compound duty lines);
   nulls propagate rather than being filled.
 - 34.8% of rows have no usable quantity, so unit values are undefined there.

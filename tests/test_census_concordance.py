@@ -52,10 +52,12 @@ def test_census_x_placeholder_still_maps_when_the_prefix_is_unambiguous():
     assert naics_to_bea_summary("11211X") == "111CA"
 
 
-def test_legacy_xls_vintage_is_refused_rather_than_silently_skipped(tmp_path: Path):
+def test_a_corrupt_workbook_raises_rather_than_returning_an_empty_mapping(tmp_path: Path):
+    """Legacy .xls is supported now, but a damaged file must still fail loudly:
+    an empty concordance would silently drop every industry assignment."""
     p = tmp_path / "impconcord19.xls"
     p.write_bytes(b"not really a workbook")
-    with pytest.raises(ValueError, match="legacy .xls format"):
+    with pytest.raises(Exception, match="(?i)(corrupt|unsupported|BOF)"):
         parse_concordance(p, 2019)
 
 
@@ -85,3 +87,79 @@ def test_aggregated_naics_codes_are_reported_not_truncated():
     withx = load.mapping.filter(load.mapping["naics"].str.contains("X"))
     assert withx.height == load.n_aggregated_naics
     assert all("X" in n for n in withx["naics"].to_list()[:20])
+
+
+# --------------------------------------------------------------------- #
+# per-year vintages
+# --------------------------------------------------------------------- #
+
+XLS = RAW / "census_concordance" / "impconcord19.xls"
+
+
+@pytest.mark.skipif(not XLS.exists(), reason="legacy .xls vintage not cached")
+def test_legacy_xls_vintages_are_readable():
+    """Census published .xls through 2019; refusing them forced a 2020 mapping
+    onto a 2017-2019 panel, so both formats must load."""
+    load = parse_concordance(XLS, 2019)
+    assert load.n_rows > 15000
+    codes = load.mapping["hs10"].to_list()
+    assert all(len(c) == 10 and c.isdigit() for c in codes[:200])
+
+
+@pytest.mark.skipif(not XLS.exists(), reason="legacy .xls vintage not cached")
+def test_numeric_cells_do_not_lose_leading_zeros():
+    """xlrd returns floats, so 0101210010 arrives as 101210010.0."""
+    load = parse_concordance(XLS, 2019)
+    assert "0101210010" in set(load.mapping["hs10"].to_list())
+
+
+@pytest.mark.skipif(not XLS.exists(), reason="vintages not cached")
+def test_vintage_stack_prefers_the_pre_treatment_assignment():
+    from tariff_incidence.adapters.census_concordance import load_vintages
+
+    st = load_vintages([2019, 2020], primary_year=2019)
+    assert st.primary_year == 2019
+    assert st.n_from_primary > st.n_from_fallback
+    rows = st.mapping.filter(st.mapping["vintage_year"] == 2019)
+    assert rows.height == st.n_from_primary
+
+
+@pytest.mark.skipif(not XLS.exists(), reason="vintages not cached")
+def test_vintage_stack_counts_reclassification_rather_than_hiding_it():
+    from tariff_incidence.adapters.census_concordance import load_vintages
+
+    st = load_vintages([2017, 2020], primary_year=2017)
+    assert st.n_reclassified_vs_primary > 0, "NAICS was revised between 2017 and 2020"
+    assert st.reclassified_examples
+    ex = st.reclassified_examples[0]
+    assert ex["naics_2017"] != ex["naics_2020"]
+    assert any("different NAICS in a later vintage" in w for w in st.warnings)
+
+
+@pytest.mark.skipif(not XLS.exists(), reason="vintages not cached")
+def test_later_vintages_only_add_codes_the_primary_lacks():
+    from tariff_incidence.adapters.census_concordance import load_vintages
+
+    st = load_vintages([2017, 2020], primary_year=2017)
+    primary_codes = set(
+        st.mapping.filter(st.mapping["vintage_year"] == 2017)["hs10"].to_list()
+    )
+    later_codes = set(
+        st.mapping.filter(st.mapping["vintage_year"] != 2017)["hs10"].to_list()
+    )
+    assert primary_codes and later_codes
+    assert not (primary_codes & later_codes), "a code takes its assignment from one vintage"
+
+
+def test_vintage_stack_rejects_a_primary_outside_the_requested_years():
+    from tariff_incidence.adapters.census_concordance import load_vintages
+
+    with pytest.raises(ValueError, match="not among"):
+        load_vintages([2019, 2020], primary_year=2015)
+
+
+def test_vintage_stack_requires_at_least_one_year():
+    from tariff_incidence.adapters.census_concordance import load_vintages
+
+    with pytest.raises(ValueError, match="no concordance vintages"):
+        load_vintages([])

@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.28",
     "pyyaml>=6.0",
     "openpyxl>=3.1",
+    "xlrd>=2.0",   # Census publishes concordances through 2019 as legacy .xls
     "matplotlib>=3.9",
 ]
 

@@ -971,3 +971,43 @@ precisely so this comparison stays reproducible.
 Exposure magnitudes are still not elasticities and still do not feed any welfare
 statement, but they are no longer merely an ordering: the mapping underneath
 them is now official and assumption-free at the product level.
+
+---
+
+### D-039 — "openpyxl cannot read it" was not the same as "it cannot be read"
+
+D-037 used the 2020 concordance for a 2017-2020 panel and recorded a 2.5%
+unmapped share, because the 2017-2019 vintages are legacy ``.xls`` and openpyxl
+handles only ``.xlsx``. The adapter raised on ``.xls`` deliberately, so the
+substitution was at least visible — but the conclusion drawn from it, that
+per-year vintages were blocked, was wrong for the same reason D-011 was wrong:
+one tool failing is not the resource being unavailable. ``xlrd`` reads ``.xls``
+and nothing else, which is exactly the complement. Both readers are now
+supported.
+
+**Combining vintages.** Census publishes one file per year because codes are
+renumbered and NAICS assignments revised. Two facts decide how to combine them.
+The assignment should be **pre-determined**, for the same reason the exposure
+weights are: letting the industry assignment drift with later vintages would
+reintroduce through the back door what pre-treatment weighting is careful to
+avoid. But later vintages still add **coverage**, since codes created after the
+primary year exist only there. So the 2017 vintage governs, later vintages
+supply only codes 2017 lacks, and the source vintage is recorded per code.
+
+**What this closes and what it measures.**
+
+| | 2020 vintage alone | 2017 primary + 2018-2020 fill |
+|---|---|---|
+| Panel lines reaching a BEA industry | 5,057 | 5,182 |
+| Share of panel customs value mapped | 97.50% | **99.80%** |
+
+450 codes come from later vintages — commodity lines created after 2017. And
+172 codes carry a different NAICS in a later vintage than in 2017, concentrated
+between the 2018 and 2019 files: 2017 vs 2020 differs for 172 codes, 2018 vs
+2020 for 156, but 2019 vs 2020 for only 2. That count is reported rather than
+resolved, because it bounds how much the choice of primary vintage matters,
+which is the honest form of the answer when two official vintages disagree.
+
+A silent trap worth recording: ``xlrd`` returns numeric cells as floats, so the
+commodity code 0101210010 arrives as 101210010.0 and a naive digit check drops
+it. Leading zeros are restored explicitly and a test asserts it.
