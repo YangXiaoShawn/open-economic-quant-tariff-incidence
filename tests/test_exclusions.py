@@ -85,6 +85,7 @@ def test_itt_bound_flags_only_flows_where_realised_falls_short():
             ],
             "is_treated_country": [True, True],
             "total_modeled_tariff_rate": [0.25, 0.25],
+            "additional_tariff_rate": [0.25, 0.25],
             "realised_duty_rate_on_dutiable": [0.25, 0.02],  # second is short
             "dutiable_value": [100.0, 100.0],
             "customs_value": [100.0, 300.0],
@@ -104,6 +105,7 @@ def test_itt_bound_ignores_untreated_flows():
             "month_date": [dt.date(2019, 1, 1)],
             "is_treated_country": [False],
             "total_modeled_tariff_rate": [0.25],
+            "additional_tariff_rate": [0.25],
             "realised_duty_rate_on_dutiable": [0.0],
             "dutiable_value": [100.0],
             "customs_value": [100.0],
@@ -123,3 +125,37 @@ def test_parse_notice_warns_when_the_form_sentence_is_absent(tmp_path: Path):
     n = parse_notice(p, "FAKE", "2019-01-01")
     assert any("take the form of" in x for x in n.warnings)
     assert n.n_prose_exclusions is None
+
+
+def test_itt_bound_excludes_flows_carrying_no_additional_duty():
+    """MFN-dutiable trade with no Section 301 duty is not part of this bound.
+
+    The filter conditioned on `total_modeled_tariff_rate > 0`, which includes
+    the baseline MFN rate, so ordinary MFN-dutiable imports entered the
+    denominator. They can never fall short of a Section 301 duty, because none
+    applies, so they contributed zero to the numerator and halved the apparent
+    pre-exclusion baseline -- the exact quantity the bound decomposes against.
+    """
+    import datetime as dt
+
+    panel = pl.DataFrame(
+        {
+            "month_date": [dt.date(2018, 3, 1), dt.date(2019, 1, 1)],
+            "is_treated_country": [True, True],
+            # First flow: MFN duty only, no Section 301 action in force yet.
+            "total_modeled_tariff_rate": [0.044, 0.294],
+            "additional_tariff_rate": [0.0, 0.25],
+            "realised_duty_rate_on_dutiable": [0.044, 0.02],
+            "dutiable_value": [100.0, 100.0],
+            "customs_value": [900.0, 100.0],
+        }
+    )
+    out = realised_vs_statutory_bound(panel)
+
+    # Only the Section 301 month survives; the MFN-only month is not a period
+    # in which an exclusion could have applied.
+    assert out.height == 1
+    assert out["month_date"][0] == dt.date(2019, 1, 1)
+    # Had the MFN-only flow been admitted its $900 would have sat in the
+    # denominator alone and driven the shortfall share to 0.1 instead of 1.0.
+    assert out["share_value_short"][0] == pytest.approx(1.0)

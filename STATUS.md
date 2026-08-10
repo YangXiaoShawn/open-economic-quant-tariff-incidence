@@ -338,7 +338,7 @@ used (D-005's rule against unvalidatable transcription into a legal variable).
 
 Instead of an unbuildable adjustment, the gap is **bounded**. Share of treated
 customs value where the realised duty falls more than 3pp short of statutory:
-**4.4% before** exclusions were first granted (2018-12), **20.1% after**. The
+**10.9% before** exclusions were first granted (2018-12), **20.0% after**. The
 pre-exclusion figure is preference programmes and duty-free entry, not
 exclusions, so at most ~15.7pp is attributable to them — an upper bound with the
 right timing signature (D-027).

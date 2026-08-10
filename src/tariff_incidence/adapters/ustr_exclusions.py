@@ -286,9 +286,19 @@ def realised_vs_statutory_bound(
     """
     import polars as pl
 
+    # Condition on a positive **additional** duty, not a positive total rate.
+    # The total includes the baseline MFN rate, so filtering on it admitted
+    # ordinary MFN-dutiable trade with no Section 301 exposure at all -- six
+    # months of it before the first action even took effect, $42.6bn of customs
+    # value that could not possibly fall short of a Section 301 duty because
+    # none applied. Those months sat in the denominator contributing zero to the
+    # numerator and halved the apparent pre-exclusion baseline, which is exactly
+    # the quantity this bound decomposes against. A flow carrying no additional
+    # duty cannot be affected by an exclusion from that duty and belongs in
+    # neither side of the ratio.
     d = panel.filter(
         pl.col(treated_country_col)
-        & (pl.col("total_modeled_tariff_rate") > 0)
+        & (pl.col("additional_tariff_rate") > 0)
         & (pl.col("dutiable_value") > 0)
         & (pl.col("customs_value") > 0)
     )

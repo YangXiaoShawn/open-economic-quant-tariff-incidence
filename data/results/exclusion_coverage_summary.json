@@ -1,8 +1,8 @@
 {
   "run": {
-    "run_id": "20260810T140738Z-b1495fb3",
-    "created_utc": "2026-08-10T14:07:38.596814+00:00",
-    "git_commit": "43a1a31-dirty",
+    "run_id": "20260810T194451Z-b1495fb3",
+    "created_utc": "2026-08-10T19:44:51.445884+00:00",
+    "git_commit": "4e29104-dirty",
     "config_name": "sample_slice.yaml",
     "config_sha256": "b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3",
     "data_provenance": "OFFICIAL",
@@ -21,8 +21,8 @@
     "all_annexes_image_only": true,
     "earliest_retroactive_to": "2018-07-06",
     "conclusion": "Exclusions are granted at a finer granularity than U.S. import statistics are published. A specially prepared product description identifies a subset of a statistical reporting number, and trade data is reported at that number and no finer, so the share of a line's imports that was excluded is not observable. Exclusion adjustment therefore cannot be performed from published trade statistics, regardless of parsing effort. Estimates in this project remain intention-to-treat with respect to the statutory list, and that is a structural property of the data rather than an outstanding task.",
-    "itt_bound_before_first_exclusion": 0.04406303912868082,
-    "itt_bound_after_first_exclusion": 0.18662638386001698,
+    "itt_bound_before_first_exclusion": 0.10923919157221908,
+    "itt_bound_after_first_exclusion": 0.1996260976049513,
     "first_exclusion_month": "2018-12-01"
   }
 }

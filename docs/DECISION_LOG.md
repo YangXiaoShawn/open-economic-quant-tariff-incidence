@@ -561,9 +561,15 @@ statutory rate on treated flows:
 | after | 20.1% |
 
 The pre-exclusion figure cannot be caused by exclusions — it reflects preference
-programmes, Chapter 98 provisions and duty-free entry — so only the increase of
-roughly 15.7 percentage points is attributable to them, and even that is an
-**upper** bound because those other channels also grew. The timing signature is
+programmes, Chapter 98 provisions and duty-free entry — so only the increase is
+attributable to them, and even that is an **upper** bound because those other
+channels also grew.
+
+> **Corrected by D-048.** The figures in the table above conditioned on a
+> positive *total* tariff rate, which includes the baseline MFN duty, so they
+> admitted ordinary MFN-dutiable trade carrying no Section 301 duty at all. The
+> population is now conditioned on a positive *additional* duty: the baseline is
+> **10.9%**, not 4.4%, and the increase is **9.0** percentage points, not 15.7. The timing signature is
 right: the gap steps up when exclusions began to be granted.
 
 **Consequence.** Estimates in this project are intention-to-treat with respect
@@ -1292,3 +1298,43 @@ as what it actually means: only coefficients at a definite event time enter a
 trend statistic. Re-running estimation after the change leaves all fifteen
 pre-trend tests bit-identical, and a test now pins the invariant with endpoint
 estimates large enough that a leak into either statistic would fail it.
+
+### D-048 — The exclusion bound was diluted by trade the tariff never touched
+
+The intention-to-treat bound is the project's substitute for an exclusion
+adjustment it established cannot be made. Its whole content is a decomposition:
+a baseline share of Section 301-dutied value where the realised duty falls short
+of the statutory rate for reasons *other* than exclusions, and an increase after
+exclusions began that is attributable to them. Getting the baseline wrong
+distorts the only claim the bound makes.
+
+`realised_vs_statutory_bound` conditioned on `total_modeled_tariff_rate > 0`.
+That total includes the **baseline MFN rate**, so the population admitted
+ordinary MFN-dutiable imports from the treated country carrying no Section 301
+duty whatever — including six months before the first action took effect, in
+which no flow could possibly fall short of a Section 301 duty because none
+applied. Those months contributed **$42.6bn** of customs value to the
+denominator and exactly zero to the numerator.
+
+A flow carrying no additional duty cannot be affected by an exclusion from that
+duty. The condition is now `additional_tariff_rate > 0`, and the frame begins in
+2018-07 rather than 2018-01 as a consequence rather than by a hand-set window.
+
+| | as published | corrected |
+|---|---|---|
+| baseline, before the first exclusion | 4.4% | **10.9%** |
+| after | 18.7% | **20.0%** |
+| increase attributable to exclusions | +14.3pp | **+9.0pp** |
+
+The published baseline was understated by a factor of 2.5 and the
+exclusion-attributable increase overstated by more than half. The direction is
+worth naming plainly: the error made the exclusion problem look **larger** than
+it is, so every statement of the form "estimates are intention-to-treat and here
+is how far that can be from treatment-on-the-treated" was conceding more than
+the data required. The conclusion is unchanged in kind — the gap is real, it is
+bounded rather than closed, and the bound remains an upper one because
+preference programmes and Chapter 98 entry leave the same signature.
+
+Found by reading `product_exclusions.md` against its own by-month table: six
+leading months of exactly 0.0000 in a column whose denominator was supposed to
+be tariffed trade.
