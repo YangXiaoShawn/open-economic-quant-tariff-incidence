@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-09 · session 6
+**Last updated:** 2026-08-10 · session 7
 
 ## One-line state
 
@@ -14,6 +14,33 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 7: List 4A parsed; two latent defects surfaced
+
+`parse_all_annexes` now iterates operative anchors rather than assuming one
+action per notice. 84 FR 43304 carries two, and a session-1 note claiming List 4
+used 10-digit annexes was simply wrong — they are 8-digit, differing from Lists
+1-3 only by an ": i)" prefix. Three regex generalisations serve both (D-030).
+
+List 4A is in the schedule: 3,233 lines, **15% from 2019-09-01** (never 10% —
+84 FR 45821 set 15% on the existing effective date), 7.5% from 2020-02-14. List
+4B is recorded as **suspended, never effective** and deliberately not encoded as
+a duty (D-031).
+
+Two defects that only a second overlapping action could expose (D-032):
+
+* **A boundary regression**, caught by re-running Lists 1-3. Scoping partial-line
+  notes to whole pages dropped three of List 3's eleven carve-outs and broke its
+  exact 5,745 reconciliation — its note runs onto the page carrying the next
+  ANNEX header. Scope is now taken by text position; List 3 reconciles again.
+* **A real engine bug.** Carve-outs were applied after the conflict check and
+  zeroed rates globally, so a statistical number carved out of one action but
+  covered by another came back untreated. They are now applied per action,
+  before the check.
+
+The panel is unchanged: the window ends 2019-08 and List 4A takes effect
+2019-09-01, so products treated only by List 4A are correctly controls for this
+window. Extending the window is the next step and needs more Census months.
 
 ## Session 6: the incidence conclusion closes
 

@@ -376,3 +376,82 @@ def test_partial_line_without_recorded_carve_outs_stays_ambiguous_at_ten_digits(
     )
     a = TariffEngine([bare]).assess("2931909051", CHINA, date(2019, 1, 1))
     assert a.status is ValidationStatus.PARTIAL_LINE
+
+
+# --------------------------------------------------------------------- #
+# carve-outs are action-specific
+# --------------------------------------------------------------------- #
+
+
+def _partial(action: str, rate: float, carved: tuple[str, ...], effective: date) -> TariffRecord:
+    return TariffRecord(
+        record_id=f"{action}:94017100:{effective}",
+        episode_id="US_SECTION301_CHINA",
+        action_id=action,
+        record_type=RecordType.ADDITIONAL_DUTY,
+        product_code="94017100",
+        product_code_level=8,
+        product_code_vintage="HTS2018",
+        partner_country_code=CHINA,
+        announcement_date=None,
+        effective_date=effective,
+        expiry_date=None,
+        ad_valorem_rate=rate,
+        source=src(),
+        partial_line=True,
+        partial_line_note="carve-outs",
+        partial_line_excluded_codes=carved,
+    )
+
+
+def _two_action_engine() -> TariffEngine:
+    """9401.71.00 divided between two actions, as Lists 3 and 4A actually divide it."""
+    return TariffEngine(
+        [
+            _partial("SEC301_LIST3", 0.25, ("9401710001", "9401710008"), date(2018, 9, 24)),
+            _partial("SEC301_LIST4A", 0.15, ("9401710001", "9401710011"), date(2019, 9, 1)),
+        ]
+    )
+
+
+def test_a_code_carved_out_of_one_action_still_pays_the_other():
+    """The bug this locks down: carve-outs were applied globally, not per action.
+
+    9401710008 is named in List 3's note but not List 4A's, so once both actions
+    are live it owes List 4A's duty. Zeroing it because *some* action carved it
+    out reported a squarely covered line as untreated.
+    """
+    a = _two_action_engine().assess("9401710008", CHINA, date(2019, 10, 1))
+    assert a.additional_rate == pytest.approx(0.15)
+    assert a.status is ValidationStatus.OK
+    assert a.active_action_ids == ("SEC301_LIST4A",)
+
+
+def test_a_code_carved_out_of_every_live_action_owes_nothing():
+    a = _two_action_engine().assess("9401710001", CHINA, date(2019, 10, 1))
+    assert a.additional_rate == 0.0
+    assert a.status is ValidationStatus.OK
+    assert a.status.usable_for_treatment
+    assert not a.is_treated
+    assert any("carved out of" in m for m in a.messages)
+
+
+def test_a_code_carved_out_of_no_action_is_a_genuine_conflict():
+    """Two actions claim the same statistical number at different rates."""
+    a = _two_action_engine().assess("9401710099", CHINA, date(2019, 10, 1))
+    assert a.status is ValidationStatus.CONFLICT
+    assert a.additional_rate is None
+    assert not a.status.usable_for_treatment
+
+
+def test_carve_outs_do_not_apply_before_the_second_action_takes_effect():
+    a = _two_action_engine().assess("9401710011", CHINA, date(2019, 1, 1))
+    assert a.additional_rate == pytest.approx(0.25), "only List 3 is live, and it covers this"
+    assert a.status is ValidationStatus.OK
+
+
+def test_carve_outs_are_not_resolved_above_ten_digits():
+    """At 8 digits the query spans both the covered and carved-out parts."""
+    a = _two_action_engine().assess("94017100", CHINA, date(2019, 1, 1))
+    assert a.status is ValidationStatus.PARTIAL_LINE
+    assert not a.status.usable_for_treatment

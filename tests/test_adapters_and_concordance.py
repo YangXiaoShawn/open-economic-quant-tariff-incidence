@@ -239,3 +239,90 @@ def test_apply_to_panel_splits_values_by_weight():
     assert out.height == 2
     assert out["customs_value"].sum() == pytest.approx(100.0)
     assert set(out["concordance_mapping_type"]) == {"ONE_TO_MANY"}
+
+
+# --------------------------------------------------------------------- #
+# multi-annex notices and annex boundaries
+# --------------------------------------------------------------------- #
+
+LIST3 = FIXTURES.parent.parent / "data" / "raw" / "federal_register" / "2018-20610.pdf"
+LIST4 = FIXTURES.parent.parent / "data" / "raw" / "federal_register" / "2019-17865.pdf"
+
+
+@pytest.mark.skipif(not LIST3.exists(), reason="List 3 notice not cached")
+def test_partial_line_note_spanning_the_next_annex_header_is_not_truncated():
+    """List 3's note 20(g) runs onto the page that carries the ANNEX B header.
+
+    Scoping the note to whole pages cuts three of its eleven carve-outs, which
+    silently breaks the exact reconciliation against the notice's stated count.
+    """
+    p = parse_annex(LIST3, "2018-20610")
+    assert len(p.partial_lines) == 11
+    for code in ("94018060", "94037040", "94037080"):
+        assert code in p.partial_lines, f"{code} sits above the ANNEX header on a shared page"
+    assert p.parsed_line_count == p.stated_line_count == 5745
+    assert p.count_matches_notice is True
+
+
+@pytest.mark.skipif(not LIST4.exists(), reason="List 4 notice not cached")
+def test_a_notice_carrying_two_actions_yields_one_annex_each():
+    from tariff_incidence.adapters.federal_register import parse_all_annexes
+
+    d = parse_all_annexes(LIST4, "2019-17865")
+    headings = [a.chapter99_heading for a in d.annexes]
+    assert headings == ["9903.88.15", "9903.88.16"], "List 4A then List 4B"
+    assert d.by_heading("9903.88.15") is not None
+    assert d.by_heading("9903.88.99") is None
+
+
+@pytest.mark.skipif(not LIST4.exists(), reason="List 4 notice not cached")
+def test_each_annex_keeps_its_own_carve_outs():
+    """Unscoped, the first annex would absorb the second's partial lines."""
+    from tariff_incidence.adapters.federal_register import parse_all_annexes
+
+    d = parse_all_annexes(LIST4, "2019-17865")
+    a, c = d.annexes[0].partial_lines, d.annexes[1].partial_lines
+    assert a and c
+    assert a != c, "the two annexes must not end up with the same carve-out set"
+    assert set(a) & set(c) == {"94017100"}
+
+
+@pytest.mark.skipif(
+    not (LIST3.exists() and LIST4.exists()), reason="notices not cached"
+)
+def test_one_line_is_divided_across_three_actions_with_overlapping_carve_outs():
+    """9401.71.00 is partial in Lists 3, 4A and 4B, and the carve-outs overlap.
+
+    Each note excludes the statistical numbers that belong to the *other*
+    actions, and because the actions were legislated at different times those
+    exclusion sets are not a partition. An earlier version of this test assumed
+    they were disjoint; they are not, and asserting a tidy partition would have
+    encoded a guess as a fact.
+    """
+    from tariff_incidence.adapters.federal_register import parse_all_annexes
+
+    code = "94017100"
+    l3 = parse_annex(LIST3, "2018-20610").partial_lines[code]
+    d4 = parse_all_annexes(LIST4, "2019-17865")
+    l4a = d4.annexes[0].partial_lines[code]
+    l4b = d4.annexes[1].partial_lines[code]
+
+    assert set(l3) == {"9401710001", "9401710005", "9401710006", "9401710007"}
+    assert set(l4a) == {
+        "9401710001", "9401710005", "9401710006", "9401710008", "9401710011",
+    }
+    assert set(l4b) == {"9401710007", "9401710008", "9401710011", "9401710031"}
+    assert set(l4a) & set(l4b), "the sets overlap; they do not partition the line"
+    assert len(set(l3) | set(l4a) | set(l4b)) == 7
+
+
+@pytest.mark.skipif(not LIST4.exists(), reason="List 4 notice not cached")
+def test_multi_action_notice_defers_count_validation_to_the_document():
+    """No figure in this notice's preamble refers to one annex alone."""
+    from tariff_incidence.adapters.federal_register import parse_all_annexes
+
+    d = parse_all_annexes(LIST4, "2019-17865")
+    for a in d.annexes:
+        assert a.stated_line_count is None
+        assert any("deferred to the document level" in w for w in a.warnings)
+    assert d.parsed_total == sum(a.parsed_line_count for a in d.annexes)

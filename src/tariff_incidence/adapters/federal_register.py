@@ -151,6 +151,9 @@ class AnnexParse:
     warnings: list[str] = field(default_factory=list)
     partial_lines: dict[str, list[str]] = field(default_factory=dict)
     """HS8 line -> 10-digit statistical numbers carved *out* of the duty."""
+    annex_end_page: int = -1
+    """First page after this annex: the next ANNEX header or the next action's
+    anchor. The partial-line note sits between the code grid and this page."""
     unresolved_codes: list[str] = field(default_factory=list)
     """Codes seen truncated in the source rendering and deliberately not repaired."""
     special_provision_codes: list[str] = field(default_factory=list)
@@ -227,6 +230,8 @@ def parse_annex(
     document_number: str,
     *,
     min_codes_per_grid_page: int = 20,
+    start_page: int = 0,
+    validate_count: bool = True,
 ) -> AnnexParse:
     """Extract the covered 8-digit lines for one Section 301 action from a notice PDF.
 
@@ -239,8 +244,8 @@ def parse_annex(
 
     anchor_page = -1
     heading = ""
-    for i, t in enumerate(flat):
-        m = _ANCHOR.search(t.replace("\n", " "))
+    for i in range(start_page, len(flat)):
+        m = _ANCHOR.search(flat[i].replace("\n", " "))
         if m:
             anchor_page, heading = i, m.group(1)
             break
@@ -284,7 +289,18 @@ def parse_annex(
             "(codes can repeat across column breaks)"
         )
 
-    partials = _parse_partial_lines(pages, anchor_page)
+    # The annex runs to the next ANNEX header (or the next action's anchor), not
+    # to where the code grid stops: the U.S. note carrying the partial-line
+    # carve-outs sits on the page immediately after the grid. Scoping to
+    # last_page would silently drop every carve-out in the document.
+    annex_end = len(pages)
+    for j in range(last_page + 1, len(pages)):
+        if _ANNEX_HEAD.search(pages[j]) or _ANCHOR.search(
+            re.sub(r"\s+", " ", pages[j])
+        ):
+            annex_end = j
+            break
+    partials = _parse_partial_lines(pages, anchor_page, end_page=annex_end)
     if partials:
         warnings.append(
             f"{len(partials)} HS8 line(s) are covered only in part, with named 10-digit "
@@ -317,6 +333,17 @@ def parse_annex(
     # The notice's stated count covers "full and partial tariff subheadings", so
     # the comparable parsed figure includes partial lines.
     total = len(set(unique) | set(partials))
+    if not validate_count:
+        # The caller knows this document carries more than one action, so any
+        # single count in the preamble refers to something other than this annex
+        # alone. Guessing which is how a 565-line phantom shortfall was reported
+        # against List 4A: the 3,805 figure in 84 FR 43304 is the May 2019
+        # *proposal* for the whole $300bn action, later split across two annexes.
+        stated = None
+        warnings.append(
+            "count validation deferred to the document level: this notice carries more than "
+            "one action, so no single figure in its preamble refers to this annex alone"
+        )
     matches = None if stated is None else (stated == total)
     if stated is not None and matches is False:
         warnings.append(
@@ -334,6 +361,7 @@ def parse_annex(
         stated_line_count=stated,
         parsed_line_count=total,
         count_matches_notice=matches,
+        annex_end_page=annex_end,
         warnings=warnings,
         partial_lines=partials,
         unresolved_codes=truncated,
@@ -341,7 +369,9 @@ def parse_annex(
     )
 
 
-def _parse_partial_lines(pages: list[str], anchor_page: int) -> dict[str, list[str]]:
+def _parse_partial_lines(
+    pages: list[str], anchor_page: int, end_page: int | None = None
+) -> dict[str, list[str]]:
     """Extract HS8 lines covered only in part, from the U.S. note that names them.
 
     The construction is::
@@ -355,7 +385,21 @@ def _parse_partial_lines(pages: list[str], anchor_page: int) -> dict[str, list[s
     fully treated introduces measurement error in the treatment variable.
     """
     out: dict[str, list[str]] = {}
-    window = " ".join(pages[anchor_page:])
+    # Scoped to this annex, by text position rather than by page. A document
+    # carrying two actions (84 FR 43304 carries Lists 4A and 4B) would otherwise
+    # let the first annex absorb the second's carve-outs -- but cutting at the
+    # page holding the next ANNEX header is one page too tight, because the note
+    # can run onto that same page. List 3's note 20(g) does exactly that: three
+    # of its eleven carve-outs sit above the ANNEX B header on the shared page.
+    if end_page is None:
+        window = " ".join(pages[anchor_page:])
+    else:
+        body = list(pages[anchor_page:end_page])
+        if end_page < len(pages):
+            tail = pages[end_page]
+            hdr = _ANNEX_HEAD.search(tail)
+            body.append(tail[: hdr.start()] if hdr else tail)
+        window = " ".join(body)
     window = re.sub(r"\s+", " ", window)
     if not _NOTE_HEADER.search(window):
         return out
@@ -455,3 +499,112 @@ def parse_iso(d: str) -> date:
 
 def file_checksum(path: Path) -> str:
     return sha256_file(path)
+
+
+@dataclass(slots=True)
+class DocumentParse:
+    """Every action a single Federal Register notice imposes.
+
+    Most Section 301 notices carry one action. 84 FR 43304 carries two — List 4A
+    under heading 9903.88.15 and List 4B under 9903.88.16 — and states no line
+    count for either annex separately. Its preamble figure of 3,805 refers to the
+    May 2019 *proposal* covering the whole $300 billion action, which was then
+    split between the two annexes. Validating either annex against it in
+    isolation reports a phantom shortfall; validating their **sum** against it is
+    the check the document actually supports.
+    """
+
+    document_number: str
+    annexes: list[AnnexParse] = field(default_factory=list)
+    stated_total: int | None = None
+    parsed_total: int | None = None
+    total_matches_notice: bool | None = None
+    tolerance: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def discrepancy(self) -> int | None:
+        if self.stated_total is None or self.parsed_total is None:
+            return None
+        return self.parsed_total - self.stated_total
+
+    def by_heading(self, chapter99_heading: str) -> AnnexParse | None:
+        for a in self.annexes:
+            if a.chapter99_heading == chapter99_heading:
+                return a
+        return None
+
+
+def parse_all_annexes(
+    pdf_path: Path,
+    document_number: str,
+    *,
+    min_codes_per_grid_page: int = 20,
+    total_tolerance: int = 0,
+) -> DocumentParse:
+    """Parse every action in a notice and validate their combined line count.
+
+    Iterates the operative anchors rather than assuming one per document. Each
+    annex's partial-line note is scoped to its own page range, so a document
+    carrying two actions does not let the first absorb the second's carve-outs.
+
+    ``total_tolerance`` allows a stated total to be treated as matched within a
+    small margin. It defaults to zero: the Lists 1-3 parses reconcile exactly and
+    a tolerance that hides a real gap would defeat the check.
+    """
+    doc = DocumentParse(document_number=document_number)
+    start = 0
+    while True:
+        try:
+            annex = parse_annex(
+                pdf_path,
+                document_number,
+                min_codes_per_grid_page=min_codes_per_grid_page,
+                start_page=start,
+                validate_count=False,
+            )
+        except ValueError:
+            break
+        doc.annexes.append(annex)
+        if annex.anchor_page < start:
+            break
+        start = max(annex.annex_end_page, annex.last_page + 1)
+
+    if not doc.annexes:
+        raise ValueError(f"{document_number}: no operative anchor found")
+
+    if len(doc.annexes) == 1:
+        # Single-action notice: the ordinary per-annex validation applies.
+        only = parse_annex(
+            pdf_path, document_number, min_codes_per_grid_page=min_codes_per_grid_page
+        )
+        doc.annexes = [only]
+        doc.stated_total = only.stated_line_count
+        doc.parsed_total = only.parsed_line_count
+        doc.total_matches_notice = only.count_matches_notice
+        return doc
+
+    # Multi-action notice: validate the sum against the document's stated figure.
+    from pypdf import PdfReader
+
+    reader = PdfReader(str(pdf_path))
+    preamble = re.sub(
+        r"\s+", " ", "\n".join((p.extract_text() or "") for p in reader.pages[:6])
+    )
+    candidates = [int(m.group(1).replace(",", "")) for m in _STATED_COUNT.finditer(preamble)]
+    doc.parsed_total = sum(a.parsed_line_count for a in doc.annexes)
+    doc.tolerance = total_tolerance
+    if candidates:
+        doc.stated_total = min(candidates, key=lambda c: abs(c - (doc.parsed_total or 0)))
+        doc.total_matches_notice = (
+            abs(doc.parsed_total - doc.stated_total) <= total_tolerance
+        )
+        if not doc.total_matches_notice:
+            doc.warnings.append(
+                f"combined parsed total {doc.parsed_total} != {doc.stated_total} stated for "
+                f"the action as a whole (difference {doc.parsed_total - doc.stated_total}). "
+                "Treat every annex in this document as provisional."
+            )
+    else:
+        doc.warnings.append("no line count found in the preamble; annexes are unvalidated")
+    return doc

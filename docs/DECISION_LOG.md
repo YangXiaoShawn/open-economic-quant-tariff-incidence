@@ -707,3 +707,74 @@ multi-annex parsing, which `parse_annex` does not yet do — it returns the firs
 anchor only. Until that check passes, List 4A stays out of the tariff schedule:
 shipping an unvalidated statutory list would break the rule that makes the other
 three trustworthy.
+
+---
+
+### D-031 — List 4A parsed and validated; List 4B recorded as never effective
+
+Following D-030, `parse_all_annexes` now iterates the operative anchors rather
+than assuming one action per notice. 84 FR 43304 carries two: heading 9903.88.15
+(List 4A, Annex A) and 9903.88.16 (List 4B, Annex C).
+
+**Validation, since the notice states no count for either annex.** Its 3,805
+figure is the May 2019 *proposal* — "invited public comment on ... 3,805 full and
+partial tariff subheadings" at "up to an additional 25 percent" — and the final
+action differs from it in both scope and rate. Validating an annex against it
+reports a phantom shortfall, so per-annex count validation is deferred to the
+document level and the parse is corroborated by independent internal checks
+instead: no truncated codes, no duplicates, Chapter 98/99 provisions excluded,
+annex boundaries verified against the page structure, and each operative annex
+cross-checked against its descriptive counterpart.
+
+Every difference in that cross-check was accounted for rather than tolerated.
+Two codes (6203.41.05, 8479.89.20) appear only in the descriptive annex, which by
+its own terms "is not intended to delimit in any way the scope of the action".
+Two others (9603.10.05, 9102.12.80) sit in different annexes between the
+operative and descriptive renderings; the operative text governs.
+
+**Facts, each read from the source.** List 4A effective 2019-09-01 at **15%** —
+never 10%, because 84 FR 45821 set 15% "on the current effective date of
+September 1, 2019" without changing that date — reduced to 7.5% on 2020-02-14 by
+85 FR 3741. List 4B was scheduled for 2019-12-15 and **suspended indefinitely**
+by 84 FR 69447; no duty was ever collected under it. It is recorded in a
+`suspended_actions` block so it is not mistaken for a gap, and deliberately not
+encoded as a duty.
+
+---
+
+### D-032 — Two defects that only a second overlapping action could expose
+
+**A boundary regression, caught by re-running Lists 1-3.** Scoping each annex's
+partial-line note to whole pages dropped three of List 3's eleven carve-outs,
+breaking its exact 5,745 reconciliation. Its note 20(g) runs onto the very page
+that carries the ANNEX B header, so the note and the next annex share a page.
+The scope is now taken by **text position** — up to the ANNEX header match
+within the shared page — and List 3 reconciles exactly again. A regression test
+names the three lost codes.
+
+**A real correctness bug in the engine.** Carve-outs were applied *after* the
+conflict check and zeroed the rate globally. Once two overlapping actions were
+loaded, a statistical number carved out of one action but squarely covered by
+another came back as untreated: 9401710008 is named in List 3's note, not List
+4A's, and returned a zero rate instead of List 4A's duty.
+
+Carve-outs are now applied **per action, before** the conflict check: an action
+whose note names a statistical number does not govern it and contributes no rate
+to the comparison. The resulting behaviour on 9401.71.00, a line genuinely
+divided across three actions:
+
+| Statistical number | Carved out of | Result |
+|---|---|---|
+| 9401710001 | both live actions | 0%, OK |
+| 9401710008 | List 3 only | List 4A's rate, OK |
+| 9401710099 | neither | CONFLICT, no rate assigned |
+
+The CONFLICT case is correct, not a failure: two actions claim the same number at
+different rates and the engine declines to choose.
+
+**A test assumption that was wrong.** A first version asserted that List 4A's and
+List 4B's carve-out sets for 9401.71.00 were disjoint. They are not. The three
+actions' sets overlap because each note excludes the numbers belonging to the
+others and the actions were legislated at different times; their union is seven
+statistical numbers. The test now asserts the verified sets rather than a tidy
+partition that was never checked.

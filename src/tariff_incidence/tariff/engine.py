@@ -309,6 +309,49 @@ class TariffEngine:
             if cur is None or (r.effective_date, r.record_id) > (cur.effective_date, cur.record_id):
                 governing[r.action_id] = r
 
+        # A 10-digit carve-out is action-specific and must be applied BEFORE the
+        # conflict check. An action whose note names this statistical number does
+        # not govern it, so it must not contribute a rate to the comparison.
+        # Applying carve-outs afterwards -- as an earlier version did -- zeroed
+        # the rate globally, so a number carved out of one action but squarely
+        # covered by another came back as untreated. That only became visible
+        # once a second action overlapping the same line was loaded.
+        carved_out_of: dict[str, TariffRecord] = {}
+        if level == 10:
+            for act, rec in list(governing.items()):
+                if (
+                    rec.partial_line
+                    and rec.partial_line_excluded_codes
+                    and code in rec.partial_line_excluded_codes
+                ):
+                    carved_out_of[act] = rec
+                    del governing[act]
+            if carved_out_of:
+                messages.append(
+                    "carved out of "
+                    + ", ".join(sorted(carved_out_of))
+                    + " by name in the action's own U.S. note"
+                )
+
+        if not governing:
+            return TariffAssessment(
+                product_code=code,
+                product_code_level=level,
+                partner_country_code=country,
+                as_of=as_of,
+                baseline_rate=baseline,
+                additional_rate=0.0,
+                total_rate=baseline,
+                active_action_ids=(),
+                exclusion_active=False,
+                exclusion_record_ids=(),
+                status=ValidationStatus.OK,
+                confidence=confidence_of(carved_out_of.values()),
+                coverage_share=0.0,
+                source_records=tuple(sorted(r.record_id for r in carved_out_of.values())),
+                messages=tuple(messages),
+            )
+
         distinct_rates = {r.ad_valorem_rate for r in governing.values()}
         status = ValidationStatus.OK
         confidence = min(
@@ -339,7 +382,11 @@ class TariffEngine:
                 "active exclusion(s): " + ", ".join(r.record_id for r in live_exclusions)
             )
 
-        partial = [r for r in governing.values() if r.partial_line]
+        partial = [
+            r
+            for r in governing.values()
+            if r.partial_line and not (level == 10 and r.partial_line_excluded_codes)
+        ]
         if partial and status is not ValidationStatus.EXCLUDED:
             # A partial line names the 10-digit statistical numbers carved out of
             # the duty. At 10 digits that is not ambiguity at all -- the query
@@ -540,6 +587,17 @@ class TariffEngine:
             coverage_share=0.0,
             messages=(why,),
         )
+
+
+def confidence_of(records: Iterable[TariffRecord]) -> Confidence:
+    """Weakest confidence among a set of records, or OFFICIAL_PARSED if empty."""
+    recs = list(records)
+    if not recs:
+        return Confidence.OFFICIAL_PARSED
+    weakest: Confidence = min(
+        (r.confidence for r in recs), key=lambda c: _CONFIDENCE_ORDER[c]
+    )
+    return weakest
 
 
 _CONFIDENCE_ORDER = {

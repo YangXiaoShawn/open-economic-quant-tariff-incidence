@@ -113,19 +113,104 @@ actions:
       "DATES: The rate of additional duty will increase to 25 percent with
       respect to products covered by the September 2018 action on May 10, 2019."
 
+  - action_id: SEC301_LIST4A
+    label: "List 4A ($300bn, Annex A)"
+    chapter99_heading: "9903.88.15"
+    federal_register_document: "2019-17865"
+    citation: "84 FR 43304"
+    publication_date: "2019-08-20"
+    announcement_date: "2019-05-17"
+    announcement_date_note: >
+      Proposed for comment on 17 May 2019 covering 3,805 full and partial
+      subheadings at "up to an additional 25 percent". The final action differs
+      from that proposal in both scope and rate, which is why the 3,805 figure
+      is not a validation target for the parsed list (see parse_note).
+    effective_date: "2019-09-01"
+    ad_valorem_rate: 0.15
+    rate_source_document: "2019-18838"
+    rate_source_citation: "84 FR 45821"
+    rate_note: >
+      The August 20 notice specified 10 percent, but that rate was NEVER
+      collected. 84 FR 45821 (30 August 2019) set the rate to 15 percent "on the
+      current effective date of September 1, 2019" and states the increase "does
+      not change the effective date of Annex A". List 4A was therefore 15 percent
+      from its first day, and modelling a 10 -> 15 transition would invent a rate
+      change that never happened.
+    parse:
+      method: operative_anchor_hts8_multi
+    parse_note: >
+      84 FR 43304 imposes two actions: Annex A under heading 9903.88.15 (this
+      one) and Annex C under 9903.88.16 (List 4B, never effective). The notice
+      states no line count for either annex, so the usual validation against a
+      notice-stated figure is unavailable. The parse is instead corroborated
+      internally: no truncated codes, no duplicates, Chapter 98/99 provisions
+      excluded, annex boundaries verified against the page structure, and the
+      operative annex cross-checked against its descriptive counterpart. Every
+      difference between the two was accounted for -- two codes appear only in
+      the descriptive annex, which by its own terms does not delimit scope, and
+      two others are placed in different annexes between the operative and
+      descriptive renderings, where the operative text governs.
+    verbatim_source_text: >
+      "Additional duties at a rate of 10 percent ad valorem on the tariff
+      subheadings set out in Annex A to this notice are applicable with respect
+      to products that are entered for consumption, or withdrawn from warehouse
+      for consumption, on or after September 1, 2019." (84 FR 43304); "For
+      products covered by Annex A of the August 20, 2019 notice (84 FR 43304),
+      the rate of additional duty will be 15 percent on the current effective
+      date of September 1, 2019." (84 FR 45821)
+
+  - action_id: SEC301_LIST4A
+    label: "List 4A rate reduction 15% -> 7.5%"
+    record_type: RATE_CHANGE
+    chapter99_heading: "9903.88.15"
+    federal_register_document: "2020-00904"
+    citation: "85 FR 3741"
+    publication_date: "2020-01-22"
+    announcement_date: "2020-01-22"
+    effective_date: "2020-02-14"
+    ad_valorem_rate: 0.075
+    parse:
+      method: inherit_lines_from
+      inherit_from_action: SEC301_LIST4A
+      inherit_from_document: "2019-17865"
+    verbatim_source_text: >
+      "the Trade Representative has determined to reduce the level of additional
+      duties from 15 percent to 7.5 percent on products of China covered by
+      Annex A of the August 20 notice, effective February 14, 2020."
+
+# Actions that were announced but never took effect. Recorded so they are not
+# mistaken for gaps, and so no future revision quietly treats them as imposed.
+suspended_actions:
+  - action_id: SEC301_LIST4B
+    label: "List 4B (Annex C of 84 FR 43304)"
+    chapter99_heading: "9903.88.16"
+    scheduled_effective_date: "2019-12-15"
+    scheduled_rate: 0.15
+    status: SUSPENDED_NEVER_EFFECTIVE
+    suspension_document: "2019-27306"
+    suspension_citation: "84 FR 69447"
+    verbatim_source_text: >
+      "the Trade Representative has determined to suspend indefinitely the
+      imposition of additional duties of 15 percent on products of China covered
+      by Annex C of the August 20 notice, which otherwise would have been
+      effective on December 15, 2019."
+    note: >
+      No duty was ever collected under this action. It must not be encoded as an
+      ADDITIONAL_DUTY record. The parser can read its annex (542 full + 8 partial
+      lines under heading 9903.88.16) and deliberately does not.
+
 # Known gaps, stated rather than silently omitted.
 known_gaps:
-  - id: LIST_4A_NOT_PARSED
+  - id: LIST_4A_NOT_PARSED_SUPERSEDED
+    status: RESOLVED
     description: >
-      List 4A (84 FR 43304, effective 1 Sep 2019 at 15%, reduced to 7.5% on
-      14 Feb 2020 by 85 FR 3741) enumerates 10-digit statistical lines under a
-      different annex construction and is not yet parsed. Products treated only
-      by List 4A are therefore absent from the treatment schedule and would be
-      misclassified as untreated. The vertical-slice sample is restricted to
-      chapters where Lists 1-3 are the binding action, and the control group is
-      screened against a List 4A chapter blacklist.
-    impact: "Understates treatment coverage from 2019-09-01 onward."
-    remedy: "Add a 10-digit annex parser keyed on Annex B/D of 84 FR 43304."
+      SUPERSEDED. This gap recorded that List 4A was unparsed and assumed its
+      annex enumerated 10-digit statistical lines needing a separate parser. That
+      assumption was wrong: the annex is 8-digit, and the operative sentence
+      differs from Lists 1-3 only by an ": i)" enumeration prefix. List 4A is now
+      parsed by the same generalised parser and is in the schedule above.
+    impact: "None remaining for the schedule."
+    remedy: "Done. The sample window still ends 2019-08; extending it is separate."
 
   - id: EXCLUSIONS_NOT_PARSED
     description: >

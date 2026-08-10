@@ -22,6 +22,7 @@ from ..adapters.federal_register import (
     annex_to_records,
     fetch_document_metadata,
     fetch_notice_pdf,
+    parse_all_annexes,
     parse_annex,
 )
 from ..paths import CONFIG
@@ -114,7 +115,33 @@ def build_records_from_episode(
             fetched = fetch_notice_pdf(doc)
             pdf_path, checksum = fetched.path, fetched.sha256
 
-        if method == "operative_anchor_hts8":
+        if method == "operative_anchor_hts8_multi":
+            # This notice imposes more than one action. Select the annex by the
+            # Chapter 99 heading named in the config, so the action id is still
+            # tied to the operative text rather than to a page range.
+            want = action["chapter99_heading"]
+            doc_parse = parse_all_annexes(pdf_path, doc_num)
+            selected = doc_parse.by_heading(want)
+            if selected is None:
+                raise ValueError(
+                    f"{action_id}: heading {want} not found in {doc_num}; "
+                    f"found {[a.chapter99_heading for a in doc_parse.annexes]}"
+                )
+            annex = selected
+            parses.append(annex)
+            lines_by_action[f"{action_id}:{doc_num}"] = annex
+            if verbose:
+                print(
+                    f"  {action_id} <- {doc_num} {action.get('citation','')}: "
+                    f"{annex.parsed_line_count} lines under {want} "
+                    f"({len(annex.hts8_codes)} full + {len(annex.partial_lines)} partial) "
+                    f"[of {len(doc_parse.annexes)} actions in this notice; "
+                    f"document total {doc_parse.parsed_total} vs stated "
+                    f"{doc_parse.stated_total}]"
+                )
+                for w in annex.warnings:
+                    print(f"      ! {w}")
+        elif method == "operative_anchor_hts8":
             annex = parse_annex(pdf_path, doc_num)
             parses.append(annex)
             lines_by_action[f"{action_id}:{doc_num}"] = annex
