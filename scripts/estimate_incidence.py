@@ -245,6 +245,13 @@ def main() -> int:
                     "outcome": outcome,
                     "outcome_label": f"{outcome} -- stacked, controls={ctrl}",
                     "rung": "4_stacked",
+                    # Named so a reader of the results can select the headline
+                    # design explicitly. Without it the only way to tell the
+                    # three control definitions apart is row order, and the
+                    # incidence section of the report was quoting typed-in
+                    # constants rather than these numbers at all.
+                    "control_definition": ctrl,
+                    "n_post_periods": post.height,
                 })
                 print(
                     f"rung 4 [{outcome:>22} | {ctrl[:28]:28}] n={fit.n_obs:>7,} "

@@ -252,7 +252,13 @@ def event_study(
                 "ci_low": lo_ci,
                 "ci_high": hi_ci,
                 "p_value": fit.pvalue(name),
-                "is_pre": (k is not None and k < 0),
+                # The binned endpoints have no single event time, so `k` is
+                # None -- but `evt_pre_bin_*` is unambiguously a pre-period
+                # coefficient and labelling it otherwise printed it in reports
+                # as a post-period row. The trend statistics exclude both bins
+                # regardless, via the event_time filter in pretrend_test.
+                "is_pre": (k < 0) if k is not None else name.startswith("evt_pre_bin"),
+                "is_binned_endpoint": k is None,
             }
         )
     # The omitted reference period is zero by construction; show it explicitly.
@@ -332,10 +338,17 @@ def pretrend_test(
     The chi-square statistic uses the diagonal of the covariance only, so it is
     an approximation to the joint test, not the exact one.
     """
-    pre = coefs.filter(pl.col("is_pre") & (pl.col("std_error") > 0))
-    post = coefs.filter(
-        (~pl.col("is_pre")) & (pl.col("std_error") > 0) & pl.col("event_time").is_not_null()
-    )
+    # Only coefficients sitting at a definite event time enter these statistics.
+    # The binned endpoints aggregate everything beyond the window, so they have
+    # no event time to regress on and no defined position in a trend. Both sides
+    # state that condition explicitly: the post side used to carry it alone,
+    # which meant correctness rested on that one guard rather than on the rule
+    # being written down.
+    at_event_time = pl.col("std_error") > 0
+    if "event_time" in coefs.columns:
+        at_event_time = at_event_time & pl.col("event_time").is_not_null()
+    pre = coefs.filter(pl.col("is_pre") & at_event_time)
+    post = coefs.filter((~pl.col("is_pre")) & at_event_time)
     if pre.height == 0:
         return {"n_pre_coefs": 0, "test": "unavailable"}
 

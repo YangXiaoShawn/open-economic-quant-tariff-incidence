@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T184000Z-b1495fb3` · git `d40a227-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T18:40:00.644539+00:00
+> run_id `20260810T192226Z-b1495fb3` · git `0f010ab-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T19:22:26.567195+00:00
 
 
 Estimates of how the additional duty maps into customs unit values, duty-inclusive landed unit values, quantities and trade values. The customs unit value is tariff-exclusive and is a proxy for the foreign border price; it is a value-over-quantity ratio across a heterogeneous bundle of transactions and is **not** a transaction price. The duty-inclusive landed unit value is what the U.S. importer faces at the border, excluding freight. Reading incidence requires both.
@@ -21,7 +21,7 @@ The parallel-trends assumption is tested per outcome, and it does not hold unifo
 
 The value-weighted additional duty actually in force on treated flows is **17.7%**. If the exporter absorbed none of it, the duty-inclusive landed unit value would rise by log(1+tau) = **0.1626**.
 
-Observed: landed unit value **+0.1494**, customs (tariff-exclusive) unit value **+0.0225**, bounded at 0.076 in absolute value.
+Observed, as the mean post-treatment coefficient of the stacked design with never_treated_products controls: landed unit value **+0.1544**, customs (tariff-exclusive) unit value **+0.0253**, bounded at 0.076 in absolute value.
 
 The landed measure contains the duty by construction, so its rise is partly arithmetic and is not independent evidence. The behavioural quantity is the **customs unit value**, which falls only if the exporter cuts its border price. It did not: the point estimate is slightly *positive* and the effect is bounded near zero.
 
@@ -105,8 +105,8 @@ Coefficients are relative to event month −1. Pre-period coefficients are the t
 | 8 | 0.0334 | 0.0250 | -0.0156 | 0.0823 | 0.1815 | no |
 | 9 | -0.0144 | 0.0244 | -0.0622 | 0.0334 | 0.5542 | no |
 | 10 | -0.0034 | 0.0238 | -0.0501 | 0.0434 | 0.8877 | no |
-|  | -0.0013 | 0.0186 | -0.0377 | 0.0352 | 0.9462 | no |
-|  | -0.0089 | 0.0202 | -0.0485 | 0.0306 | 0.6577 | no |
+| <= -13 (binned) | -0.0013 | 0.0186 | -0.0377 | 0.0352 | 0.9462 | yes |
+| >= +11 (binned) | -0.0089 | 0.0202 | -0.0485 | 0.0306 | 0.6577 | no |
 
 
 ## Event study — log_customs_unit_value (reference period −3)
@@ -140,8 +140,8 @@ Coefficients are relative to event month −3. Pre-period coefficients are the t
 | 8 | 0.0355 | 0.0245 | -0.0125 | 0.0836 | 0.1472 | no |
 | 9 | -0.0122 | 0.0252 | -0.0617 | 0.0373 | 0.6278 | no |
 | 10 | -0.0012 | 0.0250 | -0.0502 | 0.0479 | 0.9621 | no |
-|  | 0.0009 | 0.0177 | -0.0339 | 0.0357 | 0.9584 | no |
-|  | -0.0068 | 0.0209 | -0.0477 | 0.0342 | 0.7460 | no |
+| <= -13 (binned) | 0.0009 | 0.0177 | -0.0339 | 0.0357 | 0.9584 | yes |
+| >= +11 (binned) | -0.0068 | 0.0209 | -0.0477 | 0.0342 | 0.7460 | no |
 
 
 ## Event study — log_landed_unit_value (reference period −1)
@@ -175,8 +175,8 @@ Coefficients are relative to event month −1. Pre-period coefficients are the t
 | 8 | 0.1694 | 0.0252 | 0.1200 | 0.2187 | 0.0000 | no |
 | 9 | 0.1674 | 0.0244 | 0.1196 | 0.2151 | 0.0000 | no |
 | 10 | 0.1885 | 0.0238 | 0.1418 | 0.2351 | 0.0000 | no |
-|  | -0.0017 | 0.0186 | -0.0381 | 0.0347 | 0.9283 | no |
-|  | 0.1774 | 0.0203 | 0.1376 | 0.2172 | 0.0000 | no |
+| <= -13 (binned) | -0.0017 | 0.0186 | -0.0381 | 0.0347 | 0.9283 | yes |
+| >= +11 (binned) | 0.1774 | 0.0203 | 0.1376 | 0.2172 | 0.0000 | no |
 
 
 ## Event study — log_landed_unit_value (reference period −3)
@@ -210,8 +210,8 @@ Coefficients are relative to event month −3. Pre-period coefficients are the t
 | 8 | 0.1670 | 0.0248 | 0.1184 | 0.2156 | 0.0000 | no |
 | 9 | 0.1650 | 0.0253 | 0.1153 | 0.2146 | 0.0000 | no |
 | 10 | 0.1861 | 0.0250 | 0.1370 | 0.2351 | 0.0000 | no |
-|  | -0.0041 | 0.0178 | -0.0390 | 0.0309 | 0.8199 | no |
-|  | 0.1750 | 0.0210 | 0.1338 | 0.2162 | 0.0000 | no |
+| <= -13 (binned) | -0.0041 | 0.0178 | -0.0390 | 0.0309 | 0.8199 | yes |
+| >= +11 (binned) | 0.1750 | 0.0210 | 0.1338 | 0.2162 | 0.0000 | no |
 
 
 ## Event study — log_quantity (reference period −1)
@@ -245,8 +245,8 @@ Coefficients are relative to event month −1. Pre-period coefficients are the t
 | 8 | -0.4993 | 0.0374 | -0.5727 | -0.4260 | 0.0000 | no |
 | 9 | -0.4870 | 0.0361 | -0.5578 | -0.4162 | 0.0000 | no |
 | 10 | -0.5203 | 0.0357 | -0.5904 | -0.4501 | 0.0000 | no |
-|  | -0.1225 | 0.0284 | -0.1782 | -0.0668 | 0.0000 | no |
-|  | -0.6197 | 0.0332 | -0.6849 | -0.5546 | 0.0000 | no |
+| <= -13 (binned) | -0.1225 | 0.0284 | -0.1782 | -0.0668 | 0.0000 | yes |
+| >= +11 (binned) | -0.6197 | 0.0332 | -0.6849 | -0.5546 | 0.0000 | no |
 
 
 ## Event study — log_quantity (reference period −3)
@@ -280,8 +280,8 @@ Coefficients are relative to event month −3. Pre-period coefficients are the t
 | 8 | -0.4484 | 0.0350 | -0.5170 | -0.3798 | 0.0000 | no |
 | 9 | -0.4361 | 0.0355 | -0.5058 | -0.3664 | 0.0000 | no |
 | 10 | -0.4693 | 0.0367 | -0.5413 | -0.3973 | 0.0000 | no |
-|  | -0.0715 | 0.0278 | -0.1261 | -0.0169 | 0.0103 | no |
-|  | -0.5688 | 0.0341 | -0.6357 | -0.5018 | 0.0000 | no |
+| <= -13 (binned) | -0.0715 | 0.0278 | -0.1261 | -0.0169 | 0.0103 | yes |
+| >= +11 (binned) | -0.5688 | 0.0341 | -0.6357 | -0.5018 | 0.0000 | no |
 
 
 ## Stacked multi-wave event study — log_landed_unit_value (controls: never_treated_products)
@@ -315,8 +315,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.1803 | 0.0267 | 0.1279 | 0.2327 | 0.0000 | no |
 | 9 | 0.1709 | 0.0269 | 0.1181 | 0.2237 | 0.0000 | no |
 | 10 | 0.1926 | 0.0268 | 0.1400 | 0.2452 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_customs_unit_value (controls: never_treated_products)
@@ -350,8 +350,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.0481 | 0.0264 | -0.0037 | 0.1000 | 0.0688 | no |
 | 9 | -0.0064 | 0.0269 | -0.0591 | 0.0463 | 0.8123 | no |
 | 10 | 0.0055 | 0.0269 | -0.0472 | 0.0583 | 0.8370 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_quantity (controls: never_treated_products)
@@ -385,8 +385,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | -0.5145 | 0.0375 | -0.5880 | -0.4410 | 0.0000 | no |
 | 9 | -0.4827 | 0.0380 | -0.5572 | -0.4081 | 0.0000 | no |
 | 10 | -0.5237 | 0.0385 | -0.5992 | -0.4482 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_landed_unit_value (controls: not_yet_treated)
@@ -420,8 +420,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.1805 | 0.0269 | 0.1277 | 0.2333 | 0.0000 | no |
 | 9 | 0.1690 | 0.0273 | 0.1155 | 0.2225 | 0.0000 | no |
 | 10 | 0.1922 | 0.0273 | 0.1386 | 0.2458 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_customs_unit_value (controls: not_yet_treated)
@@ -455,8 +455,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.0522 | 0.0267 | -0.0001 | 0.1045 | 0.0506 | no |
 | 9 | -0.0060 | 0.0272 | -0.0593 | 0.0474 | 0.8267 | no |
 | 10 | 0.0062 | 0.0274 | -0.0475 | 0.0600 | 0.8195 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_quantity (controls: not_yet_treated)
@@ -490,8 +490,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | -0.4973 | 0.0369 | -0.5698 | -0.4248 | 0.0000 | no |
 | 9 | -0.4644 | 0.0374 | -0.5378 | -0.3911 | 0.0000 | no |
 | 10 | -0.5069 | 0.0387 | -0.5827 | -0.4311 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_landed_unit_value (controls: never_treated_products_treated_country_only)
@@ -525,8 +525,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.2621 | 0.0512 | 0.1616 | 0.3625 | 0.0000 | no |
 | 9 | 0.2583 | 0.0481 | 0.1639 | 0.3527 | 0.0000 | no |
 | 10 | 0.2760 | 0.0446 | 0.1885 | 0.3635 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_customs_unit_value (controls: never_treated_products_treated_country_only)
@@ -560,8 +560,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | 0.1150 | 0.0511 | 0.0146 | 0.2153 | 0.0247 | no |
 | 9 | 0.0818 | 0.0481 | -0.0125 | 0.1760 | 0.0891 | no |
 | 10 | 0.0969 | 0.0446 | 0.0095 | 0.1843 | 0.0299 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked multi-wave event study — log_quantity (controls: never_treated_products_treated_country_only)
@@ -595,8 +595,8 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | 8 | -0.5627 | 0.0715 | -0.7031 | -0.4224 | 0.0000 | no |
 | 9 | -0.6234 | 0.0661 | -0.7531 | -0.4938 | 0.0000 | no |
 | 10 | -0.7294 | 0.0712 | -0.8691 | -0.5897 | 0.0000 | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
-|  | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
+| <= -13 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | yes |
+| >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
 ## Stacked design composition
@@ -607,10 +607,10 @@ How much weight each wave carries, reported rather than buried.
 
 | stack_id | n_obs | n_treated_obs | n_products | treatment_month_index | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Pre-treatment trend tests
@@ -659,16 +659,16 @@ Each check is reported whether or not it is favourable.
 
 | dropped_chapter | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 39 | -1.7357 | 0.1008 | 546665 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 40 | -1.8282 | 0.0963 | 569735 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 44 | -1.8423 | 0.0974 | 575929 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 48 | -1.8462 | 0.0992 | 571760 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 73 | -1.9128 | 0.1012 | 528068 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 76 | -1.8403 | 0.0965 | 583266 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 84 | -1.9512 | 0.1214 | 423070 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 85 | -1.7259 | 0.1084 | 472615 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 87 | -1.8904 | 0.0987 | 556899 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 94 | -1.7949 | 0.0952 | 574540 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 39 | -1.7357 | 0.1008 | 546665 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 40 | -1.8282 | 0.0963 | 569735 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 44 | -1.8423 | 0.0974 | 575929 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 48 | -1.8462 | 0.0992 | 571760 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 73 | -1.9128 | 0.1012 | 528068 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 76 | -1.8403 | 0.0965 | 583266 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 84 | -1.9512 | 0.1214 | 423070 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 85 | -1.7259 | 0.1084 | 472615 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 87 | -1.8904 | 0.0987 | 556899 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 94 | -1.7949 | 0.0952 | 574540 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Leave-one-country-out
@@ -677,26 +677,26 @@ Each check is reported whether or not it is favourable.
 
 | dropped_country | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1220 | -1.9766 | 0.0983 | 500201 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 2010 | -1.8373 | 0.0982 | 520487 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5330 | -1.7561 | 0.0957 | 544622 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5490 | -1.7864 | 0.0955 | 559330 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5520 | -1.6898 | 0.0940 | 567820 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5590 | -1.8550 | 0.0970 | 578901 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5800 | -1.8500 | 0.0973 | 535633 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5880 | -1.9438 | 0.0976 | 516324 | 20260810T143836Z-b1495fb3 | eee847e-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 1220 | -1.9766 | 0.0983 | 500201 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 2010 | -1.8373 | 0.0982 | 520487 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5330 | -1.7561 | 0.0957 | 544622 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5490 | -1.7864 | 0.0955 | 559330 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5520 | -1.6898 | 0.0940 | 567820 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5590 | -1.8550 | 0.0970 | 578901 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5800 | -1.8500 | 0.0973 | 535633 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5880 | -1.9438 | 0.0976 | 516324 | 20260810T191922Z-b1495fb3 | 0f010ab-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ---
 
 ## Reproducibility
 
-- run id: `20260810T184000Z-b1495fb3`
-- git commit: `d40a227-dirty`
+- run id: `20260810T192226Z-b1495fb3`
+- git commit: `0f010ab-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T18:40:00.644539+00:00
+- generated: 2026-08-10T19:22:26.567195+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

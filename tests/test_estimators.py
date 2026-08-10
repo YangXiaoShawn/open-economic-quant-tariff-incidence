@@ -635,3 +635,44 @@ def test_unknown_control_definition_is_still_rejected():
 
     with pytest.raises(ValueError, match="unknown control_definition"):
         build_stacked_design(_multiwave_panel(), WAVES, control_definition="whatever")
+
+
+def test_binned_endpoints_are_labelled_by_period_and_excluded_from_trend_stats():
+    """The pre-period bin was labelled `is_pre=False` because its event time is null.
+
+    Two things went wrong from one cause. Reports printed it as a post-period
+    row, and the pre-trend statistics stayed correct only because the post
+    filter separately required a non-null event time -- so correctness rested on
+    that one guard rather than on the rule being written down. The bin belongs
+    to the pre period and belongs in neither trend statistic.
+    """
+    coefs = pl.DataFrame(
+        {
+            "term": ["evt_pre_bin_13", "evt_m2", "evt_reference_-1", "evt_p0", "evt_p1",
+                     "evt_post_bin_11"],
+            "event_time": [None, -2, -1, 0, 1, None],
+            "estimate": [0.9, 0.01, 0.0, 0.20, 0.22, 0.9],
+            "std_error": [0.01, 0.01, 0.0, 0.01, 0.01, 0.01],
+            "ci_low": [0.0] * 6,
+            "ci_high": [0.0] * 6,
+            "p_value": [0.5] * 6,
+            "is_pre": [True, True, True, False, False, False],
+        }
+    )
+
+    class _Fit:
+        n_obs = 1000
+        params: dict = {}
+        std_errors: dict = {}
+
+    res = pretrend_test(coefs, _Fit())
+
+    # One usable pre coefficient (-2); the reference has zero standard error and
+    # the bin has no event time, so neither enters.
+    assert res["n_pre_coefs"] == 1
+    # The bins carry a deliberately huge estimate: if either leaked into a trend
+    # statistic, these would not hold.
+    assert res["rms_pre_coef"] == pytest.approx(0.01, abs=1e-9)
+    assert res["rms_post_coef"] == pytest.approx(
+        ((0.20**2 + 0.22**2) / 2) ** 0.5, abs=1e-9
+    )

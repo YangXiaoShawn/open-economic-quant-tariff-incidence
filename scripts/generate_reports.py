@@ -43,6 +43,28 @@ def _json(name: str) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
+def _event_table(d: pl.DataFrame) -> pl.DataFrame:
+    """Event-study coefficients with the binned endpoints actually labelled.
+
+    The endpoints aggregate everything beyond the window and carry a null event
+    time, so selecting `event_time` alone printed them as two blank rows at the
+    bottom of every event-study table -- unlabelled numbers a reader could not
+    place. The term name says what they are; it is used as the label.
+    """
+    period = (
+        pl.when(pl.col("event_time").is_not_null())
+        .then(pl.col("event_time").cast(pl.String))
+        .otherwise(
+            pl.when(pl.col("term").str.starts_with("evt_pre_bin"))
+            .then(pl.lit("<= -13 (binned)"))
+            .otherwise(pl.lit(">= +11 (binned)"))
+        )
+        .alias("event_time")
+    )
+    cols = ["estimate", "std_error", "ci_low", "ci_high", "p_value", "is_pre"]
+    return d.with_columns(period).select(["event_time", *cols])
+
+
 def _stamp(cfg, provenance: DataProvenance) -> RunStamp:
     return RunStamp.create(
         config_name=cfg.config_name,
@@ -241,10 +263,7 @@ def main() -> int:  # noqa: C901, PLR0915
                         f"−{ref}. Pre-period coefficients are the test of the design, not "
                         "decoration."
                     ),
-                    [("coefficients", ev.select(
-                        ["event_time", "estimate", "std_error", "ci_low", "ci_high", "p_value",
-                         "is_pre"]
-                    ))],
+                    [("coefficients", _event_table(ev))],
                 )
             )
 
@@ -263,10 +282,7 @@ def main() -> int:  # noqa: C901, PLR0915
                         "calendar-month-by-stack effects. No already-treated unit is ever used "
                         "as a control."
                     ),
-                    [("coefficients", sv.select(
-                        ["event_time", "estimate", "std_error", "ci_low", "ci_high", "p_value",
-                         "is_pre"]
-                    ))],
+                    [("coefficients", _event_table(sv))],
                 )
             )
     comp = _read("stacked_composition_never_treated_products")
@@ -329,6 +345,22 @@ def main() -> int:  # noqa: C901, PLR0915
         mech = inc["mechanical_log1p_tau_if_no_absorption"]
         cu = bias_by_outcome.get("log_customs_unit_value", {})
         bd = cu.get("effect_bound_abs")
+
+        # The two observed responses used to be typed into this f-string as
+        # literals, which is precisely what acceptance criterion 10 forbids:
+        # they had drifted from the estimates printed in the tables below.
+        # They are the mean post-treatment coefficient of the headline stacked
+        # design, and they are read from the result table now.
+        headline_ctrl = "never_treated_products"
+        obs_landed = obs_customs = None
+        if est is not None and "control_definition" in est.columns:
+            mp = est.filter(
+                (pl.col("term") == "stacked_mean_post_effect")
+                & (pl.col("control_definition") == headline_ctrl)
+            )
+            vals = dict(zip(mp["outcome"], mp["estimate"], strict=True))
+            obs_landed = vals.get("log_landed_unit_value")
+            obs_customs = vals.get("log_customs_unit_value")
         secs.insert(
             0,
             Section(
@@ -337,8 +369,14 @@ def main() -> int:  # noqa: C901, PLR0915
                     f"The value-weighted additional duty actually in force on treated flows is "
                     f"**{tau:.1%}**. If the exporter absorbed none of it, the duty-inclusive "
                     f"landed unit value would rise by log(1+tau) = **{mech:.4f}**.\n\n"
-                    f"Observed: landed unit value **+0.1494**, customs (tariff-exclusive) unit "
-                    f"value **+0.0225**"
+                    + (
+                        f"Observed, as the mean post-treatment coefficient of the stacked "
+                        f"design with {headline_ctrl} controls: landed unit value "
+                        f"**{obs_landed:+.4f}**, customs (tariff-exclusive) unit value "
+                        f"**{obs_customs:+.4f}**"
+                        if obs_landed is not None and obs_customs is not None
+                        else "The observed responses are not available from the result tables"
+                    )
                     + (f", bounded at {bd:.3f} in absolute value" if bd else "")
                     + ".\n\n"
                     "The landed measure contains the duty by construction, so its rise is "

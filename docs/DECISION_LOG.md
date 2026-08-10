@@ -1279,3 +1279,55 @@ which is exactly the class of thing the brief is most careful about. It is
 recorded as an open choice rather than carried as though the original objection
 still held. D-017 stands as the record of why it was deferred; it no longer
 stands as the reason it should stay deferred.
+
+### D-046 — The headline incidence numbers were typed in, not computed
+
+Reading `tariff_incidence_results.md` line by line found the two numbers the
+entire incidence conclusion rests on sitting in the generator as string
+literals:
+
+```python
+f"Observed: landed unit value **+0.1494**, customs (tariff-exclusive) unit "
+f"value **+0.0225**"
+```
+
+The `f` prefix is there and interpolates nothing. In the same sentence `tau`,
+`log(1+tau)` and the effect bound are all computed from the result tables; only
+the two observed responses were hand-written. This is exactly what acceptance
+criterion 10 forbids — every empirical claim traceable to a reproducible table —
+and the failure mode it exists to prevent had already happened: the true values
+are **+0.1544** and **+0.0253**, so the report was printing figures that
+contradicted the estimates in its own tables further down.
+
+The numbers were never missing. `estimate_incidence.py` already writes a
+`stacked_mean_post_effect` row per outcome per control definition into
+`incidence_estimates.parquet`; the report simply was not reading them. What was
+missing was a way to *select* the headline design: the row carried no
+`control_definition`, so the three control definitions could only be told apart
+by row order. That column is now written, and the report filters on it.
+
+The conclusion does not change — +0.1544 against a mechanical 0.1626, with the
+customs response bounded at 0.076 — and STATUS.md had the right figures
+throughout. What changes is that the report can no longer drift from the
+estimates behind it.
+
+**Two smaller defects found in the same read-through.**
+
+*The binned endpoints were labelled as post-period.* `is_pre` was computed as
+`k is not None and k < 0`, and the endpoints have no single event time, so
+`evt_pre_bin_13` — unambiguously a pre-period coefficient — came out `False`.
+Every event-study table in the reports printed it as a post row, and unlabelled
+at that, because the rendered table selected `event_time` and the endpoints have
+none. Both are fixed: the label follows the term name, and the tables print
+`<= -13 (binned)` and `>= +11 (binned)`.
+
+*The trend statistics were right for a fragile reason.* `pretrend_test` built its
+post set with `(~is_pre) & std_error > 0 & event_time.is_not_null()` and its pre
+set with `is_pre & std_error > 0`. The endpoints stayed out of both, but only
+because that one extra condition happened to sit on the post side. Anyone
+removing it as redundant — it looks redundant — would have silently moved a
+binned endpoint into the post average. The condition is now stated on both sides
+as what it actually means: only coefficients at a definite event time enter a
+trend statistic. Re-running estimation after the change leaves all fifteen
+pre-trend tests bit-identical, and a test now pins the invariant with endpoint
+estimates large enough that a leak into either statistic would fail it.
