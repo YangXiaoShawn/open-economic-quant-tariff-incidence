@@ -464,6 +464,82 @@ def main() -> int:  # noqa: C901, PLR0915
                 ).head(15))],
             )
         )
+    expo_d = _read("industry_tariff_exposure_detail")
+    if expo_d is not None and expo is not None:
+        both_d = expo_d.filter(pl.col("exposure_class") == "BOTH_PROTECTED_AND_COST_EXPOSED")
+        both_s = expo.filter(pl.col("exposure_class") == "BOTH_PROTECTED_AND_COST_EXPOSED")
+        grain = pl.DataFrame(
+            {
+                "measure": [
+                    "BEA industries in the input-output table",
+                    "industries exposed through both channels",
+                    "industries with any protection exposure",
+                    "mean output protection exposure",
+                    "mean imported-input cost exposure",
+                ],
+                "summary_level": [
+                    str(expo.height),
+                    str(both_s.height),
+                    str(expo.filter(pl.col("output_protection_exposure") > 0).height),
+                    f"{expo['output_protection_exposure'].mean():.4f}",
+                    f"{expo['imported_input_cost_exposure'].mean():.4f}",
+                ],
+                "detail_level": [
+                    str(expo_d.height),
+                    str(both_d.height),
+                    str(expo_d.filter(pl.col("output_protection_exposure") > 0).height),
+                    f"{expo_d['output_protection_exposure'].mean():.4f}",
+                    f"{expo_d['imported_input_cost_exposure'].mean():.4f}",
+                ],
+            }
+        )
+        secs.append(
+            Section(
+                "The same exposure at ten times the industry resolution",
+                (
+                    "BEA publishes detail-level input-output tables for benchmark years only "
+                    "-- 2007, 2012, 2017 -- and 2017 is this project's pre-treatment year, so "
+                    "the finest published industry breakdown is available exactly where a "
+                    "shift-share measure needs its weights. Asking for a non-benchmark year "
+                    "raises rather than interpolating, because interpolated weights would be "
+                    "invented ones.\n\n"
+                    "The coarser axis was not merely less precise. It reported as one number "
+                    "positions that differ substantially within a single summary industry: "
+                    "inside `3361MV`, heavy-duty truck manufacturing carries input-cost "
+                    "exposure 0.112 against protection 0.162, while motor-vehicle steering and "
+                    "suspension components carry 0.094 against 0.250."
+                ),
+                [("granularity", grain)],
+            )
+        )
+        secs.append(
+            Section(
+                "Why the two channels cannot be compared as levels",
+                (
+                    "Output protection is the tariff rate on one commodity, so it inherits the "
+                    "statutory rate and tops out at it. Imported-input cost is an average over "
+                    "the industry's whole purchase basket, most of which -- services, domestic "
+                    "materials, untariffed imports -- carries no tariff at all, so it is "
+                    "mechanically diluted. At detail level protection averages "
+                    f"{expo_d['output_protection_exposure'].mean():.3f} with a maximum of "
+                    f"{expo_d['output_protection_exposure'].max():.3f}; input cost averages "
+                    f"{expo_d['imported_input_cost_exposure'].mean():.3f} with a maximum of "
+                    f"{expo_d['imported_input_cost_exposure'].max():.3f}.\n\n"
+                    "A larger protection number than cost number therefore says nothing about "
+                    "which channel dominates for an industry. Only the separately estimated "
+                    "coefficients, each scaled by its own regressor, carry that information. "
+                    "This is a second reason not to difference the two, independent of the "
+                    "distributional reason given above."
+                ),
+                [("highest imported-input cost, detail level", expo_d.sort(
+                    "imported_input_cost_exposure", descending=True
+                ).select(
+                    ["industry_code", "industry_name", "imported_input_cost_exposure",
+                     "output_protection_exposure", "exposure_class"]
+                ).head(12))],
+            )
+        )
+
     prop = _read("propagation_ppi_estimates")
     prop_q = _json("propagation_quality")
     if prop is not None and prop_q:

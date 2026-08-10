@@ -307,7 +307,74 @@ class VintageStack:
     n_reclassified_vs_primary: int = 0
     """Codes whose NAICS differs between the primary vintage and a later one."""
     reclassified_examples: list[dict] = field(default_factory=list)
+    n_naics_vintage_repaired: int = 0
+    """Lines whose primary-vintage NAICS the classification revision retired."""
+    naics_vintage_repairs: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+def _repair_retired_naics(
+    combined: pl.DataFrame, loads: dict[int, ConcordanceLoad], ys: list[int]
+) -> tuple[pl.DataFrame, list[dict]]:
+    """Replace NAICS codes the classification revision retired, line by line.
+
+    A code counts as retired only if it appears in **none** of the vintages
+    after the primary one. A code that still exists but was reassigned for a
+    particular product is a genuine reclassification, and there the primary
+    vintage keeps governing -- so this never silently overrides the
+    pre-determination rule.
+
+    The live code universe is taken from the **latest vintage only**, not from a
+    union over later vintages: the union spans the switch, so a vintage still on
+    2012 NAICS keeps the retired codes alive and the rule finds nothing. Taking
+    the union looked safer and silently did less.
+
+    The limitation that remains, stated rather than papered over: "absent from
+    the latest file" is a superset of "retired by the classification revision" --
+    a code that survived 2017 NAICS but drew no imports in the latest year would
+    also qualify. That is why every substitution is returned and reported rather
+    than applied invisibly. On the 2017-2020 files the codes it finds are the
+    documented 2012-to-2017 consolidations (335221-8 into 335220, 333911/333913
+    into 333914, 211111/211112 into 211120/211130, 212231/212234 into 212230).
+    """
+    latest = max(ys)
+    if latest not in loads:
+        return combined, []
+    latest_map = loads[latest].mapping.select(["hs10", "naics"]).rename(
+        {"naics": "_successor"}
+    )
+    live = {c for c in loads[latest].mapping["naics"].to_list() if c}
+    retired = sorted({c for c in combined["naics"].to_list() if c and c not in live})
+    if not retired:
+        return combined, []
+
+    joined = combined.join(latest_map, on="hs10", how="left")
+    needs = joined.filter(pl.col("naics").is_in(retired) & pl.col("_successor").is_not_null())
+    repairs = [
+        {
+            "retired_naics": r["naics"],
+            "successor_naics": r["_successor"],
+            "n_lines": r["len"],
+        }
+        for r in needs.group_by(["naics", "_successor"]).len().sort("len", descending=True)
+        .iter_rows(named=True)
+    ]
+    if not repairs:
+        return combined, []
+
+    repaired = joined.with_columns(
+        pl.when(pl.col("naics").is_in(retired) & pl.col("_successor").is_not_null())
+        .then(pl.col("_successor"))
+        .otherwise(pl.col("naics"))
+        .alias("naics")
+    ).drop("_successor")
+    # bea_summary is derived from NAICS, so it has to follow the repair.
+    repaired = repaired.with_columns(
+        pl.col("naics")
+        .map_elements(lambda n: naics_to_bea_summary(n), return_dtype=pl.String)
+        .alias("bea_summary")
+    )
+    return repaired, repairs
 
 
 def load_vintages(
@@ -384,6 +451,16 @@ def load_vintages(
                     }
                 )
 
+    # Codes the classification revision retired are a different case from
+    # reclassification. Census moved this concordance from 2012 NAICS to 2017
+    # NAICS with the 2019 vintage, so a 2017-vintage line can carry a NAICS that
+    # does not exist in 2017 NAICS at all -- and BEA's 2017 tables are on 2017
+    # NAICS. "The primary vintage governs" has no meaning when the primary
+    # vintage's answer is not a code in the target classification, so for those
+    # lines the revised classification's code for the *same line* is used. This
+    # is still one official source; nothing is mapped forward by hand.
+    combined, repairs = _repair_retired_naics(combined, loads, ys)
+
     stack = VintageStack(
         primary_year=primary,
         years=ys,
@@ -392,7 +469,16 @@ def load_vintages(
         n_from_fallback=n_fallback,
         n_reclassified_vs_primary=reclass,
         reclassified_examples=examples,
+        n_naics_vintage_repaired=sum(r["n_lines"] for r in repairs),
+        naics_vintage_repairs=repairs,
     )
+    if repairs:
+        moved = ", ".join(f"{r['retired_naics']}->{r['successor_naics']}" for r in repairs[:6])
+        stack.warnings.append(
+            f"{stack.n_naics_vintage_repaired} lines carried a NAICS code retired by the "
+            f"2012->2017 classification revision; the successor code for the same line in "
+            f"the {max(ys)} vintage was used ({moved})"
+        )
     if reclass:
         stack.warnings.append(
             f"{reclass} codes carry a different NAICS in a later vintage than in "

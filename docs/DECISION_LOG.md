@@ -1146,10 +1146,15 @@ that has been reported moves.
 
 **What is not claimed.** Detail industries are pinned to a benchmark year, so
 this level cannot follow a moving IO structure; asking for a non-benchmark year
-raises rather than interpolating. Eight NAICS codes in the panel (333911, 333913,
-335221-8) map to nothing because 2017 NAICS retired them — a product-code
-revision under principle 6, recorded in `io_exposure_quality_detail.json` rather
-than dropped in silence. NAICS codes claimed by two detail industries at equal
+raises rather than interpolating. Eight NAICS codes in the panel mapped to
+nothing, recorded in `io_exposure_quality_detail.json` rather than dropped in
+silence. **Correction, made in D-044:** this entry attributed all eight to NAICS
+retirement. Six were (333911, 333913, 335221-8); the other two, 910000 and
+930000, are Census pseudo-industries for scrap and used or second-hand goods,
+which have no producing industry at all and which BEA also carries as special
+rows with no NAICS counterpart. They are 0.18% of panel customs value and
+essentially untariffed. D-044 repairs the six and leaves the two, and the
+figures in the addendum below are the pre-repair ones. NAICS codes claimed by two detail industries at equal
 depth are left unassigned instead of being broken by an arbitrary rule; on this
 panel there are none.
 
@@ -1177,3 +1182,60 @@ input cost is an average over the whole purchase basket, most of it untariffed
 almost all of them industries with no protection at all. The two channels are
 therefore not comparable **as levels**, independently of the reason they are
 never netted, and the module docstring now says so.
+
+### D-044 — The concordance and the IO table were on different NAICS vintages
+
+D-043's unmapped-code list was the visible symptom of something larger. Census
+moved the import concordance from **2012 NAICS to 2017 NAICS with the 2019
+vintage**. This project takes 2017 as its primary vintage — deliberately, so the
+industry assignment is pre-determined like the weights — which means the primary
+concordance is on 2012 NAICS while BEA's 2017 input-output tables are on 2017
+NAICS. The two sides of the exposure measure were speaking different
+classifications.
+
+The magnitude is bounded and was measured before anything was changed: of 18,749
+HS10 lines present in both the 2017 and 2019 vintages, 170 (0.91%) carry a
+different NAICS, and those lines hold 2.43% of panel customs value. Ten
+2012-vintage codes are absent from the revised classification entirely.
+
+**Why this never showed up at summary level.** The summary BEA mapping
+aggregates NAICS at three digits, and every one of the ten retirements is a
+consolidation *within* a three-digit group: 335221/2/4/8 into 335220, 333911 and
+333913 into 333914, 211111/211112 into 211120/211130, 212231/212234 into 212230.
+Rebuilding the summary exposure after the fix leaves all 71 industries identical
+to 1e-17. A test now asserts the three-digit invariance rather than leaving it to
+be rediscovered, because if it ever stopped holding the summary results would
+move underneath the change without anything failing.
+
+**The rule.** "The primary vintage governs" has no meaning when the primary
+vintage's answer is not a code in the target classification at all. So for those
+lines only, the successor is read off the **same HS10 line** in the revised
+vintage. That is still one official source; nothing is mapped forward by hand,
+which is the failure mode D-011, D-037 and D-043 each hit in turn. Genuine
+reclassifications — where the old code still exists but this product moved, such
+as 339999 to 335999 — are left alone and the primary vintage keeps governing.
+
+**What it changed.** Detail-level coverage rises from 97.8% to **99.71%** of
+panel customs value. Two industries had been recorded as carrying *zero* output
+protection when they are in fact among the most protected in the sample:
+
+| BEA detail industry | protection before | after |
+|---|---|---|
+| 333914 Measuring, dispensing and other pumping equipment | 0.000 | 0.250 |
+| 335220 Major household appliance manufacturing | 0.000 | 0.207 |
+
+Both are exactly the industries whose 2012 codes were retired, so their tariffed
+import lines had been mapping nowhere. Industries exposed through both channels
+go from 142 to 144 of 401; the aggregate distributions barely move, and the
+heavy-duty-truck and steering-component figures quoted in D-043 are unchanged.
+
+**A dead end kept in the record.** The first version of the rule took the live
+code universe as the union of NAICS across every vintage *after* the primary.
+That looked more conservative and silently did nothing: the union spans the
+classification switch, so the 2018 file — still on 2012 NAICS — keeps every
+retired code alive and the rule found zero. It was caught by a fixture that
+asserted a genuine reclassification survives untouched. The live universe is now
+taken from the latest vintage alone, and the limitation that remains is stated
+instead of engineered around: "absent from the latest file" is a superset of
+"retired by the revision", so every substitution is returned and reported rather
+than applied invisibly.

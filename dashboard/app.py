@@ -236,8 +236,19 @@ with tabs[3]:
 # ------------------------------------------------------------- exposure
 with tabs[4]:
     st.header("Industry exposure")
-    expo = read("industry_tariff_exposure")
-    summ = read("industry_exposure_summary")
+    has_detail = read("industry_tariff_exposure_detail") is not None
+    level = "summary"
+    if has_detail:
+        level = st.radio(
+            "BEA industry level",
+            ["summary", "detail"],
+            horizontal=True,
+            help="Detail (~400 industries) is published for benchmark years only; 2017 is "
+                 "the pre-treatment year, so the weights stay pre-determined either way.",
+        )
+    sfx = "" if level == "summary" else "_detail"
+    expo = read(f"industry_tariff_exposure{sfx}")
+    summ = read(f"industry_exposure_summary{sfx}")
     if expo is not None:
         if summ is not None:
             st.dataframe(summ.to_pandas(), width="stretch")
@@ -251,15 +262,26 @@ with tabs[4]:
             width="stretch",
         )
         st.warning(
-            "The two channels are never netted. An industry can be protected on its output "
-            "and squeezed on its inputs at the same time."
+            "The two channels are never netted, and they are not comparable as levels. "
+            "Protection is the statutory rate on one commodity; input cost is averaged over "
+            "the whole purchase basket, most of which carries no tariff, so it is "
+            "mechanically smaller. Only the separately estimated coefficients say which "
+            "channel bites harder."
         )
-        q = read_json("io_exposure_quality")
+        q = read_json(f"io_exposure_quality{sfx}")
         if q:
             st.caption(f"Concordance status: {q.get('concordance_config_status')} — "
                        f"{q['concordance']['aggregation_loss']}")
+            dm = q.get("naics_to_bea_detail") or {}
+            if dm.get("n_naics_unmapped"):
+                st.caption(
+                    f"{dm['n_naics_unmapped']} NAICS codes map to no BEA detail industry "
+                    f"({', '.join(dm['unmapped_naics'])}): 2017 NAICS retired them. "
+                    f"{dm.get('n_naics_ambiguous', 0)} are claimed by two industries at equal "
+                    "depth and are left unassigned rather than broken arbitrarily."
+                )
     else:
-        st.info("Run `make build-io-exposure`.")
+        st.info(f"Run `make build-io-exposure{'-detail' if level == 'detail' else ''}`.")
 
 # ---------------------------------------------------------------- quality
 with tabs[5]:

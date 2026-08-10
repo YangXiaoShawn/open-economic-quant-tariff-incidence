@@ -54,6 +54,24 @@ behaves. The wild cluster bootstrap (D-042) stays anyway.
    exposure, never in an estimate, but present in a published result table. The
    71 real industries are unchanged to 1e-17 after the fix.
 
+**A vintage mismatch the coarse axis had hidden** (D-044). Census moved the
+import concordance from 2012 NAICS to 2017 NAICS with the **2019** vintage, so
+the 2017 primary vintage — chosen precisely so the assignment is pre-determined —
+is on 2012 NAICS while BEA's 2017 tables are on 2017 NAICS. It never showed at
+summary level because every retirement is a consolidation inside a three-digit
+group, and the summary mapping aggregates at three digits; a test now asserts
+that invariance. At detail level it mattered: two industries were recorded with
+**zero** output protection when they are among the most protected in the sample.
+
+| BEA detail industry | protection before | after |
+|---|---|---|
+| 333914 Measuring, dispensing and other pumping equipment | 0.000 | 0.250 |
+| 335220 Major household appliance manufacturing | 0.000 | 0.207 |
+
+Detail coverage rises to **99.71%** of panel customs value. Summary-level
+exposure is identical to 1e-17. The fix reads the successor off the same HS10
+line in the revised vintage — one official source, nothing mapped by hand.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample

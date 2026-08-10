@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 from tariff_incidence.adapters.census_concordance import (
+    ConcordanceLoad,
+    _repair_retired_naics,
     build_hs10_to_bea,
+    load_vintages,
     naics_to_bea_summary,
     parse_concordance,
 )
@@ -163,3 +167,91 @@ def test_vintage_stack_requires_at_least_one_year():
 
     with pytest.raises(ValueError, match="no concordance vintages"):
         load_vintages([])
+
+
+def test_retired_naics_codes_are_repaired_from_the_same_line_not_by_hand():
+    """Census moved this concordance to 2017 NAICS with the 2019 vintage.
+
+    A 2017-vintage line can therefore carry a code that does not exist in 2017
+    NAICS at all, while BEA's 2017 tables are on 2017 NAICS. "The primary
+    vintage governs" has no meaning when the primary's answer is not a code in
+    the target classification, so the successor is taken from the same HS line
+    in the revised vintage -- one official source, nothing mapped by hand.
+    """
+    loads = {
+        2017: ConcordanceLoad(
+            vintage_year=2017,
+            source_file="fixture-2017",
+            mapping=pl.DataFrame(
+                {
+                    "hs10": ["8413600050", "8479899899", "8516604082"],
+                    "naics": ["333911", "333999", "335221"],
+                }
+            ),
+        ),
+        2019: ConcordanceLoad(
+            vintage_year=2019,
+            source_file="fixture-2019",
+            mapping=pl.DataFrame(
+                {
+                    "hs10": ["8413600050", "8479899899", "8516604082", "8479100000"],
+                    "naics": ["333914", "333249", "335220", "333999"],
+                }
+            ),
+        ),
+    }
+    combined = pl.DataFrame(
+        {
+            "hs10": ["8413600050", "8479899899", "8516604082"],
+            "naics": ["333911", "333999", "335221"],
+            "bea_summary": ["333", "333", "335"],
+            "vintage_year": [2017, 2017, 2017],
+        }
+    )
+    repaired, repairs = _repair_retired_naics(combined, loads, [2017, 2019])
+    # 333999 is still in use in the latest vintage, just not on this line -- so
+    # this is a reclassification, not a retirement, and the primary keeps governing.
+    got = dict(zip(repaired["hs10"], repaired["naics"], strict=True))
+
+    # Retired: 333911 and 335221 are absent from the 2019 code universe.
+    assert got["8413600050"] == "333914"
+    assert got["8516604082"] == "335220"
+    # 333999 still exists in 2019, so this line is a genuine reclassification
+    # and the pre-determined primary-vintage assignment keeps governing.
+    assert got["8479899899"] == "333999"
+    assert {r["retired_naics"] for r in repairs} == {"333911", "335221"}
+
+
+def test_a_line_with_no_successor_is_left_alone_rather_than_guessed():
+    """If the HS line itself is gone, there is nothing official to map to."""
+    loads = {
+        2017: ConcordanceLoad(
+            vintage_year=2017,
+            source_file="fixture-2017",
+            mapping=pl.DataFrame({"hs10": ["8413600050"], "naics": ["333911"]}),
+        ),
+        2019: ConcordanceLoad(
+            vintage_year=2019,
+            source_file="fixture-2019",
+            mapping=pl.DataFrame({"hs10": ["9999999999"], "naics": ["333914"]}),
+        ),
+    }
+    combined = pl.DataFrame(
+        {"hs10": ["8413600050"], "naics": ["333911"], "bea_summary": ["333"],
+         "vintage_year": [2017]}
+    )
+    repaired, repairs = _repair_retired_naics(combined, loads, [2017, 2019])
+    assert repaired["naics"][0] == "333911"
+    assert repairs == []
+
+
+def test_repairs_never_move_an_industry_across_a_three_digit_group():
+    """Summary-level results aggregate at three digits and must not move.
+
+    This is the property that makes the repair safe to apply everywhere rather
+    than only at detail level: if it held only by accident, summary-level
+    exposure would silently change under it.
+    """
+    stack = load_vintages([2017, 2018, 2019, 2020], primary_year=2017)
+    for r in stack.naics_vintage_repairs:
+        assert r["retired_naics"][:3] == r["successor_naics"][:3], r

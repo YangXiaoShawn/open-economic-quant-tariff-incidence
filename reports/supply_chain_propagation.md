@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T170146Z-b1495fb3` · git `9825bc0-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T17:01:46.538352+00:00
+> run_id `20260810T174643Z-b1495fb3` · git `266e6a0-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T17:46:43.142574+00:00
 
 
 Mapping product-level tariff exposure into U.S. industries using pre-treatment BEA input-output weights. Pre-treatment weights are used so that the exposure measure cannot respond to the shock it is being used to explain.
@@ -97,6 +97,47 @@ Protection on an industry's own output and the cost of its imported inputs pull 
 | 321 | Wood products | 0.1498 | 0.0469 | BOTH_PROTECTED_AND_COST_EXPOSED |
 
 
+## The same exposure at ten times the industry resolution
+
+BEA publishes detail-level input-output tables for benchmark years only -- 2007, 2012, 2017 -- and 2017 is this project's pre-treatment year, so the finest published industry breakdown is available exactly where a shift-share measure needs its weights. Asking for a non-benchmark year raises rather than interpolating, because interpolated weights would be invented ones.
+
+The coarser axis was not merely less precise. It reported as one number positions that differ substantially within a single summary industry: inside `3361MV`, heavy-duty truck manufacturing carries input-cost exposure 0.112 against protection 0.162, while motor-vehicle steering and suspension components carry 0.094 against 0.250.
+
+**granularity**
+
+| measure | summary_level | detail_level |
+| --- | --- | --- |
+| BEA industries in the input-output table | 71 | 402 |
+| industries exposed through both channels | 19 | 144 |
+| industries with any protection exposure | 19 | 146 |
+| mean output protection exposure | 0.0510 | 0.0775 |
+| mean imported-input cost exposure | 0.0168 | 0.0230 |
+
+
+## Why the two channels cannot be compared as levels
+
+Output protection is the tariff rate on one commodity, so it inherits the statutory rate and tops out at it. Imported-input cost is an average over the industry's whole purchase basket, most of which -- services, domestic materials, untariffed imports -- carries no tariff at all, so it is mechanically diluted. At detail level protection averages 0.077 with a maximum of 0.250; input cost averages 0.023 with a maximum of 0.112.
+
+A larger protection number than cost number therefore says nothing about which channel dominates for an industry. Only the separately estimated coefficients, each scaled by its own regressor, carry that information. This is a second reason not to difference the two, independent of the distributional reason given above.
+
+**highest imported-input cost, detail level**
+
+| industry_code | industry_name | imported_input_cost_exposure | output_protection_exposure | exposure_class |
+| --- | --- | --- | --- | --- |
+| 336120 | Heavy duty truck manufacturing | 0.1123 | 0.1624 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336310 | Motor vehicle gasoline engine and engine parts manufacturing | 0.1085 | 0.2480 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336112 | Light truck and utility vehicle manufacturing | 0.0983 | 0.2170 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 3363A0 | Motor vehicle steering, suspension component (except spring), and brake systems manufacturing | 0.0940 | 0.2500 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 333618 | Other engine equipment manufacturing | 0.0924 | 0.2498 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336212 | Truck trailer manufacturing | 0.0904 | 0.2300 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336320 | Motor vehicle electrical and electronic equipment manufacturing | 0.0896 | 0.2498 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336111 | Automobile manufacturing | 0.0895 | 0.2319 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336390 | Other motor vehicle parts manufacturing | 0.0874 | 0.2465 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336999 | All other transportation equipment manufacturing | 0.0857 | 0.2015 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 326110 | Plastics packaging materials and unlaminated film and sheet manufacturing | 0.0846 | 0.2500 | BOTH_PROTECTED_AND_COST_EXPOSED |
+| 336612 | Boat building | 0.0842 | 0.0000 | INPUT_COST_EXPOSED_ONLY |
+
+
 ## Does exposure show up in domestic producer prices?
 
 Exposure is an accounting construct built from input-output weights. Whether it predicts anything is a separate question, tested here against BLS producer prices in the **NAICS industry** classification — the same classification the exposure measure is built in, so no second undocumented crosswalk is involved.
@@ -171,12 +212,12 @@ These exposure numbers are a qualitative ordering of industries. They are not el
 
 ## Reproducibility
 
-- run id: `20260810T170146Z-b1495fb3`
-- git commit: `9825bc0-dirty`
+- run id: `20260810T174643Z-b1495fb3`
+- git commit: `266e6a0-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T17:01:46.538352+00:00
+- generated: 2026-08-10T17:46:43.142574+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._
