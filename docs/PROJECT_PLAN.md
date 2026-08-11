@@ -12,16 +12,16 @@ shocks propagate through domestic production networks?
 |---|---|---|---|
 | M0 | Repository, environment, data-layer discipline, provenance stamping | — | **done** |
 | M1 | Tariff policy engine + Section 301 schedule from Federal Register | M0 | **done** |
-| M2 | HS concordance engine (stable-code and weighted samples) | M0 | **done (identity default; real correlation tables outstanding)** |
-| M3 | Trade adapter + product×country×month analytical panel | M1, M2 | **done (synthetic flows; Census adapter key-gated)** |
+| M2 | HS concordance engine (stable-code and weighted samples) | M0 | **built, not wired in** — `concordance/hs.py` and `stable_code_sample()` are imported by nothing in the pipeline; code revisions are handled instead by per-year Census concordance vintages (D-044). See the gap note below the table. |
+| M3 | Trade adapter + product×country×month analytical panel | M1, M2 | **done** — official Census HS10×country×month, 2017-01..2020-02, 923,440 rows |
 | M4 | Data-quality battery | M3 | **done** |
-| M5 | Descriptive analysis + replication benchmark | M3 | **partial** — statutory-coverage target done; trade-based targets blocked on M3-official |
+| M5 | Descriptive analysis + replication benchmark | M3 | **done** — T1 exact; T2 and T3 executed conceptually with estimates; T4 needs M10 |
 | M6 | Incidence estimation: model ladder, event studies, PPML, placebos | M3 | **done** |
 | M7 | Diversion decomposition incl. counterfactual adjustment | M3 | **done** |
-| M8 | Industry exposure via BEA input-output | M3 | **done (coarse concordance)** |
-| M9 | Domestic price outcomes (BLS PPI) | M8 | **not started** — BLS API was in maintenance at build time |
+| M8 | Industry exposure via BEA input-output | M3 | **done** — official Census concordance, BEA summary and detail levels (D-043) |
+| M9 | Domestic price outcomes (BLS PPI) | M8 | **done at summary level** — 22 clusters, a power result not a null (D-041); the detail-level run at ~125 clusters is pending a BLS quota window |
 | M10 | Structural Armington/CES counterfactuals | M6, M7, official data | **deliberately deferred (D-017)** |
-| M11 | Current-data extension past 2019-08 | List 4A parser | **not started** |
+| M11 | Current-data extension past 2019-08 | List 4A parser | **done** — List 4A parsed, window runs to 2020-02 |
 | M12 | Dashboard | M6, M7, M8 | **basic version done** |
 | M13 | Portfolio deliverables | M6–M8 | **done** |
 
@@ -33,6 +33,30 @@ close to as valuable.
 
 Second-order: a **List 4A parser** unblocks M11 and extends the usable window by
 roughly two years.
+
+### Open gap: M2 is built but not connected
+
+`concordance/hs.py` (the HS concordance engine) and `panel/build.stable_code_sample()`
+are imported by nothing outside their own tests. Nothing in the pipeline calls
+either. Two consequences, stated rather than left for a reader to discover:
+
+* **Acceptance criterion 3** is credited to a module the pipeline does not run.
+  Code revisions *are* handled, but by a different mechanism — per-year Census
+  concordance vintages, including the 2012-to-2017 NAICS repair in D-044 — and
+  the criterion should point there.
+* **The product-reclassification risk is unmitigated.** Its listed mitigation was
+  this engine. In the current panel 800 ten-digit codes first appear after the
+  window opens and 596 stop before it closes, together 5.7% of customs value.
+  Some of that is a product genuinely not imported in a month and some is a code
+  renumbered mid-window; nothing separates the two, so a renumbering shows up as
+  treated-product exit plus control-product entry, which is the exact pattern the
+  diversion decomposition reads as an extensive-margin move.
+
+The window is 2017-01 to 2020-02, entirely inside HS2017, so no *international*
+HS revision falls in it. The churn is in the U.S. 10-digit statistical numbers,
+which are revised annually. Closing this means either wiring the engine in with a
+real correlation table, or restricting the estimation sample to codes present
+throughout and reporting how much value that drops.
 
 ## Acceptance tests
 
@@ -67,8 +91,8 @@ generated artefact, or both.
 |---|---|---|---|
 | Census API key required | **critical** | realised | Adapter implemented and key-gated; synthetic generator keeps the pipeline testable; every artefact tagged (D-009) |
 | Census returns HTTP 200 with an HTML error body | high | realised | Payload-shape validation, not status-code checking |
-| Census HS→NAICS concordance 404/403 | medium | realised | Coarse chapter map, labelled `COARSE_APPROXIMATION` (D-011) |
-| BLS PPI API in maintenance | medium | realised | M9 deferred; adapter interface specified |
+| Census HS→NAICS concordance 404/403 | medium | **resolved** | The resource existed; the URL guesses were wrong (D-037) and the `.xls` vintages needed `xlrd` (D-039). Official concordance in use; chapter map is a labelled fallback |
+| BLS PPI API in maintenance | medium | **resolved; rate limit realised** | Adapter implemented (D-040). The live constraint is the v1 daily request allowance, mitigated by a per-series-per-year cache |
 | USITC HTS serves current vintage only | medium | realised | Documented vintage mismatch (D-010) |
 | Federal Register annexes are image-based in XML | medium | realised | Parse the GPO typeset PDF instead |
 | Source revisions change a published number | medium | mitigated | Raw bytes cached with checksums; manifests record vintage |
@@ -82,7 +106,7 @@ generated artefact, or both.
 | Concurrent policy (Section 232, retaliation) | Overlaps the window | Documented; chapter-level exposure to Section 232 not yet excluded |
 | Exchange-rate movements | RMB depreciation moves customs unit values the same way exporter absorption does | Documented; not separated |
 | Transshipment / origin misdeclaration | Third-country gains are not evidence of relocation | Stated in every diversion output |
-| Product reclassification | Appears as treated exit plus control entry | Concordance engine; stable-code sample |
+| Product reclassification | Appears as treated exit plus control entry | **Not mitigated.** `concordance/hs.py` and `stable_code_sample()` are unused by the pipeline. 800 codes enter and 596 leave mid-window, 5.7% of customs value combined; genuine trade entry is not separated from renumbering |
 | Exclusions absent from the schedule | Estimates are intention-to-treat, not treatment-on-the-treated | Stated everywhere; engine supports exclusion records |
 | Partial HS6 coverage | Assigning a scalar rate would mismeasure treatment | Engine returns `PARTIAL_HS6_COVERAGE`; those headings leave both groups |
 | Dominant treated supplier | Common time effects absorb part of the shock | Observed in ground-truth recovery; documented in `failed_hypotheses.md` |
