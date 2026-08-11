@@ -28,6 +28,7 @@ from tariff_incidence.econ.designs import (  # noqa: E402
     stacked_event_study,
     two_way_fe_regression,
 )
+from tariff_incidence.panel.build import stable_code_sample  # noqa: E402
 from tariff_incidence.paths import ensure_layers, layer_path  # noqa: E402
 from tariff_incidence.provenance import DataProvenance, RunStamp  # noqa: E402
 
@@ -92,6 +93,7 @@ def main() -> int:
     all_rows: list[dict] = []
     spec_rows: list[dict] = []
     diagnostics: dict = {}
+    stable_meta: dict = {}
 
     # ---------------------------------------------------------------- #
     # Rung 1: descriptive event-time means (no causal content)
@@ -257,6 +259,91 @@ def main() -> int:
                     f"rung 4 [{outcome:>22} | {ctrl[:28]:28}] n={fit.n_obs:>7,} "
                     f"mean post={mean_post:+.4f} pre-trend {pt['verdict']}"
                 )
+        # Robustness: the headline design on codes observed in every month.
+        #
+        # The product-reclassification risk had a mitigation named in the plan --
+        # the HS concordance engine -- that the pipeline never called. Without a
+        # correlation table this cannot be closed by identifying which codes were
+        # renumbered, so it is bounded instead. A code present in every month of
+        # the window cannot have been introduced or retired inside it, so this
+        # subsample excludes every renumbering candidate. It also excludes codes
+        # that merely went untraded for a month, which makes it conservative
+        # rather than exact: it is "observed throughout", not "definition stable",
+        # and the two are not the same claim.
+        #
+        # If the headline survives here, code churn is not driving it.
+        months = panel["month_date"].n_unique()
+        stable = (
+            panel.group_by("hs10")
+            .agg(pl.col("month_date").n_unique().alias("_m"))
+            .filter(pl.col("_m") == months)["hs10"]
+            .to_list()
+        )
+        stable_panel = stable_code_sample(panel, stable, product_col="hs10")
+        share_value = (
+            stable_panel["customs_value"].sum() / panel["customs_value"].sum()
+            if panel["customs_value"].sum()
+            else 0.0
+        )
+        print(
+            f"\nrung 4 robustness: {len(stable):,} of {panel['hs10'].n_unique():,} codes are "
+            f"observed in all {months} months, {share_value:.1%} of customs value"
+        )
+        for outcome in ["log_landed_unit_value", "log_customs_unit_value", "log_quantity"]:
+            try:
+                fit, spec, coefs, comp = stacked_event_study(
+                    stable_panel, outcome, cohort_months, cluster_vars=cluster,
+                    window=window,
+                    reference=est.reference_event_time
+                    if est.reference_event_time <= -3 else -3,
+                    control_definition="never_treated_products",
+                )
+            except (ValueError, KeyError) as exc:
+                print(f"rung 4 [stable codes | {outcome}] failed: {exc}")
+                continue
+            pt = pretrend_test(coefs, fit)
+            pt["design"] = "stacked_multi_wave"
+            pt["control_definition"] = "never_treated_products"
+            pt["sample"] = "codes_observed_in_every_month"
+            diagnostics[f"pretrend_stable_codes_{outcome}"] = pt
+            post = coefs.filter((pl.col("event_time") >= 0) & (pl.col("std_error") > 0))
+            mean_post = float(post["estimate"].mean()) if post.height else float("nan")
+            all_rows.append({
+                "term": "stacked_mean_post_effect",
+                "estimate": mean_post,
+                "std_error": float("nan"),
+                "t_stat": float("nan"),
+                "p_value": float("nan"),
+                "ci_low": float("nan"),
+                "ci_high": float("nan"),
+                "estimator": "OLS-HDFE",
+                "n_obs": fit.n_obs,
+                "absorbed_effects": "flow x stack|month x stack",
+                "cluster_vars": "|".join(cluster),
+                "n_clusters_min": min(fit.n_clusters.values()) if fit.n_clusters else None,
+                "outcome": outcome,
+                "outcome_label": f"{outcome} -- stacked, codes observed in every month",
+                "rung": "4_stacked_stable_codes",
+                "control_definition": "never_treated_products",
+                "n_post_periods": post.height,
+            })
+            print(
+                f"rung 4 [{outcome:>22} | stable codes                ] n={fit.n_obs:>7,} "
+                f"mean post={mean_post:+.4f} pre-trend {pt['verdict']}"
+            )
+        stable_meta = {
+            "definition": "10-digit codes with an observation in every month of the window",
+            "n_codes": len(stable),
+            "n_codes_total": int(panel["hs10"].n_unique()),
+            "share_of_customs_value": float(share_value),
+            "why": (
+                "Bounds the product-reclassification risk without a correlation table. A "
+                "code present in every month cannot have been introduced or retired "
+                "mid-window, so this excludes every renumbering candidate -- and also some "
+                "codes that were merely untraded for a month, which makes it conservative "
+                "rather than exact. It is 'observed throughout', not 'definition stable'."
+            ),
+        }
     else:
         print("rung 4: fewer than two treatment cohorts in the panel; stacked design skipped")
 
@@ -584,6 +671,7 @@ def main() -> int:
     (layer_path("results", "identification_checks.json")).write_text(
         json.dumps(
             {"run": stamp.to_dict(), "pretrend_tests": diagnostics,
+             "stable_code_sample": stable_meta,
              "incidence_accounting": incidence,
              "sutva_control_group": sutva_diagnostic, "checks": checks},
             indent=2, default=str,

@@ -1453,3 +1453,52 @@ stamp carried a hardcoded Federal Register range — 2018-06-20 to 2019-05-10 �
 that both predated the List 4A parse by two actions and described the wrong
 period now that T2 and T3 report trade-based estimates. The period is the trade
 sample; the legal range is derived from the schedule and recorded beside it.
+
+### D-052 — Bounding the reclassification risk, and the check catching me doing it
+
+M2's mitigation for product reclassification — the HS concordance engine and
+`stable_code_sample()` — was named in the plan's risk table and called by nothing
+in the pipeline, not even a test. Identifying *which* 10-digit codes were
+renumbered needs a correlation table this project does not have, and guessing at
+one would repeat D-011 and D-037. So the risk is bounded rather than closed.
+
+**The bound.** The headline stacked design is re-estimated on codes with an
+observation in every month of the window. A code present throughout cannot have
+been introduced or retired inside it, so the subsample excludes every renumbering
+candidate: 3,937 of 5,253 codes, 94.4% of customs value. It also excludes codes
+merely untraded for a month, which makes it conservative rather than exact —
+*observed throughout* is not the same claim as *definition stable*, and the
+report says so.
+
+| outcome | all codes | observed throughout | change |
+|---|---|---|---|
+| customs unit value | +0.0253 | **+0.0058** | −0.0195 |
+| landed unit value | +0.1544 | **+0.1362** | −0.0182 |
+| quantity | −0.3793 | **−0.3732** | +0.0061 |
+
+**The point estimates hold**, and the customs unit value moves *toward* zero,
+which supports the bound the incidence claim rests on rather than undermining it.
+
+**The verdicts move in both directions and neither move is a change in kind.**
+Landed goes CLEAN → NOISY_PRE_PERIOD_NO_SLOPE as its pre-to-post RMS ratio moves
+0.157 → 0.241; quantity goes NOISY → CLEAN as its ratio moves 0.204 → 0.189. Both
+are crossings of the same hand-set 0.20 cut, in opposite directions, on moves of
+about ±0.05. A verdict that flips on that is a statement about the threshold, not
+about the design, and reporting "quantity becomes clean" would be exactly the
+over-reading this project's verdict taxonomy exists to prevent. What the numbers
+show consistently is narrower and duller: dropping a quarter of the codes costs
+precision, and the pre-period is where it shows first.
+
+**The consistency step caught a regression I introduced while writing this.** The
+robustness run legitimately writes `term=stacked_mean_post_effect` under
+`control_definition=never_treated_products`, because it *is* the headline design
+on a subsample. The report's headline selection matched on that pair alone, so it
+silently picked up six rows instead of three and printed **+0.1362 and +0.0058 as
+the incidence headline** — the robustness figures promoted over the real ones.
+`INCIDENCE_HEADLINE_IS_TRACEABLE` (D-050) failed on the ambiguity within minutes
+of my creating it, before the numbers reached anyone. Both the report selection
+and the check now constrain on `rung`, and a test pins it.
+
+That is the first time a check written for a past defect caught a live one. It is
+also the argument for the check's shape: it does not verify a number, it verifies
+that exactly one row answers the question the report asks.

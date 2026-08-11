@@ -313,6 +313,76 @@ def main() -> int:  # noqa: C901, PLR0915
                     [("coefficients", _event_table(sv))],
                 )
             )
+    # Robustness to product reclassification, bounded rather than solved.
+    stable_meta = (ident or {}).get("stable_code_sample")
+    if est is not None and stable_meta and "rung" in est.columns:
+        head = est.filter(
+            (pl.col("term") == "stacked_mean_post_effect") & (pl.col("rung") == "4_stacked")
+            & (pl.col("control_definition") == "never_treated_products")
+        )
+        stab = est.filter(
+            (pl.col("term") == "stacked_mean_post_effect")
+            & (pl.col("rung") == "4_stacked_stable_codes")
+        )
+        if head.height and stab.height:
+            h = dict(zip(head["outcome"], head["estimate"], strict=True))
+            s_ = dict(zip(stab["outcome"], stab["estimate"], strict=True))
+            pts = (ident or {}).get("pretrend_tests", {})
+            rows = []
+            for o in sorted(set(h) & set(s_)):
+                a = pts.get(f"pretrend_stacked_{o}_never_treated_products", {})
+                b = pts.get(f"pretrend_stable_codes_{o}", {})
+                rows.append(
+                    {
+                        "outcome": o,
+                        "all_codes": round(h[o], 4),
+                        "codes_observed_throughout": round(s_[o], 4),
+                        "change": round(s_[o] - h[o], 4),
+                        "verdict_all": a.get("verdict", ""),
+                        "verdict_stable": b.get("verdict", ""),
+                        "rms_pre_over_post_all": round(
+                            a.get("rms_pre_relative_to_rms_post") or 0.0, 3
+                        ),
+                        "rms_pre_over_post_stable": round(
+                            b.get("rms_pre_relative_to_rms_post") or 0.0, 3
+                        ),
+                    }
+                )
+            secs.append(
+                Section(
+                    "Robustness: does product reclassification drive any of this?",
+                    (
+                        "A renumbered 10-digit line looks exactly like one product exiting and "
+                        "another entering, which is the pattern the diversion decomposition "
+                        "reads as an extensive-margin move. Identifying which codes were "
+                        "renumbered needs a correlation table this project does not have, so "
+                        "the risk is **bounded instead**: the headline design is re-estimated "
+                        "on codes with an observation in every month of the window, which "
+                        f"cannot have been introduced or retired inside it — "
+                        f"{stable_meta['n_codes']:,} of {stable_meta['n_codes_total']:,} codes, "
+                        f"{stable_meta['share_of_customs_value']:.1%} of customs value. It also "
+                        "drops codes that were merely untraded for a month, so it is "
+                        "conservative rather than exact: *observed throughout* is not the same "
+                        "claim as *definition stable*.\n\n"
+                        "**The point estimates hold.** None reverses sign and none moves enough "
+                        "to change what the incidence account says: the customs unit value sits "
+                        "even closer to zero on this subsample, which is the direction that "
+                        "supports the bound rather than undermining it.\n\n"
+                        "**The verdicts move in both directions, and neither move should be "
+                        "read as a change in kind.** Both are threshold crossings: the "
+                        "pre-to-post RMS ratio is compared against 0.20, and here it moves "
+                        "from 0.157 to 0.241 for the landed outcome and from 0.204 to 0.189 "
+                        "for quantity. A verdict that flips on a ±0.05 move around a hand-set "
+                        "cut is a statement about the cut, not about the design, which is why "
+                        "the ratio is printed beside the verdict below. What the numbers do "
+                        "show consistently is that dropping a quarter of the codes costs "
+                        "precision, and the pre-period is where that shows first."
+                    ),
+                    [("headline vs codes observed throughout", pl.DataFrame(rows))],
+                    discusses_evidential_status=True,
+                )
+            )
+
     comp = _read("stacked_composition_never_treated_products")
     if comp is not None:
         secs.append(
@@ -382,9 +452,14 @@ def main() -> int:  # noqa: C901, PLR0915
         headline_ctrl = "never_treated_products"
         obs_landed = obs_customs = None
         if est is not None and "control_definition" in est.columns:
+            # `rung` matters as much as the control definition: the stable-code
+            # robustness variant writes the same term under the same control
+            # definition, and selecting on the pair alone silently promoted it
+            # to the headline.
             mp = est.filter(
                 (pl.col("term") == "stacked_mean_post_effect")
                 & (pl.col("control_definition") == headline_ctrl)
+                & (pl.col("rung") == "4_stacked")
             )
             vals = dict(zip(mp["outcome"], mp["estimate"], strict=True))
             obs_landed = vals.get("log_landed_unit_value")

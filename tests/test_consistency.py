@@ -289,3 +289,37 @@ def test_placebo_coverage_check_rejects_an_unnamed_placebo(results):
         )
     )
     assert consistency.check_placebo_covers_every_verdicted_outcome(results).passed is False
+
+
+def test_headline_check_catches_a_robustness_variant_promoted_to_headline(results):
+    """A robustness run wrote the same term under the same control definition.
+
+    The stable-code variant re-estimates the headline design on a subsample, so
+    it legitimately carries `term=stacked_mean_post_effect` and
+    `control_definition=never_treated_products`. Selecting on that pair alone
+    matched six rows instead of three, and the report promoted the robustness
+    figures to the headline -- printing +0.1362 and +0.0058 in place of +0.1544
+    and +0.0253. The rung distinguishes them.
+    """
+    both = pl.DataFrame(
+        {
+            "term": ["stacked_mean_post_effect"] * 4,
+            "outcome": [
+                "log_landed_unit_value",
+                "log_customs_unit_value",
+                "log_landed_unit_value",
+                "log_customs_unit_value",
+            ],
+            "estimate": [0.1544, 0.0253, 0.1362, 0.0058],
+            "control_definition": ["never_treated_products"] * 4,
+            "rung": ["4_stacked", "4_stacked", "4_stacked_stable_codes",
+                     "4_stacked_stable_codes"],
+        }
+    )
+    _write(results, "incidence_estimates", both)
+    # With the rung distinguishing them the headline is unambiguous again.
+    assert consistency.check_reported_incidence_matches_estimates(results).passed is True
+
+    # Drop the rung and the same rows become an ambiguous headline.
+    _write(results, "incidence_estimates", both.drop("rung"))
+    assert consistency.check_reported_incidence_matches_estimates(results).passed is False

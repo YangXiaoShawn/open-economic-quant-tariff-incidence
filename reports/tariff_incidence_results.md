@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260810T235051Z-b1495fb3` · git `571f53d-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-10T23:50:51.427940+00:00
+> run_id `20260811T174537Z-b1495fb3` · git `a5dd988-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T17:45:37.755915+00:00
 
 
 Estimates of how the additional duty maps into customs unit values, duty-inclusive landed unit values, quantities and trade values. The customs unit value is tariff-exclusive and is a proxy for the foreign border price; it is a value-over-quantity ratio across a heterogeneous bundle of transactions and is **not** a transaction price. The duty-inclusive landed unit value is what the U.S. importer faces at the border, excluding freight. Reading incidence requires both.
@@ -16,6 +16,9 @@ The parallel-trends assumption is tested per outcome, and it does not hold unifo
 - `log_customs_unit_value`: **PRECISE_NULL_EFFECT_BOUNDED** under the stacked multi-wave design -> **the effect is bounded near zero**. The post-treatment path does not rise clear of the pre-period noise, so the design cannot separate the effect from zero — which for a near-null outcome is a finding, not a failure. Taking the observed path and the slope bias together, the effect is at most 0.076 log points in absolute value. It **passes the date placebo**: a treatment date moved 12 months earlier on pre-period data alone produces nothing significant (max |post| 0.0351).
 - `log_landed_unit_value`: **CLEAN** under the stacked multi-wave design -> a causal reading is supported by this test. It **passes the date placebo**: a treatment date moved 12 months earlier on pre-period data alone produces nothing significant (max |post| 0.0349).
 - `log_quantity`: **NOISY_PRE_PERIOD_NO_SLOPE** under the stacked multi-wave design -> **a qualified causal reading** — no differential trend is detectable, but the pre-period is noisy, so the estimate is less precise than the interval alone suggests. The pre-period slope is not statistically distinguishable from zero; extrapolated across the post window it would shift the estimate by +0.033 against a post-treatment RMS of 0.418. It also **fails the date placebo**: moving the treatment date 12 months earlier on pre-period data alone still produces a significant coefficient (max |post| 0.0934), which is the same differential trend showing up a second way.
+- `stable_codes_log_customs_unit_value`: **PRECISE_NULL_EFFECT_BOUNDED** under the single-wave design -> **the effect is bounded near zero**. The post-treatment path does not rise clear of the pre-period noise, so the design cannot separate the effect from zero — which for a near-null outcome is a finding, not a failure.
+- `stable_codes_log_landed_unit_value`: **NOISY_PRE_PERIOD_NO_SLOPE** under the single-wave design -> **a qualified causal reading** — no differential trend is detectable, but the pre-period is noisy, so the estimate is less precise than the interval alone suggests.
+- `stable_codes_log_quantity`: **CLEAN** under the single-wave design -> a causal reading is supported by this test.
 
 ## Incidence: who paid
 
@@ -599,6 +602,23 @@ One sub-experiment per Section 301 wave, each drawing controls from never-treate
 | >= +11 (binned) | 0.0000 | 0.0000 | 0.0000 | 0.0000 |  | no |
 
 
+## Robustness: does product reclassification drive any of this?
+
+A renumbered 10-digit line looks exactly like one product exiting and another entering, which is the pattern the diversion decomposition reads as an extensive-margin move. Identifying which codes were renumbered needs a correlation table this project does not have, so the risk is **bounded instead**: the headline design is re-estimated on codes with an observation in every month of the window, which cannot have been introduced or retired inside it — 3,937 of 5,253 codes, 94.4% of customs value. It also drops codes that were merely untraded for a month, so it is conservative rather than exact: *observed throughout* is not the same claim as *definition stable*.
+
+**The point estimates hold.** None reverses sign and none moves enough to change what the incidence account says: the customs unit value sits even closer to zero on this subsample, which is the direction that supports the bound rather than undermining it.
+
+**The verdicts move in both directions, and neither move should be read as a change in kind.** Both are threshold crossings: the pre-to-post RMS ratio is compared against 0.20, and here it moves from 0.157 to 0.241 for the landed outcome and from 0.204 to 0.189 for quantity. A verdict that flips on a ±0.05 move around a hand-set cut is a statement about the cut, not about the design, which is why the ratio is printed beside the verdict below. What the numbers do show consistently is that dropping a quarter of the codes costs precision, and the pre-period is where that shows first.
+
+**headline vs codes observed throughout**
+
+| outcome | all_codes | codes_observed_throughout | change | verdict_all | verdict_stable | rms_pre_over_post_all | rms_pre_over_post_stable |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| log_customs_unit_value | 0.0253 | 0.0058 | -0.0195 | PRECISE_NULL_EFFECT_BOUNDED | PRECISE_NULL_EFFECT_BOUNDED | 0.7120 | 1.4280 |
+| log_landed_unit_value | 0.1544 | 0.1362 | -0.0182 | CLEAN | NOISY_PRE_PERIOD_NO_SLOPE | 0.1570 | 0.2410 |
+| log_quantity | -0.3793 | -0.3732 | 0.0061 | NOISY_PRE_PERIOD_NO_SLOPE | CLEAN | 0.2040 | 0.1890 |
+
+
 ## Stacked design composition
 
 How much weight each wave carries, reported rather than buried.
@@ -607,10 +627,10 @@ How much weight each wave carries, reported rather than buried.
 
 | stack_id | n_obs | n_treated_obs | n_products | treatment_month_index | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Pre-treatment trend tests
@@ -619,23 +639,26 @@ Two criteria are reported. Statistical detectability alone is a poor guide in a 
 
 **pre-trend tests**
 
-| test | n_pre_coefs | approx_chi2 | approx_p_value | any_pre_significant_5pct | max_abs_pre_coef | rms_pre_coef | mean_abs_post_coef | rms_post_coef | max_abs_post_coef | rms_pre_relative_to_rms_post | max_pre_relative_to_max_post | max_pre_relative_to_mean_post | pre_slope_per_month | pre_slope_se | pre_slope_p_value | implied_bias_over_post_window | slope_material | economically_small | effect_separable_from_pre_noise | slope_detectable | effect_bound_abs | null_multiple | relative_threshold | verdict | reference_period | design | control_definition |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| pretrend_log_customs_unit_value_ref3 | 11 | 6.4037 | 0.8451 | no | 0.0351 | 0.0167 | 0.0202 | 0.0252 | 0.0513 | 0.6613 | 0.6838 | 1.7404 | 0.0015 | 0.0015 | 0.3333 | 0.0075 | yes | no | no | no | 0.0588 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED | -3 |  |  |
-| pretrend_log_customs_unit_value_ref1 | 11 | 6.6462 | 0.8270 | no | 0.0329 | 0.0170 | 0.0196 | 0.0241 | 0.0491 | 0.7055 | 0.6697 | 1.6819 | 0.0016 | 0.0016 | 0.3668 | 0.0078 | yes | no | no | no | 0.0569 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED | -1 |  |  |
-| pretrend_log_landed_unit_value_ref3 | 11 | 6.9563 | 0.8026 | no | 0.0394 | 0.0173 | 0.1408 | 0.1453 | 0.1861 | 0.1190 | 0.2118 | 0.2799 | 0.0008 | 0.0016 | 0.6369 | 0.0039 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN | -3 |  |  |
-| pretrend_log_landed_unit_value_ref1 | 11 | 7.2847 | 0.7756 | no | 0.0418 | 0.0176 | 0.1432 | 0.1476 | 0.1885 | 0.1195 | 0.2218 | 0.2919 | 0.0010 | 0.0018 | 0.5874 | 0.0050 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN | -1 |  |  |
-| pretrend_log_quantity_ref3 | 11 | 92.9244 | 0.0000 | yes | 0.1683 | 0.0869 | 0.3362 | 0.3742 | 0.5407 | 0.2322 | 0.3112 | 0.5004 | 0.0078 | 0.0066 | 0.2694 | 0.0389 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE | -3 |  |  |
-| pretrend_log_quantity_ref1 | 11 | 174.3550 | 0.0000 | yes | 0.2192 | 0.1223 | 0.3872 | 0.4206 | 0.5916 | 0.2908 | 0.3705 | 0.5662 | 0.0057 | 0.0070 | 0.4394 | 0.0283 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE | -1 |  |  |
-| pretrend_stacked_log_landed_unit_value_never_treated_products | 11 | 11.6452 | 0.3909 | no | 0.0387 | 0.0249 | 0.1544 | 0.1585 | 0.1926 | 0.1569 | 0.2008 | 0.2503 | 0.0033 | 0.0019 | 0.1145 | 0.0167 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | never_treated_products |
-| pretrend_stacked_log_customs_unit_value_never_treated_products | 11 | 11.0541 | 0.4387 | no | 0.0367 | 0.0242 | 0.0265 | 0.0339 | 0.0602 | 0.7124 | 0.6094 | 1.3857 | 0.0032 | 0.0019 | 0.1331 | 0.0158 | yes | no | no | no | 0.0760 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED |  | stacked_multi_wave | never_treated_products |
-| pretrend_stacked_log_quantity_never_treated_products | 11 | 71.8141 | 0.0000 | yes | 0.1536 | 0.0852 | 0.3793 | 0.4179 | 0.6077 | 0.2038 | 0.2527 | 0.4048 | 0.0065 | 0.0062 | 0.3211 | 0.0326 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | never_treated_products |
-| pretrend_stacked_log_landed_unit_value_not_yet_treated | 11 | 7.5743 | 0.7509 | no | 0.0377 | 0.0193 | 0.1513 | 0.1559 | 0.1922 | 0.1240 | 0.1960 | 0.2488 | 0.0012 | 0.0018 | 0.5050 | 0.0061 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | not_yet_treated |
-| pretrend_stacked_log_customs_unit_value_not_yet_treated | 11 | 7.7510 | 0.7354 | no | 0.0313 | 0.0196 | 0.0270 | 0.0350 | 0.0628 | 0.5598 | 0.4983 | 1.1592 | 0.0022 | 0.0017 | 0.2154 | 0.0111 | yes | no | no | no | 0.0740 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED |  | stacked_multi_wave | not_yet_treated |
-| pretrend_stacked_log_quantity_not_yet_treated | 11 | 111.1936 | 0.0000 | yes | 0.1784 | 0.1040 | 0.3710 | 0.4071 | 0.5862 | 0.2556 | 0.3042 | 0.4808 | 0.0112 | 0.0063 | 0.1109 | 0.0559 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | not_yet_treated |
-| pretrend_stacked_log_landed_unit_value_never_treated_products_treated_country_only | 11 | 8.9660 | 0.6250 | no | 0.0728 | 0.0354 | 0.1979 | 0.2091 | 0.2760 | 0.1691 | 0.2637 | 0.3678 | 0.0059 | 0.0013 | 0.0016 | 0.0295 | no | yes | yes | yes |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | never_treated_products_treated_country_only |
-| pretrend_stacked_log_customs_unit_value_never_treated_products_treated_country_only | 11 | 9.8038 | 0.5481 | no | 0.0736 | 0.0370 | 0.0619 | 0.0744 | 0.1234 | 0.4969 | 0.5968 | 1.1886 | 0.0063 | 0.0012 | 0.0006 | 0.0314 | yes | no | yes | yes |  | 2.0000 | 0.2000 | PRETREND_PRESENT |  | stacked_multi_wave | never_treated_products_treated_country_only |
-| pretrend_stacked_log_quantity_never_treated_products_treated_country_only | 11 | 46.7457 | 0.0000 | yes | 0.2324 | 0.1192 | 0.5402 | 0.5539 | 0.7294 | 0.2153 | 0.3186 | 0.4303 | 0.0123 | 0.0050 | 0.0371 | 0.0613 | no | no | yes | yes |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | never_treated_products_treated_country_only |
+| test | n_pre_coefs | approx_chi2 | approx_p_value | any_pre_significant_5pct | max_abs_pre_coef | rms_pre_coef | mean_abs_post_coef | rms_post_coef | max_abs_post_coef | rms_pre_relative_to_rms_post | max_pre_relative_to_max_post | max_pre_relative_to_mean_post | pre_slope_per_month | pre_slope_se | pre_slope_p_value | implied_bias_over_post_window | slope_material | economically_small | effect_separable_from_pre_noise | slope_detectable | effect_bound_abs | null_multiple | relative_threshold | verdict | reference_period | design | control_definition | sample |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| pretrend_log_customs_unit_value_ref3 | 11 | 6.4037 | 0.8451 | no | 0.0351 | 0.0167 | 0.0202 | 0.0252 | 0.0513 | 0.6613 | 0.6838 | 1.7404 | 0.0015 | 0.0015 | 0.3333 | 0.0075 | yes | no | no | no | 0.0588 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED | -3 |  |  |  |
+| pretrend_log_customs_unit_value_ref1 | 11 | 6.6462 | 0.8270 | no | 0.0329 | 0.0170 | 0.0196 | 0.0241 | 0.0491 | 0.7055 | 0.6697 | 1.6819 | 0.0016 | 0.0016 | 0.3668 | 0.0078 | yes | no | no | no | 0.0569 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED | -1 |  |  |  |
+| pretrend_log_landed_unit_value_ref3 | 11 | 6.9563 | 0.8026 | no | 0.0394 | 0.0173 | 0.1408 | 0.1453 | 0.1861 | 0.1190 | 0.2118 | 0.2799 | 0.0008 | 0.0016 | 0.6369 | 0.0039 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN | -3 |  |  |  |
+| pretrend_log_landed_unit_value_ref1 | 11 | 7.2847 | 0.7756 | no | 0.0418 | 0.0176 | 0.1432 | 0.1476 | 0.1885 | 0.1195 | 0.2218 | 0.2919 | 0.0010 | 0.0018 | 0.5874 | 0.0050 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN | -1 |  |  |  |
+| pretrend_log_quantity_ref3 | 11 | 92.9244 | 0.0000 | yes | 0.1683 | 0.0869 | 0.3362 | 0.3742 | 0.5407 | 0.2322 | 0.3112 | 0.5004 | 0.0078 | 0.0066 | 0.2694 | 0.0389 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE | -3 |  |  |  |
+| pretrend_log_quantity_ref1 | 11 | 174.3550 | 0.0000 | yes | 0.2192 | 0.1223 | 0.3872 | 0.4206 | 0.5916 | 0.2908 | 0.3705 | 0.5662 | 0.0057 | 0.0070 | 0.4394 | 0.0283 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE | -1 |  |  |  |
+| pretrend_stacked_log_landed_unit_value_never_treated_products | 11 | 11.6452 | 0.3909 | no | 0.0387 | 0.0249 | 0.1544 | 0.1585 | 0.1926 | 0.1569 | 0.2008 | 0.2503 | 0.0033 | 0.0019 | 0.1145 | 0.0167 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | never_treated_products |  |
+| pretrend_stacked_log_customs_unit_value_never_treated_products | 11 | 11.0541 | 0.4387 | no | 0.0367 | 0.0242 | 0.0265 | 0.0339 | 0.0602 | 0.7124 | 0.6094 | 1.3857 | 0.0032 | 0.0019 | 0.1331 | 0.0158 | yes | no | no | no | 0.0760 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED |  | stacked_multi_wave | never_treated_products |  |
+| pretrend_stacked_log_quantity_never_treated_products | 11 | 71.8141 | 0.0000 | yes | 0.1536 | 0.0852 | 0.3793 | 0.4179 | 0.6077 | 0.2038 | 0.2527 | 0.4048 | 0.0065 | 0.0062 | 0.3211 | 0.0326 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | never_treated_products |  |
+| pretrend_stacked_log_landed_unit_value_not_yet_treated | 11 | 7.5743 | 0.7509 | no | 0.0377 | 0.0193 | 0.1513 | 0.1559 | 0.1922 | 0.1240 | 0.1960 | 0.2488 | 0.0012 | 0.0018 | 0.5050 | 0.0061 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | not_yet_treated |  |
+| pretrend_stacked_log_customs_unit_value_not_yet_treated | 11 | 7.7510 | 0.7354 | no | 0.0313 | 0.0196 | 0.0270 | 0.0350 | 0.0628 | 0.5598 | 0.4983 | 1.1592 | 0.0022 | 0.0017 | 0.2154 | 0.0111 | yes | no | no | no | 0.0740 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED |  | stacked_multi_wave | not_yet_treated |  |
+| pretrend_stacked_log_quantity_not_yet_treated | 11 | 111.1936 | 0.0000 | yes | 0.1784 | 0.1040 | 0.3710 | 0.4071 | 0.5862 | 0.2556 | 0.3042 | 0.4808 | 0.0112 | 0.0063 | 0.1109 | 0.0559 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | not_yet_treated |  |
+| pretrend_stacked_log_landed_unit_value_never_treated_products_treated_country_only | 11 | 8.9660 | 0.6250 | no | 0.0728 | 0.0354 | 0.1979 | 0.2091 | 0.2760 | 0.1691 | 0.2637 | 0.3678 | 0.0059 | 0.0013 | 0.0016 | 0.0295 | no | yes | yes | yes |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | never_treated_products_treated_country_only |  |
+| pretrend_stacked_log_customs_unit_value_never_treated_products_treated_country_only | 11 | 9.8038 | 0.5481 | no | 0.0736 | 0.0370 | 0.0619 | 0.0744 | 0.1234 | 0.4969 | 0.5968 | 1.1886 | 0.0063 | 0.0012 | 0.0006 | 0.0314 | yes | no | yes | yes |  | 2.0000 | 0.2000 | PRETREND_PRESENT |  | stacked_multi_wave | never_treated_products_treated_country_only |  |
+| pretrend_stacked_log_quantity_never_treated_products_treated_country_only | 11 | 46.7457 | 0.0000 | yes | 0.2324 | 0.1192 | 0.5402 | 0.5539 | 0.7294 | 0.2153 | 0.3186 | 0.4303 | 0.0123 | 0.0050 | 0.0371 | 0.0613 | no | no | yes | yes |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | never_treated_products_treated_country_only |  |
+| pretrend_stable_codes_log_landed_unit_value | 11 | 21.2848 | 0.0305 | yes | 0.0551 | 0.0339 | 0.1362 | 0.1404 | 0.1794 | 0.2411 | 0.3069 | 0.4043 | 0.0038 | 0.0018 | 0.0581 | 0.0191 | no | no | yes | no |  | 2.0000 | 0.2000 | NOISY_PRE_PERIOD_NO_SLOPE |  | stacked_multi_wave | never_treated_products | codes_observed_in_every_month |
+| pretrend_stable_codes_log_customs_unit_value | 11 | 19.9993 | 0.0454 | yes | 0.0532 | 0.0328 | 0.0176 | 0.0230 | 0.0434 | 1.4276 | 1.2270 | 3.0215 | 0.0037 | 0.0018 | 0.0693 | 0.0183 | yes | no | no | no | 0.0617 | 2.0000 | 0.2000 | PRECISE_NULL_EFFECT_BOUNDED |  | stacked_multi_wave | never_treated_products | codes_observed_in_every_month |
+| pretrend_stable_codes_log_quantity | 11 | 61.8087 | 0.0000 | yes | 0.1390 | 0.0782 | 0.3732 | 0.4127 | 0.5986 | 0.1894 | 0.2323 | 0.3725 | 0.0067 | 0.0063 | 0.3142 | 0.0335 | no | yes | yes | no |  | 2.0000 | 0.2000 | CLEAN |  | stacked_multi_wave | never_treated_products | codes_observed_in_every_month |
 
 
 ## Placebo and stability checks
@@ -661,16 +684,16 @@ Each check is reported whether or not it is favourable.
 
 | dropped_chapter | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 39 | -1.7357 | 0.1008 | 546665 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 40 | -1.8282 | 0.0963 | 569735 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 44 | -1.8423 | 0.0974 | 575929 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 48 | -1.8462 | 0.0992 | 571760 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 73 | -1.9128 | 0.1012 | 528068 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 76 | -1.8403 | 0.0965 | 583266 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 84 | -1.9512 | 0.1214 | 423070 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 85 | -1.7259 | 0.1084 | 472615 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 87 | -1.8904 | 0.0987 | 556899 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 94 | -1.7949 | 0.0952 | 574540 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 39 | -1.7357 | 0.1008 | 546665 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 40 | -1.8282 | 0.0963 | 569735 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 44 | -1.8423 | 0.0974 | 575929 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 48 | -1.8462 | 0.0992 | 571760 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 73 | -1.9128 | 0.1012 | 528068 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 76 | -1.8403 | 0.0965 | 583266 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 84 | -1.9512 | 0.1214 | 423070 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 85 | -1.7259 | 0.1084 | 472615 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 87 | -1.8904 | 0.0987 | 556899 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 94 | -1.7949 | 0.0952 | 574540 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Leave-one-country-out
@@ -679,26 +702,26 @@ Each check is reported whether or not it is favourable.
 
 | dropped_country | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1220 | -1.9766 | 0.0983 | 500201 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 2010 | -1.8373 | 0.0982 | 520487 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5330 | -1.7561 | 0.0957 | 544622 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5490 | -1.7864 | 0.0955 | 559330 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5520 | -1.6898 | 0.0940 | 567820 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5590 | -1.8550 | 0.0970 | 578901 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5800 | -1.8500 | 0.0973 | 535633 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5880 | -1.9438 | 0.0976 | 516324 | 20260810T234501Z-b1495fb3 | 571f53d-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 1220 | -1.9766 | 0.0983 | 500201 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 2010 | -1.8373 | 0.0982 | 520487 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5330 | -1.7561 | 0.0957 | 544622 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5490 | -1.7864 | 0.0955 | 559330 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5520 | -1.6898 | 0.0940 | 567820 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5590 | -1.8550 | 0.0970 | 578901 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5800 | -1.8500 | 0.0973 | 535633 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5880 | -1.9438 | 0.0976 | 516324 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ---
 
 ## Reproducibility
 
-- run id: `20260810T235051Z-b1495fb3`
-- git commit: `571f53d-dirty`
+- run id: `20260811T174537Z-b1495fb3`
+- git commit: `a5dd988-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-10T23:50:51.427940+00:00
+- generated: 2026-08-11T17:45:37.755915+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

@@ -160,6 +160,20 @@ emitting documents that disagree with each other. Each check is tested by
 rebuilding the artefact as it was when the defect was live; a check that only
 passes on corrected data proves nothing.
 
+**The reclassification risk is now bounded** (D-052). M2's named mitigation was
+never wired in, so instead of identifying renumbered codes — which needs a
+correlation table this project does not have — the headline design is re-run on
+codes observed in every month, 94.4% of customs value. The point estimates hold
+and the customs unit value moves toward zero, which is the direction supporting
+the bound. Two verdicts flip in opposite directions, both by crossing the same
+0.20 threshold on ±0.05 moves, so neither is reported as a change in kind.
+
+Writing it, the consistency step caught a live regression: the robustness run
+carries the same term and control definition as the headline, so the report
+briefly printed **+0.1362 and +0.0058** as the incidence figures. The check
+failed on the ambiguity before the numbers reached anyone — the first time one of
+those checks caught something new rather than something already known.
+
 **The detail estimate has not been run.** BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample

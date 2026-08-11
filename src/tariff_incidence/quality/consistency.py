@@ -192,6 +192,7 @@ def check_reported_incidence_matches_estimates(results_dir: Path) -> CheckResult
     mp = est.filter(
         (pl.col("term") == "stacked_mean_post_effect")
         & (pl.col("control_definition") == "never_treated_products")
+        & (pl.col("rung") == "4_stacked" if "rung" in est.columns else pl.lit(True))
     )
     wanted = {"log_landed_unit_value", "log_customs_unit_value"}
     found = set(mp["outcome"].to_list())
