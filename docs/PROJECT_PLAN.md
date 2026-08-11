@@ -20,7 +20,7 @@ shocks propagate through domestic production networks?
 | M7 | Diversion decomposition incl. counterfactual adjustment | M3 | **done** |
 | M8 | Industry exposure via BEA input-output | M3 | **done** — official Census concordance, BEA summary and detail levels (D-043) |
 | M9 | Domestic price outcomes (BLS PPI) | M8 | **done at summary level** — 22 clusters, a power result not a null (D-041); the detail-level run at ~125 clusters is pending a BLS quota window |
-| M10 | Structural Armington/CES counterfactuals | M6, M7, official data | **deliberately deferred (D-017)** |
+| M10 | Structural Armington/CES counterfactuals | M6, M7, official data | **done, one tier** (D-054) — sourcing nest across foreign sources; no domestic nest and no welfare, both stated as scope rather than omission |
 | M11 | Current-data extension past 2019-08 | List 4A parser | **done** — List 4A parsed, window runs to 2020-02 |
 | M12 | Dashboard | M6, M7, M8 | **basic version done** |
 | M13 | Portfolio deliverables | M6–M8 | **done** |
@@ -77,7 +77,7 @@ generated artefact, or both.
 | 10 | Pre-treatment trends and placebo tests reported | `reports/tariff_incidence_results.md` | pass |
 | 11 | China contraction separated from third-country expansion | `econ/diversion.py`; never netted | pass |
 | 12 | Direct protection and imported-input exposure separately measured | `reports/supply_chain_propagation.md` | pass |
-| 13 | Structural outputs labelled model-implied | no structural outputs exist yet (D-017) | n/a |
+| 13 | Structural outputs labelled model-implied | `ParameterType` on every row; data moments, estimates, calibrated parameters and model outputs separated in `structural_counterfactuals.md` | pass |
 | 14 | Reports generated from code | `scripts/generate_reports.py`; reports carry a do-not-edit notice | pass |
 | 15 | Every result records data period, configuration, Git commit | `RunStamp` on every result table | pass |
 | 16 | Failed or unstable hypotheses documented | `reports/failed_hypotheses.md` | pass |

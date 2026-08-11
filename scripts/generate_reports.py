@@ -1366,93 +1366,113 @@ def main() -> int:  # noqa: C901, PLR0915
     )
 
     # ------------------------------------------------------------------ #
-    # structural_counterfactuals.md  (records a deliberate non-result)
+    # structural_counterfactuals.md
     # ------------------------------------------------------------------ #
-    written.append(
-        render(
-            "Structural Counterfactuals",
-            stamp,
-            [
-                Section(
-                    "Status: not implemented, deliberately",
-                    (
-                        "No structural module has been built, and therefore **no "
-                        "model-implied counterfactual or welfare number exists anywhere in "
-                        "this repository**.\n\n"
-                        "The brief requires the reduced-form vertical slice to be stable and "
-                        "passing tests before the structural extension begins. It now is."
-                        + (
-                            "\n\nWhat stands in the way is listed under *What is missing* "
-                            "below: there is no domestic-alternative expenditure series, so the "
-                            "domestic nest of an Armington system is unidentified, and the "
-                            "substitution elasticities would have to be borrowed rather than "
-                            "estimated here. Both change what the output could be called -- a "
-                            "counterfactual resting on a borrowed elasticity and an assumed "
-                            "domestic nest is a calibrated illustration, not an estimate."
-                            if empirical
-                            else "\n\nThe remaining blocker is different: a partial-equilibrium "
-                            "Armington or CES sourcing model calibrated on synthetic trade flows "
-                            "would produce counterfactuals with the full appearance of substance "
-                            "and none of the content. Sourcing shares, expenditure levels and "
-                            "the domestic alternative would all be simulated, so every simulated "
-                            "outcome would be a restatement of the generator's parameters.\n\n"
-                            "Publishing that, however carefully labelled, would be the most "
-                            "misleading artefact the project could produce. It is therefore not "
-                            "produced."
-                        )
-                        + " See docs/DECISION_LOG.md, D-017."
-                    ),
+    struct = _read("structural_sourcing_counterfactual")
+    ledger = _read("structural_parameter_ledger")
+    struct_sum = _json("structural_summary")
+    if struct is not None and struct_sum:
+        routes = struct_sum["sigma_routes"]
+        fitted = routes.get("fitted_to_observed_reallocation")
+        inverted = routes.get("inverted_from_ppml_quantity_response")
+        ratio = (inverted / fitted) if (fitted and inverted) else None
+        sec = [
+            Section(
+                "What this model is, and what it is not",
+                (
+                    "A **one-tier CES nest across foreign source countries** within a "
+                    "product. It says how import sourcing should have reallocated given "
+                    "the tariff, and what the imported bundle cost.\n\n"
+                    "It has **no domestic nest**, and that is a restriction stated rather "
+                    "than a gap to be filled quietly. U.S. import statistics cannot say how "
+                    "much of a fall in imports went to domestic producers rather than out "
+                    "of consumption, so assuming a domestic share would put the answer in "
+                    "by hand. **No welfare number is produced**, none can be derived from "
+                    "these outputs alone, and the guard that blocks welfare claims in this "
+                    "project's prose remains in force.\n\n"
+                    "The counterfactual holds foreign producer prices fixed, so the tariff "
+                    "passes into the buyer's price one-for-one. Normally that is an "
+                    "assumption. Here it is a **finding**: the reduced-form response of the "
+                    "customs unit value — the tariff-exclusive foreign border price — is a "
+                    "bounded null, at most 0.076 log points. The structural and "
+                    "reduced-form parts are therefore not independent readings of the same "
+                    "data; the second supplies a premise of the first."
                 ),
-                Section(
-                    "What is already in place for it",
-                    "\n".join(
-                        [
-                            "- Country-specific sourcing shares, per product-month "
-                            "(`supplier_value_share`).",
-                            "- Point-in-time tariffs by product, country and date, including "
-                            "baseline MFN separated from the additional duty.",
-                            "- Pre-treatment expenditure weights immune to the shock.",
-                            "- Tariff revenue, both as collected (`calculated_duties`) and as "
-                            "modelled by the policy engine, so the two can be reconciled.",
-                            "- A reduced-form import-demand response that would supply an "
-                            "estimated elasticity with stated provenance rather than a "
-                            "borrowed one.",
-                        ]
-                    ),
-                ),
-                Section(
-                    "What is missing",
-                    "\n".join(
-                        [
-                            *([] if empirical else
-                              ["- Official trade flows (the binding constraint)."]),
-                            "- A domestic-alternative expenditure series; without it the "
-                            "domestic nest of an Armington system is unidentified.",
-                            "- Country substitution elasticities with citable provenance. "
-                            "Borrowing a number from the literature is acceptable **only** if "
-                            "it is reported as calibrated rather than estimated, in a table "
-                            "that separates data moments, estimated parameters, calibrated "
-                            "parameters and model-implied outcomes.",
-                        ]
-                    ),
-                ),
-                Section(
-                    "Guard rail",
-                    (
-                        "The reporting layer blocks quantified welfare claims under **any** "
-                        "provenance, official included, until a structural module actually "
-                        "produces them. This is not a stylistic rule; it fails the build."
-                    ),
-                    discusses_evidential_status=True,
-                ),
-            ],
-            intro=(
-                "A record of what was deliberately not built, and why that is the correct "
-                "outcome at this stage rather than a gap."
+                discusses_evidential_status=True,
             ),
-            out_path=REPORTS / "structural_counterfactuals.md",
+            Section(
+                "Where the elasticity comes from",
+                (
+                    "It is not estimated inside the model and it is never invented. It "
+                    "arrives three ways, reported together because their agreement is the "
+                    "informative quantity:\n\n"
+                    "1. a **calibrated grid**, supplied by configuration;\n"
+                    "2. **inverted from this project's own PPML quantity response**, which "
+                    "identifies sigma directly;\n"
+                    "3. **fitted to the observed reallocation** of sourcing away from the "
+                    "treated country.\n\n"
+                    + (
+                        f"Routes 2 and 3 use different outcomes and different machinery, and "
+                        f"they **disagree by a factor of about {ratio:.1f}**: "
+                        f"{fitted:.2f} fitted to shares against {inverted:.2f} inverted from "
+                        "quantities.\n\n**The direction of that gap is what theory predicts, "
+                        "which is the point of reporting it.** A reduced-form quantity "
+                        "coefficient absorbs two margins at once: substitution across "
+                        "sources within a product, and the fall in total imports of the "
+                        "product. This one-tier model has only the first, so inverting the "
+                        "coefficient through it attributes the outer margin to substitution "
+                        "and must overstate sigma. It does. The gap between the two routes "
+                        "is a rough measure of how much of the import response was the total "
+                        "demand margin rather than reallocation between suppliers — the "
+                        "margin this model deliberately does not contain."
+                        if ratio
+                        else "Not all three routes were identified on this run."
+                    )
+                ),
+                discusses_evidential_status=True,
+            ),
+            Section(
+                "Model-implied sourcing reallocation and import bundle cost",
+                (
+                    "`treated_share_model` is **model-implied**. "
+                    "`treated_share_observed` is a data moment and is printed beside it so "
+                    "the two are never confused. `log_import_bundle_cost_change` is the "
+                    "exact CES price index of the imported bundle: the cost of buying the "
+                    "same basket at the new tariff-inclusive prices, allowing substitution. "
+                    "It is a component of a welfare calculation, not a welfare number, and "
+                    "the model that would turn it into one has not been built."
+                ),
+                [("counterfactual", struct.select([
+                    "sigma", "sigma_source", "parameter_type", "treated_share_pre",
+                    "treated_share_model", "treated_share_observed",
+                    "log_import_bundle_cost_change",
+                ]))],
+                discusses_evidential_status=True,
+            ),
+        ]
+        if ledger is not None:
+            sec.append(
+                Section(
+                    "Data moments, estimates, calibrated parameters, model outputs",
+                    (
+                        "The brief requires these four to be separated rather than mixed "
+                        "into a single table of results. Every row says which it is."
+                    ),
+                    [("parameter ledger", ledger)],
+                )
+            )
+        written.append(
+            render(
+                "Structural Counterfactuals",
+                stamp,
+                sec,
+                intro=(
+                    "A one-tier Armington sourcing model, its calibration, and what it "
+                    "implies. Every model output is labelled as such."
+                ),
+                out_path=REPORTS / "structural_counterfactuals.md",
+            )
         )
-    )
 
     # ------------------------------------------------------------------ #
     # technical report

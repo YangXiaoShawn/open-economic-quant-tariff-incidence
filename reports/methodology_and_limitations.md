@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260811T183437Z-b1495fb3` · git `919d826-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T18:34:37.268063+00:00
+> run_id `20260811T195624Z-b1495fb3` · git `8f16aaa-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T19:56:24.422411+00:00
 
 
 What this design can and cannot support.
@@ -62,6 +62,10 @@ Every specification estimated in this run, with its estimand and identifying ass
 | propagation_ppi_estimates_detail | results | Agriculture and forestry (BEA 111CA, 113FF) have no NAICS-industry PPI and are absent from the estimation panel entirely. |
 | propagation_ppi_estimates_detail | results | Composite BEA industries average component PPI series unweighted, because NAICS-component output weights are not available in the BEA summary tables. |
 | propagation_ppi_estimates_detail | results | PPI industry indices cover an entire NAICS group while exposure is built from 10-digit lines; the aggregation gap attenuates any true relationship. |
+| structural_sourcing_counterfactual | results | One-tier nest over foreign sources only. No domestic alternative, so the model cannot say whether displaced imports went to U.S. producers or out of consumption. |
+| structural_sourcing_counterfactual | results | sigma is calibrated, not estimated. Every quantity scales with it and the grid is reported rather than a single preferred value. |
+| structural_sourcing_counterfactual | results | Holds foreign producer prices fixed. Supported here by the reduced-form bounded null on the customs unit value, which is itself an estimate with an interval, not a certainty. |
+| structural_sourcing_counterfactual | results | No welfare, deadweight loss or consumer-cost number is produced. The import bundle cost change is one component of such a calculation, not the result. |
 | tariff_schedule_section301_china | normalized | LIST_4A_NOT_PARSED_SUPERSEDED: SUPERSEDED. This gap recorded that List 4A was unparsed and assumed its annex enumerated 10-digit statistical lines needing a separate parser. That assumption was wrong: the annex is 8-digit, and the operative sentence differs from Lists 1-3 only by an ": i)" enumeration prefix. List 4A is now parsed by the same generalised parser and is in the schedule above. |
 | tariff_schedule_section301_china | normalized | EXCLUSIONS_NOT_PARSED: CLOSED, not outstanding. USTR granted 840 product exclusions across 11 notices. Only 1.9% (16) name a 10-digit subheading; the remaining 824 are specially prepared product descriptions identifying a SUBSET of a statistical reporting number. U.S. import statistics are published at that reporting number and no finer, so the excluded share of a line's imports is not observable at any parsing effort. Every annex is additionally a raster image with no text layer, and OCR was refused because it would introduce an unvalidatable transcription channel into a legal treatment variable. This is a property of what is published, not a task left undone. |
 | trade_panel_hs10_country_month | analytical | Customs unit values are value/quantity over heterogeneous transactions; they are not transaction prices and move with product mix and quality. |
@@ -69,7 +73,8 @@ Every specification estimated in this run, with its estimand and identifying ass
 | trade_panel_hs10_country_month | analytical | Sample window is 2017-01 to 2020-02, set by configuration; the control group is defined by the actions that ever cover a line within that window. |
 | ustr_exclusion_notice_coverage | results | Only the notices' self-reported counts are extracted. The annexes listing the excluded products are embedded raster images with no text layer, and OCR is not used because it would introduce an unvalidatable transcription channel into a legal treatment variable. |
 | ustr_exclusion_notice_coverage | results | 1.9% of exclusions are expressed as a 10-digit subheading; the rest are product descriptions identifying a subset of a statistical reporting number, which published trade data cannot resolve. |
-| ustr_exclusion_notice_coverage | results | The realised-versus-statutory gap is an UPPER bound on the exclusion effect: preference programmes and duty-free entry produce the same signature. |
+
+_1 further rows omitted._
 
 
 ## Measurement cautions carried throughout
@@ -95,12 +100,12 @@ Every specification estimated in this run, with its estimand and identifying ass
 
 ## Reproducibility
 
-- run id: `20260811T183437Z-b1495fb3`
-- git commit: `919d826-dirty`
+- run id: `20260811T195624Z-b1495fb3`
+- git commit: `8f16aaa-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-11T18:34:37.268063+00:00
+- generated: 2026-08-11T19:56:24.422411+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

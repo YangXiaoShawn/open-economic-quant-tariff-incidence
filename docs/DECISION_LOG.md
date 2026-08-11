@@ -1547,3 +1547,73 @@ downstream, and only the last shows here. A bounded null on prices is not a
 statement that tariffs had no domestic effect; it is a statement about this
 outcome, at this resolution, over this window. No welfare claim follows and none
 is made.
+
+### D-054 — The structural module, built to the identification it actually has
+
+M10 is built. What decided its shape was not ambition but what the data can
+identify without putting the answer in by hand.
+
+**One tier, across foreign sources.** The CES nest runs over source countries
+within a product. By hat algebra the counterfactual needs only pre-treatment
+expenditure shares and the tariff change — no price levels, no estimated demand
+system, no domestic expenditure series. A two-tier nest including the domestic
+alternative is **not identified from import data**: U.S. import statistics cannot
+say how much of a fall in imports went to U.S. producers rather than out of
+consumption, and assuming a domestic share would manufacture the number the model
+was supposed to produce. The restriction is in the module docstring, the report
+and the manifest, as scope rather than as an omission to be quietly filled later.
+
+**No welfare number, and the guard stays on.** The exact CES price index says
+what the imported bundle costs at the new tariff-inclusive prices allowing
+substitution. That is a *component* of a welfare calculation, not a welfare
+figure — it has no domestic nest, no revenue recycling and no labour market
+behind it. `guard_language` continues to block welfare assertions under every
+provenance, and building a structural module was not treated as licence to
+weaken it.
+
+**The premise is a finding, not an assumption.** The algebra holds foreign
+producer prices fixed. In most settings that is assumed. Here the reduced-form
+work established it: the customs unit value response is a bounded null, at most
+0.076 log points. The two halves of the project are therefore *not* independent
+readings of the same data, and the report says so where the outputs appear.
+
+**Three routes to sigma, and they disagree in the direction theory predicts.**
+
+| route | sigma |
+|---|---|
+| fitted to the observed sourcing reallocation | **4.25** |
+| inverted from this project's PPML quantity response | **9.36** |
+| calibrated grid | 1.5 – 8, reported in full |
+
+The gap is a factor of 2.2 and it is the most informative thing here. A
+reduced-form quantity coefficient absorbs two margins: substitution across
+sources within a product, and the fall in the product's total imports. The
+one-tier model contains only the first, so inverting the coefficient through it
+attributes the outer margin to substitution and *must* overstate sigma. It does,
+by roughly the amount that says how much of the import response was total demand
+rather than reallocation between suppliers. Had the two agreed, that would have
+been the surprise.
+
+At the fitted sigma the model reproduces the observed treated-source share to
+within 0.001 (0.2520 against 0.2534), which is unsurprising since that share is
+what it was fitted to, and is reported as a fit statistic rather than as
+validation.
+
+**Two defects found while building it, both caught by contradiction with work
+already in the repository.**
+
+*A NaN that still looked like a result.* Products with zero value in a window
+give 0/0 in a share. Polars returns NaN, NaN is not null, so `fill_null` left it
+to propagate through every weighted mean downstream. The first run reported an
+observed share of `NaN` and a fitted sigma of `NaN` — visible only because they
+printed. The share is now null where undefined and the caller raises rather than
+carrying a non-finite number forward.
+
+*A weighting error that inverted the finding.* The observed treated share was
+weighted by the treated country's **own** value in each product, while the model
+side weighted by product totals. That over-weights the products the country
+already dominated: it turned an observed share of about 0.19 into 0.49 and made
+the model appear to have the sign of the reallocation backwards. It was caught
+because it contradicted the diversion decomposition, which had China's share
+falling. Both sides now weight by product totals, and a test pins the property
+with a fixture where the two weightings differ by more than a factor of two.

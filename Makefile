@@ -52,11 +52,8 @@ estimate-propagation: ## Test whether exposure shows up in domestic producer pri
 check-consistency: ## Do the result tables agree with each other?
 	$(PY) scripts/check_consistency.py --fail-on-error
 
-structural: ## Structural counterfactuals (not implemented; see D-017)
-	@echo "Not implemented. There is no domestic-alternative expenditure series, so the"
-	@echo "domestic nest of an Armington system is unidentified, and the substitution"
-	@echo "elasticities would be borrowed rather than estimated. See docs/DECISION_LOG.md D-017."
-	@exit 1
+structural: ## Armington sourcing counterfactual (one-tier, no domestic nest, no welfare)
+	$(PY) scripts/structural_counterfactual.py
 
 test: ## Run the test suite
 	$(PY) -m pytest -q
@@ -77,7 +74,7 @@ dashboard: ## Launch the Streamlit dashboard
 
 reproduce-sample: build-tariff-schedule build-trade-panel validate-data descriptive \
                   replicate estimate-incidence estimate-diversion build-io-exposure \
-                  estimate-propagation check-consistency report ## Full end-to-end small run
+                  estimate-propagation structural check-consistency report ## Full end-to-end small run
 	@echo ""
 	@echo "End-to-end run complete. Reports are in reports/."
 	@echo "Provenance is recorded in each report's banner."

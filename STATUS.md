@@ -174,6 +174,16 @@ briefly printed **+0.1362 and +0.0058** as the incidence figures. The check
 failed on the ambiguity before the numbers reached anyone — the first time one of
 those checks caught something new rather than something already known.
 
+**The structural module is built** (D-054): a one-tier Armington nest across
+foreign sources, no domestic nest and no welfare number, both stated as scope.
+Its key premise — foreign producer prices fixed — is not assumed but taken from
+the reduced-form bounded null on the customs unit value. Sigma arrives three
+ways and the two data-driven routes disagree by a factor of 2.2 (4.25 fitted to
+sourcing shares, 9.36 inverted from the PPML quantity response) **in the
+direction theory predicts**, because a quantity coefficient absorbs the total
+demand margin this one-tier model does not contain. Every output carries a
+`DATA_MOMENT` / `ESTIMATED` / `CALIBRATED` / `MODEL_IMPLIED` label.
+
 **The detail estimate has been run** (D-053), and it closes the last open
 empirical question. 256 clusters against 22. All three channels remain
 statistically indistinguishable from zero, but the intervals are now
