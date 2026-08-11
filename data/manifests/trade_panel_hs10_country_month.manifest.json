@@ -3,7 +3,7 @@
   "layer": "analytical",
   "source": "U.S. Census Bureau timeseries/intltrade/imports/hs",
   "source_url": "https://api.census.gov/data/timeseries/intltrade/imports/hs",
-  "retrieval_timestamp_utc": "2026-08-10T18:36:50.418066+00:00",
+  "retrieval_timestamp_utc": "2026-08-11T20:12:12.704087+00:00",
   "source_release_or_vintage": "Census live API",
   "date_range_start": "2017-01",
   "date_range_end": "2020-02",

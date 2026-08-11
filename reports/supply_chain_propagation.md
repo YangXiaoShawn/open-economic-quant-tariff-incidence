@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260811T195624Z-b1495fb3` · git `8f16aaa-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T19:56:24.422411+00:00
+> run_id `20260811T201708Z-b1495fb3` · git `3c51a06-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T20:17:08.149704+00:00
 
 
 Mapping product-level tariff exposure into U.S. industries using pre-treatment BEA input-output weights. Pre-treatment weights are used so that the exposure measure cannot respond to the shock it is being used to explain.
@@ -103,7 +103,7 @@ BEA publishes detail-level input-output tables for benchmark years only -- 2007,
 
 The coarser axis was not merely less precise. It reported as one number positions that differ substantially within a single summary industry:
 
-inside summary industry `326`, which the detail level splits into 10 industries, plastics packaging materials and unlaminated film and sheet manufacturing carries output protection 0.250 against input cost 0.085, while urethane and other foam product (except polystyrene) manufacturing carries 0.000 against 0.050 — reported as one number by a 71-industry axis.
+inside summary industry `332`, which the detail level splits into 20 industries, all other forging, stamping, and sintering carries output protection 0.250 against input cost 0.037, while ammunition, arms, ordnance, and accessories manufacturing carries 0.000 against 0.026 — reported as one number by a 71-industry axis.
 
 **granularity**
 
@@ -154,11 +154,11 @@ Entering both channels together halves the input-cost coefficient, because the t
 
 | channel | estimate | ci_low | ci_high | analytic_p_value | bootstrap_p_value | n_obs | n_clusters |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| imported_input_cost_exposure | 1.2295 | -0.4496 | 2.9087 | 0.1427 | 0.1102 | 1056 | 22 |
-| output_protection_exposure | 0.3736 | -0.0502 | 0.7973 | 0.0810 | 0.0842 | 1056 | 22 |
-| downstream_total_requirements_exposure | 0.1642 | -0.0504 | 0.3788 | 0.1264 | 0.1122 | 1056 | 22 |
-| joint::input_cost_x_post | 0.3473 | -0.4319 | 1.1266 | 0.3645 | 0.5371 | 1056 | 22 |
-| joint::protection_x_post | 0.3221 | -0.0546 | 0.6989 | 0.0899 | 0.1743 | 1056 | 22 |
+| imported_input_cost_exposure | 1.2295 | -0.4496 | 2.9087 | 0.1427 | 0.1141 | 1056 | 22 |
+| output_protection_exposure | 0.3736 | -0.0502 | 0.7973 | 0.0810 | 0.0841 | 1056 | 22 |
+| downstream_total_requirements_exposure | 0.1642 | -0.0504 | 0.3788 | 0.1264 | 0.1081 | 1056 | 22 |
+| joint::input_cost_x_post | 0.3473 | -0.4319 | 1.1266 | 0.3645 | 0.5646 | 1056 | 22 |
+| joint::protection_x_post | 0.3221 | -0.0546 | 0.6989 | 0.0899 | 0.1752 | 1056 | 22 |
 
 
 ## The same test at ten times the industry resolution
@@ -184,32 +184,32 @@ Agriculture and forestry have no NAICS-industry PPI. They are reported unmatched
 
 **PPI match quality**
 
-| bea_summary | naics_components | matched_components | n_components | n_matched | match_quality |
+| bea_industry | naics_components | matched_components | n_components | n_matched | match_quality |
 | --- | --- | --- | --- | --- | --- |
-| 335 | 335 | 335 | 1 | 1 | EXACT |
-| 337 | 337 | 337 | 1 | 1 | EXACT |
-| 3364OT | 3364|3365|3366|3369 | 3364|3365|3366|3369 | 4 | 4 | COMPOSITE_UNWEIGHTED |
-| 313TT | 313|314 | 313|314 | 2 | 2 | COMPOSITE_UNWEIGHTED |
-| 111CA | 111|112 |  | 2 | 0 | NONE |
-| 332 | 332 | 332 | 1 | 1 | EXACT |
-| 213 | 213 | 213 | 1 | 1 | EXACT |
-| 113FF | 113|114|115 |  | 3 | 0 | NONE |
-| 212 | 212 | 212 | 1 | 1 | EXACT |
-| 333 | 333 | 333 | 1 | 1 | EXACT |
-| 327 | 327 | 327 | 1 | 1 | EXACT |
-| 324 | 324 | 324 | 1 | 1 | EXACT |
-| 3361MV | 3361|3362|3363 | 3361|3362|3363 | 3 | 3 | COMPOSITE_UNWEIGHTED |
 | 322 | 322 | 322 | 1 | 1 | EXACT |
-| 339 | 339 | 339 | 1 | 1 | EXACT |
+| 3361MV | 3361|3362|3363 | 3361|3362|3363 | 3 | 3 | COMPOSITE_UNWEIGHTED |
+| 332 | 332 | 332 | 1 | 1 | EXACT |
 | 211 | 211 | 211 | 1 | 1 | EXACT |
-| 334 | 334 | 334 | 1 | 1 | EXACT |
+| 339 | 339 | 339 | 1 | 1 | EXACT |
 | 323 | 323 | 323 | 1 | 1 | EXACT |
-| 321 | 321 | 321 | 1 | 1 | EXACT |
+| 113FF | 113|114|115 |  | 3 | 0 | NONE |
+| 313TT | 313|314 | 313|314 | 2 | 2 | COMPOSITE_UNWEIGHTED |
+| 324 | 324 | 324 | 1 | 1 | EXACT |
 | 326 | 326 | 326 | 1 | 1 | EXACT |
-| 325 | 325 | 325 | 1 | 1 | EXACT |
+| 337 | 337 | 337 | 1 | 1 | EXACT |
+| 333 | 333 | 333 | 1 | 1 | EXACT |
+| 213 | 213 | 213 | 1 | 1 | EXACT |
+| 212 | 212 | 212 | 1 | 1 | EXACT |
 | 315AL | 315|316 | 315 | 2 | 1 | PARTIAL_COMPOSITE |
-| 331 | 331 | 331 | 1 | 1 | EXACT |
+| 327 | 327 | 327 | 1 | 1 | EXACT |
+| 334 | 334 | 334 | 1 | 1 | EXACT |
 | 311FT | 311|312 | 311|312 | 2 | 2 | COMPOSITE_UNWEIGHTED |
+| 331 | 331 | 331 | 1 | 1 | EXACT |
+| 325 | 325 | 325 | 1 | 1 | EXACT |
+| 111CA | 111|112 |  | 2 | 0 | NONE |
+| 3364OT | 3364|3365|3366|3369 | 3364|3365|3366|3369 | 4 | 4 | COMPOSITE_UNWEIGHTED |
+| 335 | 335 | 335 | 1 | 1 | EXACT |
+| 321 | 321 | 321 | 1 | 1 | EXACT |
 
 
 ## Concordance quality and aggregation loss
@@ -231,12 +231,12 @@ These exposure numbers are a qualitative ordering of industries. They are not el
 
 ## Reproducibility
 
-- run id: `20260811T195624Z-b1495fb3`
-- git commit: `8f16aaa-dirty`
+- run id: `20260811T201708Z-b1495fb3`
+- git commit: `3c51a06-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-11T19:56:24.422411+00:00
+- generated: 2026-08-11T20:17:08.149704+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

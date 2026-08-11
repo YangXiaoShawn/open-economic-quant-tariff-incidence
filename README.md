@@ -10,19 +10,24 @@ episodes are added through configuration, not code.
 > ### Read this before reading any number
 >
 > The pipeline runs on **official U.S. Census data** (provenance `OFFICIAL`).
-> 489,733 HS10 x country x month observations, 2017-01 to 2019-08.
+> 923,440 HS10 × country × month observations, 2017-01 to 2020-02, covering all
+> four Section 301 actions.
 >
-> Under a **stacked multi-wave design**, `log_landed_unit_value` passes its
-> pre-trend test (**CLEAN**) and carries a causal reading. The customs unit value
-> is **undetermined** — its effect is near zero and pre-period noise of the same
-> size cannot be ruled out. Quantity still **fails** its pre-trend test, so every
-> sourcing and diversion finding is descriptive. The reports state this per
-> outcome, first, before any number.
+> Under a **stacked multi-wave design**, each outcome is licensed separately and
+> the reports say which, first, before any number:
 >
-> Estimates are also **intention-to-treat** with respect to the statutory list,
-> because USTR product exclusions are not yet parsed. The data-quality battery
-> measures the gap: realised duties depart from the statutory schedule on 12.5%
-> of dutiable observations.
+> | Outcome | Pre-trend verdict | Date placebo | Reading |
+> |---|---|---|---|
+> | landed unit value (duty-inclusive) | **CLEAN** | pass | causal reading supported |
+> | customs unit value (tariff-exclusive) | **bounded near zero** (≤0.076) | pass | a finding, not a failure |
+> | quantity | noisy pre-period, no slope | **fail** | qualified; read with care |
+>
+> Estimates are **intention-to-treat** with respect to the statutory list, and
+> that is a property of published data rather than unfinished work: USTR grants
+> exclusions at a finer granularity than import statistics are published, so the
+> excluded share of a line is not observable at any parsing effort. The gap is
+> bounded instead — realised duty falls short of the statutory schedule on 10.9%
+> of Section 301-dutied value before the first exclusion and 20.0% after.
 
 ---
 
@@ -61,6 +66,8 @@ line count each notice states in its own preamble:
 | List 2 | 83 FR 40823 | 2018-08-23 | 25% | 279 | 279 | ✅ |
 | List 3 | 83 FR 47974 | 2018-09-24 | 10% | 5,745 | 5,734 full + 11 partial | ✅ |
 | List 3 ↑ | 84 FR 20459 | 2019-05-10 | 25% | — | inherited | ✅ |
+| List 4A | 84 FR 43304 | 2019-09-01 | 15% | — | 3,229 full + 4 partial | — |
+| List 4A ↓ | 85 FR 3741 | 2020-02-14 | 7.5% | — | inherited | ✅ |
 
 Reaching an exact match required three things a naive parse misses:
 
@@ -118,15 +125,20 @@ duty). A near-null effect now gets a **bound** rather than a failing grade.
 
 ### Sourcing did not visibly relocate in this sample
 
-Against a never-treated-product counterfactual, China ran **−$1.79bn/month**
-below counterfactual on the targeted products (−41%). Third countries ran
-**−$512mn/month below** their own counterfactual — only Korea and India gained.
-Adjusted replacement ratio **−0.29**.
+Against a never-treated-product counterfactual, China ran **−$2.26bn/month**
+below counterfactual on the targeted products. Third countries ran
+**+$252mn/month above** their own counterfactual, giving an adjusted replacement
+ratio of **0.11**: roughly a ninth of what China lost reappeared from other
+suppliers within this window.
 
-This cuts against the usual relocation narrative and should be read with its
-caveats: 10 chapters, 8 partners, a 10-month post window, and a counterfactual
-doing heavy lifting (most of Korea's apparent gain is its *control* products
-falling 11%).
+Substitutability was worst where exposure was largest. Splitting products by
+pre-tariff dependence on China, those the U.S. relied on most replaced **14%** of
+the lost value from elsewhere; those it relied on least replaced **57%**.
+
+Read with its caveats: 10 chapters, 8 partners, and a counterfactual doing real
+work. A third-country increase in customs data is also consistent with rerouting
+and origin misdeclaration, which these statistics cannot separate from relocated
+production.
 
 ### Estimator validation against a known data-generating process
 
@@ -139,9 +151,12 @@ run.
 
 ### Industries are exposed through two channels that are never netted
 
-Using pre-treatment BEA input-output weights, of 72 industries: 9 face **both**
-output protection and higher imported-input costs simultaneously — including
-primary metals, fabricated metal products, machinery, and motor vehicles. A
+Using pre-treatment BEA input-output weights: at the summary level 19 of 71
+industries face **both** output protection and higher imported-input costs at
+once; at BEA's detail level, **144 of 402**. The coarser axis was averaging the
+distinction away — inside the single summary industry `3361MV`, travel trailer
+manufacturing carries protection 0.250 while motor home manufacturing carries
+0.000. A
 single "net exposure" number would hide exactly the distributional question the
 analysis exists to answer, so the column that computes it is named
 `net_contrast_do_not_use_alone`.
@@ -153,7 +168,7 @@ These are enforced by code and tests, not by good intentions.
 **Ambiguity is surfaced, never resolved silently.** The tariff engine returns a
 `ValidationStatus` with every answer. Conflicting records return no rate at all.
 Working at HS10 removes the ambiguity rather than papering over it: **0 of
-489,733 observations** carry an unusable status, because HS10 nests exactly
+923,440 observations** carry an unusable status, because HS10 nests exactly
 inside the HS8 line the statute names, and the 11 partial lines are resolved
 against the specific 10-digit numbers U.S. note 20(g) carves out.
 
@@ -222,19 +237,21 @@ make help
 
 `setup` · `download-sample` · `build-tariff-schedule` · `build-trade-panel` ·
 `validate-data` · `descriptive` · `replicate` · `estimate-incidence` ·
-`estimate-diversion` · `build-io-exposure` · `structural` · `test` · `lint` ·
-`typecheck` · `reproduce-sample` · `report` · `dashboard`
+`estimate-diversion` · `build-io-exposure` · `build-io-exposure-detail` ·
+`estimate-propagation` · `estimate-propagation-detail` · `structural` ·
+`check-consistency` · `test` · `lint` · `typecheck` · `reproduce-sample` ·
+`report` · `dashboard`
 
 ## Known gaps
 
 | Gap | Consequence |
 |---|---|
-| **Quantity fails its pre-trend test** | Sourcing and diversion results are descriptive, not causal. The binding constraint now. |
-| List 4A unparsed | Window ends 2019-08 to keep the control group clean |
-| Product exclusions unparsed | Estimates are intention-to-treat, not treatment-on-the-treated |
-| HS→NAICS concordance 404 | Industry exposure is an ordering, not a magnitude |
-| USITC HTS serves current vintage | Baseline rates predate/postdate the HTS2018 lists |
-| Structural module deferred | No welfare number exists, by design (D-017) |
-| BLS PPI in maintenance | No domestic price outcomes yet |
+| **No domestic output or price series** | A fall in imports cannot be split between domestic substitution and lower demand. The binding constraint now, and why the structural model has no domestic nest. |
+| Quantity's pre-period is noisy and it fails the date placebo | Sourcing and diversion results carry a qualified reading, not a clean causal one |
+| Product exclusions cannot be mapped to statistical lines | Estimates are intention-to-treat; the gap is bounded (10.9% → 20.0%), not closed |
+| Product reclassification | 800 codes enter and 596 leave mid-window, 5.7% of value; bounded by re-running on codes observed throughout, not identified |
+| USITC HTS serves current vintage | Baseline MFN rates come from a later vintage than the HTS2018 lists |
+| Structural model is one tier | Sourcing across foreign suppliers only. **No welfare number exists**, by construction |
+| BLS PPI daily request allowance | Detail-level propagation needs a quota window; results cached per series per year |
 
 Requires Python 3.12. Runs on Apple Silicon in ~16 GB; no GPU.

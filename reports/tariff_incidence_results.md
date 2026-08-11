@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260811T195624Z-b1495fb3` · git `8f16aaa-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T19:56:24.422411+00:00
+> run_id `20260811T201708Z-b1495fb3` · git `3c51a06-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T20:17:08.149704+00:00
 
 
 Estimates of how the additional duty maps into customs unit values, duty-inclusive landed unit values, quantities and trade values. The customs unit value is tariff-exclusive and is a proxy for the foreign border price; it is a value-over-quantity ratio across a heterogeneous bundle of transactions and is **not** a transaction price. The duty-inclusive landed unit value is what the U.S. importer faces at the border, excluding freight. Reading incidence requires both.
@@ -627,10 +627,10 @@ How much weight each wave carries, reported rather than buried.
 
 | stack_id | n_obs | n_treated_obs | n_products | treatment_month_index | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST1 | 184262 | 26245 | 1742 | 24223 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST2 | 72860 | 7348 | 723 | 24224 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST3 | 278091 | 44825 | 2667 | 24225 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| SEC301_LIST4A | 83708 | 11209 | 1168 | 24237 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Pre-treatment trend tests
@@ -684,16 +684,16 @@ Each check is reported whether or not it is favourable.
 
 | dropped_chapter | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 39 | -1.7357 | 0.1008 | 546665 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 40 | -1.8282 | 0.0963 | 569735 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 44 | -1.8423 | 0.0974 | 575929 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 48 | -1.8462 | 0.0992 | 571760 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 73 | -1.9128 | 0.1012 | 528068 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 76 | -1.8403 | 0.0965 | 583266 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 84 | -1.9512 | 0.1214 | 423070 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 85 | -1.7259 | 0.1084 | 472615 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 87 | -1.8904 | 0.0987 | 556899 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 94 | -1.7949 | 0.0952 | 574540 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 39 | -1.7357 | 0.1008 | 546665 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 40 | -1.8282 | 0.0963 | 569735 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 44 | -1.8423 | 0.0974 | 575929 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 48 | -1.8462 | 0.0992 | 571760 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 73 | -1.9128 | 0.1012 | 528068 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 76 | -1.8403 | 0.0965 | 583266 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 84 | -1.9512 | 0.1214 | 423070 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 85 | -1.7259 | 0.1084 | 472615 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 87 | -1.8904 | 0.0987 | 556899 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 94 | -1.7949 | 0.0952 | 574540 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ## Leave-one-country-out
@@ -702,26 +702,26 @@ Each check is reported whether or not it is favourable.
 
 | dropped_country | estimate | std_error | n_obs | run_id | git_commit | config | data_provenance | data_period |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1220 | -1.9766 | 0.0983 | 500201 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 2010 | -1.8373 | 0.0982 | 520487 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5330 | -1.7561 | 0.0957 | 544622 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5490 | -1.7864 | 0.0955 | 559330 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5520 | -1.6898 | 0.0940 | 567820 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5590 | -1.8550 | 0.0970 | 578901 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5800 | -1.8500 | 0.0973 | 535633 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
-| 5880 | -1.9438 | 0.0976 | 516324 | 20260811T174140Z-b1495fb3 | a5dd988-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 1220 | -1.9766 | 0.0983 | 500201 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 2010 | -1.8373 | 0.0982 | 520487 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5330 | -1.7561 | 0.0957 | 544622 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5490 | -1.7864 | 0.0955 | 559330 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5520 | -1.6898 | 0.0940 | 567820 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5590 | -1.8550 | 0.0970 | 578901 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5800 | -1.8500 | 0.0973 | 535633 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
+| 5880 | -1.9438 | 0.0976 | 516324 | 20260811T201214Z-b1495fb3 | 3c51a06-dirty | sample_slice.yaml | OFFICIAL | 2017-01..2020-02 |
 
 
 ---
 
 ## Reproducibility
 
-- run id: `20260811T195624Z-b1495fb3`
-- git commit: `8f16aaa-dirty`
+- run id: `20260811T201708Z-b1495fb3`
+- git commit: `3c51a06-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-11T19:56:24.422411+00:00
+- generated: 2026-08-11T20:17:08.149704+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._

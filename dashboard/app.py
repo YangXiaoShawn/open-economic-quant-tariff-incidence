@@ -67,6 +67,7 @@ tabs = st.tabs(
         "Incidence estimates",
         "Diversion",
         "Industry exposure",
+        "Structural",
         "Data quality",
         "Pipeline status",
     ]
@@ -337,8 +338,45 @@ with tabs[4]:
     else:
         st.info(f"Run `make build-io-exposure{'-detail' if level == 'detail' else ''}`.")
 
-# ---------------------------------------------------------------- quality
+# ------------------------------------------------------------- structural
 with tabs[5]:
+    st.header("Structural counterfactuals")
+    struct = read("structural_sourcing_counterfactual")
+    ledger = read("structural_parameter_ledger")
+    ssum = read_json("structural_summary")
+    if struct is not None and ssum:
+        st.info(ssum["scope"])
+        st.caption(ssum["premise"])
+        routes = ssum["sigma_routes"]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("sigma fitted to sourcing shares",
+                  f"{routes['fitted_to_observed_reallocation']:.2f}"
+                  if routes.get("fitted_to_observed_reallocation") else "—")
+        c2.metric("sigma inverted from PPML quantity",
+                  f"{routes['inverted_from_ppml_quantity_response']:.2f}"
+                  if routes.get("inverted_from_ppml_quantity_response") else "—")
+        c3.metric("observed treated share, post",
+                  f"{ssum['observed_treated_share_post']:.3f}")
+        st.subheader("Counterfactual sourcing and import bundle cost")
+        st.dataframe(struct.select(
+            ["sigma", "sigma_source", "parameter_type", "treated_share_pre",
+             "treated_share_model", "treated_share_observed",
+             "log_import_bundle_cost_change"]
+        ).to_pandas(), width="stretch")
+        st.warning(
+            "Every `treated_share_model` figure is MODEL-IMPLIED, not observed. The import "
+            "bundle cost change is a component of a welfare calculation, not a welfare "
+            "number: this model has no domestic nest, no revenue recycling and no labour "
+            "market, and none is produced anywhere in the project."
+        )
+        if ledger is not None:
+            st.subheader("Data moments, estimates, calibrated parameters, model outputs")
+            st.dataframe(ledger.to_pandas(), width="stretch")
+    else:
+        st.info("Run `make structural`.")
+
+# ---------------------------------------------------------------- quality
+with tabs[6]:
     st.header("Data quality")
     dq = read("data_quality_report")
     if dq is not None:
@@ -348,7 +386,7 @@ with tabs[5]:
         st.info("Run `make validate-data`.")
 
 # ---------------------------------------------------------------- status
-with tabs[6]:
+with tabs[7]:
     st.header("Pipeline status and data freshness")
     mans = list_manifests()
     if mans:

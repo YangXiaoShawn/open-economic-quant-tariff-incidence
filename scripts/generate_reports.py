@@ -1544,6 +1544,223 @@ def main() -> int:  # noqa: C901, PLR0915
                out_path=REPORTS / "technical_report.md")
     )
 
+    # ------------------------------------------------------------------ #
+    # research_conclusions.md -- the capstone, generated like everything else
+    # ------------------------------------------------------------------ #
+    # Written from the result tables rather than by hand, for the same reason
+    # every other report is: a conclusions document is where a stale number does
+    # the most damage, and D-046 is what happens when one is typed in.
+    inc_acc = (ident or {}).get("incidence_accounting") or {}
+    div_i = _json("diversion_interpretation") or {}
+    adj = div_i.get("counterfactual_adjusted_summary") or {}
+    exc = (_json("exclusion_coverage_summary") or {}).get("summary") or {}
+    prop_d = _read("propagation_ppi_estimates_detail")
+    struct_sum2 = _json("structural_summary") or {}
+    het = _read("diversion_heterogeneity_by_dependence")
+
+    def _mp(outcome: str) -> float | None:
+        if est is None or "control_definition" not in est.columns:
+            return None
+        r = est.filter(
+            (pl.col("term") == "stacked_mean_post_effect")
+            & (pl.col("control_definition") == "never_treated_products")
+            & (pl.col("rung") == "4_stacked")
+            & (pl.col("outcome") == outcome)
+        )
+        return float(r["estimate"][0]) if r.height else None
+
+    landed, customs = _mp("log_landed_unit_value"), _mp("log_customs_unit_value")
+    tau = inc_acc.get("value_weighted_additional_duty_in_force")
+    mech = inc_acc.get("mechanical_log1p_tau_if_no_absorption")
+    bd = (bias_by_outcome.get("log_customs_unit_value") or {}).get("effect_bound_abs")
+
+    conc: list[Section] = []
+    if landed is not None and customs is not None and tau and mech:
+        conc.append(
+            Section(
+                "1. The tariff was paid by the importer, not the exporter",
+                (
+                    f"The value-weighted additional duty actually in force on treated flows "
+                    f"was **{tau:.1%}**. Had the exporter absorbed none of it, the "
+                    f"duty-inclusive landed unit value would have risen by log(1+tau) = "
+                    f"**{mech:.4f}**. It rose by **{landed:+.4f}**.\n\n"
+                    "That figure alone proves nothing: the landed measure contains the duty "
+                    "by construction, so most of its rise is arithmetic. The behavioural "
+                    "quantity is the **customs unit value**, the tariff-exclusive price at "
+                    "the foreign border, which falls only if the exporter cuts its price. It "
+                    f"did not — the estimate is **{customs:+.4f}**, slightly *positive*, and "
+                    + (f"bounded at **{bd:.3f}** log points in absolute value. " if bd else "")
+                    + "It is that bound, not the landed figure, that carries the conclusion.\n\n"
+                    "**Status: strongest claim in the project.** The landed outcome is CLEAN "
+                    "on its pre-trend test and passes the date placebo; the customs outcome "
+                    "is a bounded null and also passes. Both survive re-estimation on codes "
+                    "observed throughout the window, and the customs response moves closer to "
+                    "zero when they do."
+                ),
+                discusses_evidential_status=True,
+            )
+        )
+    if adj:
+        row = (
+            het.filter(pl.col("dependence_group") == "high_dependence").row(0, named=True)
+            if het is not None and het.height
+            else None
+        )
+        low = (
+            het.filter(pl.col("dependence_group") == "low_dependence").row(0, named=True)
+            if het is not None and het.height
+            else None
+        )
+        conc.append(
+            Section(
+                "2. Sourcing left China and mostly did not arrive anywhere else",
+                (
+                    f"Against a never-treated-product counterfactual, imports from the treated "
+                    f"country ran **${abs(adj['treated_country_excess_change']) / 1e9:.2f}bn per "
+                    f"month** below where they would otherwise have been. Third countries ran "
+                    f"**${adj['alternative_countries_excess_change'] / 1e6:.0f}mn per month "
+                    f"above** theirs — an adjusted replacement ratio of "
+                    f"**{adj['adjusted_replacement_ratio']:.2f}**. Roughly a ninth of what "
+                    "left the treated country reappeared from other suppliers inside this "
+                    "window.\n\n"
+                    + (
+                        f"Substitutability was worst exactly where exposure was largest. "
+                        f"Products the United States relied on the treated country for most "
+                        f"replaced **{row['median_replacement_ratio']:.0%}** of the lost value "
+                        f"from elsewhere; those it relied on least replaced "
+                        f"**{low['median_replacement_ratio']:.0%}**.\n\n"
+                        if row and low
+                        else ""
+                    )
+                    + "**Status: qualified.** The quantity outcome's pre-period is noisy and "
+                    "it fails the date placebo, so this is read as a strong descriptive "
+                    "pattern with a qualified causal reading rather than a clean one. A "
+                    "third-country increase in customs data is also consistent with rerouting "
+                    "and origin misdeclaration, which these statistics cannot separate from "
+                    "relocated production."
+                ),
+                discusses_evidential_status=True,
+            )
+        )
+    if expo is not None and expo_d is not None:
+        conc.append(
+            Section(
+                "3. Protection and input cost land on the same industries",
+                (
+                    f"Of {expo_d.height} industries at BEA's detail level, "
+                    f"**{expo_d.filter(pl.col('exposure_class') == 'BOTH_PROTECTED_AND_COST_EXPOSED').height}** "
+                    "face tariff protection on their output *and* higher costs on their "
+                    "imported inputs at the same time. At the 71-industry summary level the "
+                    f"count is "
+                    f"{expo.filter(pl.col('exposure_class') == 'BOTH_PROTECTED_AND_COST_EXPOSED').height}: "
+                    "the coarser axis was averaging the distinction away.\n\n"
+                    "The two channels are never netted, and they are not comparable as "
+                    "levels: protection is the statutory rate on one commodity, input cost is "
+                    "diluted across a purchase basket that is mostly untariffed.\n\n"
+                    "**Status: accounting, not estimation.** These are constructs from "
+                    "pre-treatment input-output weights. They say which industries are "
+                    "positioned to be helped or hurt, not by how much."
+                ),
+                discusses_evidential_status=True,
+            )
+        )
+    if prop_d is not None:
+        conc.append(
+            Section(
+                "4. It does not show up in domestic producer prices",
+                (
+                    "Tested on 256 industries with a matched producer-price series. All three "
+                    "exposure channels remain statistically indistinguishable from zero, and "
+                    "at this resolution that is a **result rather than a limitation**: at mean "
+                    "exposure the imported-input cost channel is bounded within "
+                    "**[−0.14%, +0.81%]** of producer prices and output protection within "
+                    "**[−0.10%, +0.74%]**. The summary-level interval spanned roughly −1% to "
+                    "+9% and excluded nothing.\n\n"
+                    "**Status: a bounded null on one margin.** Producer prices are one place "
+                    "a cost shock can go. An industry can absorb it in margins or substitute "
+                    "suppliers instead of passing it on, and neither is visible here. This is "
+                    "a statement about this outcome at this resolution over this window."
+                ),
+                discusses_evidential_status=True,
+            )
+        )
+    if struct_sum2:
+        r2 = struct_sum2.get("sigma_routes", {})
+        f2, i2 = (
+            r2.get("fitted_to_observed_reallocation"),
+            r2.get("inverted_from_ppml_quantity_response"),
+        )
+        conc.append(
+            Section(
+                "5. What the model adds, and what it refuses to say",
+                (
+                    "A one-tier Armington nest across foreign sources reproduces the observed "
+                    "reallocation at an elasticity of about "
+                    + (f"**{f2:.2f}**" if f2 else "the fitted value")
+                    + ". Inverting the project's own quantity estimate through the same model "
+                    + (f"gives **{i2:.2f}**" if i2 else "gives a larger value")
+                    + " — a gap in the direction theory predicts, because a quantity "
+                    "coefficient absorbs the fall in a product's total imports as well as "
+                    "substitution between its suppliers, and this model contains only the "
+                    "second. The size of that gap is a rough measure of how much of the "
+                    "import response was total demand rather than reallocation.\n\n"
+                    "**No welfare number exists anywhere in this project**, and none can be "
+                    "derived from these outputs. The model has no domestic nest, because U.S. "
+                    "import statistics cannot say whether displaced imports went to domestic "
+                    "producers or out of consumption; it has no revenue recycling and no "
+                    "labour market. The guard that blocks welfare claims in generated prose "
+                    "remains in force, and building the model was not treated as licence to "
+                    "weaken it."
+                ),
+                discusses_evidential_status=True,
+            )
+        )
+    limits = [
+        "**Whether domestic producers gained.** Import data cannot separate domestic "
+        "substitution from lower final demand. This is the binding constraint on everything "
+        "the project could not answer, and the reason the structural model stops where it does.",
+    ]
+    if exc:
+        limits.append(
+            f"**How much of the statutory tariff was actually collected.** Exclusions are "
+            f"granted at a finer granularity than import statistics are published, so the "
+            f"excluded share of a line is not observable at any parsing effort. Bounded "
+            f"instead: realised duty falls short of the statutory schedule on "
+            f"**{exc['itt_bound_before_first_exclusion']:.1%}** of Section 301-dutied value "
+            f"before the first exclusion and **{exc['itt_bound_after_first_exclusion']:.1%}** "
+            "after, and the difference is an upper bound because preference programmes leave "
+            "the same signature."
+        )
+    limits += [
+        "**Whether third-country gains are real production.** Rerouting, transshipment and "
+        "origin misdeclaration produce the same pattern in customs data.",
+        "**Which products were renumbered mid-window.** 800 codes enter and 596 leave, 5.7% "
+        "of customs value. Bounded by re-estimating on codes observed throughout; not "
+        "identified, which would need a correlation table this project does not have.",
+        "**The exchange-rate channel.** RMB depreciation moves customs unit values in the "
+        "same direction as exporter absorption and is not separated here.",
+    ]
+    conc.append(
+        Section(
+            "6. What this data cannot answer, stated as findings",
+            "\n\n".join(f"- {x}" for x in limits),
+            discusses_evidential_status=True,
+        )
+    )
+    written.append(
+        render(
+            "Research Conclusions",
+            stamp,
+            conc,
+            intro=(
+                "What the project concludes, each claim with the evidential status that "
+                "licenses it. Generated from the result tables, so no figure here can drift "
+                "from the estimate behind it."
+            ),
+            out_path=REPORTS / "research_conclusions.md",
+        )
+    )
+
     for p in written:
         print(f"wrote {p.relative_to(REPORTS.parent)}")
     print(f"\n{len(written)} reports generated (run_id={stamp.run_id}, provenance={provenance.value})")

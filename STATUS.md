@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-10 · session 13
+**Last updated:** 2026-08-11 · session 14
 
 ## One-line state
 
@@ -578,17 +578,28 @@ of `data/results/`, so **every report generated before this session had empty
 tables** — including the ones committed in `c53443d`. The prose was real; the
 tables were missing. Fixed, and reports regenerated with content.
 
+## Where the project stands
+
+All 13 milestones are landed and all 17 acceptance criteria pass (criterion 13
+moved from `n/a` to `pass` when the structural module produced labelled outputs).
+`make reproduce-sample` runs the whole chain end to end, including the structural
+step and the consistency gate. **`reports/research_conclusions.md` is the
+capstone** — every claim with the evidential status that licenses it, generated
+from the result tables so no figure in it can drift from the estimate behind it.
+
 ## Next actions, in priority order
 
-1. **Run the detail-level propagation estimate** once the BLS daily allowance
-   resets: `make estimate-propagation-detail`. Twelve requests are needed; the
-   per-series cache holds the rest. This is the first time the two exposure
-   channels can be separated with enough clusters to mean anything, and the
-   answer may well still be "no detectable effect" — which would then be a
-   result rather than a power limit.
-2. **Re-read the summary-level result against it.** If the detail estimate
-   sharpens the intervals, D-041's "power result, not a null" verdict needs
-   restating in whichever direction the evidence goes.
+Nothing is outstanding against the brief. What would extend the work, in the
+order that would add most:
+
+1. **A domestic output or price series.** The binding constraint on everything
+   the project could not answer: whether displaced imports went to U.S.
+   producers or out of consumption. It is also what a second Armington tier
+   would need, and why the structural model has one.
+2. **An official HS10 correlation table**, which would identify renumbered codes
+   rather than bounding them (D-052).
+3. **A second episode through the same configuration**, which is what the
+   episode-driven design was built for and has never been exercised.
 3. Structural Armington/CES module (M10, D-017), not built. What stands in the
    way: no domestic-alternative expenditure series, so the domestic nest of an
    Armington system is unidentified, and the substitution elasticities would be

@@ -1,8 +1,8 @@
 {
   "run": {
-    "run_id": "20260810T194027Z-b1495fb3",
-    "created_utc": "2026-08-10T19:40:27.664316+00:00",
-    "git_commit": "90415a9-dirty",
+    "run_id": "20260811T201500Z-b1495fb3",
+    "created_utc": "2026-08-11T20:15:00.539709+00:00",
+    "git_commit": "3c51a06-dirty",
     "config_name": "sample_slice.yaml",
     "config_sha256": "b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3",
     "data_provenance": "OFFICIAL",
@@ -14,9 +14,9 @@
   },
   "counterfactual_adjusted_summary": {
     "treated_country_excess_change": -2255516923.2664013,
-    "alternative_countries_excess_change": 251662930.89689898,
-    "net_excess_change": -2003853992.3695023,
-    "adjusted_replacement_ratio": 0.1115766094685049,
+    "alternative_countries_excess_change": 251662930.8968988,
+    "net_excess_change": -2003853992.3695025,
+    "adjusted_replacement_ratio": 0.11157660946850481,
     "counterfactual": "country-specific growth of never-treated products over the same calendar months",
     "identifying_assumption": "absent the tariff, treated and never-treated products would have grown at the same rate within each partner country"
   },
