@@ -174,7 +174,20 @@ briefly printed **+0.1362 and +0.0058** as the incidence figures. The check
 failed on the ambiguity before the numbers reached anyone — the first time one of
 those checks caught something new rather than something already known.
 
-**The detail estimate has not been run.** BLS v1 allows only a few requests per
+**The detail estimate has been run** (D-053), and it closes the last open
+empirical question. 256 clusters against 22. All three channels remain
+statistically indistinguishable from zero, but the intervals are now
+economically informative: at mean exposure, imported-input cost is bounded
+within **[−0.14%, +0.81%]** of producer prices and output protection within
+**[−0.10%, +0.74%]**, against a summary-level interval spanning roughly −1% to
++9%. That converts D-041's power result into a **bounded null**.
+
+The caveat is recorded rather than buried: the intervals narrowed about
+eightfold and the point estimates shrank by about the same factor, so the
+t-statistics barely moved (1.52→1.37, 1.83→1.51). The finer axis bought
+precision in economic terms, not in statistical detectability.
+
+Superseded note: BLS v1 allows only a few requests per
 address per day and the coverage probes exhausted today's allowance. The script
 refused to estimate on whichever series happened to be cached, because a sample
 that changed silently is worse than no result. The cache is now **per series and

@@ -751,11 +751,13 @@ def main() -> int:  # noqa: C901, PLR0915
                     "classification the exposure measure is built in, so no second undocumented "
                     "crosswalk is involved.\n\n"
                     "**All three channels carry the expected positive sign and none is "
-                    "statistically distinguishable from zero.** This is a power result, not "
-                    "evidence of no effect: the confidence interval on imported-input cost "
-                    "exposure spans roughly −1% to +9% of producer prices at mean exposure, "
-                    "which is uninformative rather than a bound near zero.\n\n"
-                    f"Why power is low is not a mystery. There are {prop_q['n_industries']} "
+                    "statistically distinguishable from zero.** At this level that is a power "
+                    "result rather than evidence of no effect: the confidence interval on "
+                    "imported-input cost exposure spans roughly −1% to +9% of producer prices "
+                    "at mean exposure, which is uninformative rather than a bound near zero. "
+                    "The detail-level run below is the answer to it.\n\n"
+                    f"Why power is low here is not a mystery. There are "
+                    f"{prop_q['n_industries']} "
                     "industries with a matched series, so 22 clusters; cluster-robust standard "
                     "errors over-reject at that count, so every coefficient also carries a "
                     "wild cluster bootstrap p-value with the null imposed. And PPI industry "
@@ -773,6 +775,74 @@ def main() -> int:  # noqa: C901, PLR0915
                 discusses_evidential_status=True,
             )
         )
+        prop_d = _read("propagation_ppi_estimates_detail")
+        pq_d = _json("propagation_quality_detail")
+        if prop_d is not None and pq_d:
+            ed = _read("industry_tariff_exposure_detail")
+            means = (
+                {
+                    c: float(ed[c].mean())
+                    for c in ("imported_input_cost_exposure", "output_protection_exposure")
+                }
+                if ed is not None
+                else {}
+            )
+            rows = []
+            for r in prop_d.filter(
+                ~pl.col("channel").str.starts_with("joint")
+            ).iter_rows(named=True):
+                m = means.get(r["channel"])
+                rows.append(
+                    {
+                        "channel": r["channel"],
+                        "estimate": round(r["estimate"], 4),
+                        "ci_low": round(r["ci_low"], 4),
+                        "ci_high": round(r["ci_high"], 4),
+                        "bootstrap_p": round(r["bootstrap_p_value"], 3),
+                        "t_stat": round(r["estimate"] / r["std_error"], 2)
+                        if r["std_error"]
+                        else None,
+                        "at_mean_exposure_pct": round(r["estimate"] * m * 100, 3)
+                        if m
+                        else None,
+                        "at_mean_ci_pct": (
+                            f"[{r['ci_low'] * m * 100:+.2f}%, {r['ci_high'] * m * 100:+.2f}%]"
+                            if m
+                            else None
+                        ),
+                    }
+                )
+            secs.append(
+                Section(
+                    "The same test at ten times the industry resolution",
+                    (
+                        f"The summary level gives 22 clusters. BEA's detail tables give "
+                        f"**{pq_d['n_industries']}**, because every industry with a "
+                        "producer-price series enters — those with no tariff exposure are "
+                        "legitimate controls in a continuous-treatment design, not a sample "
+                        "restriction.\n\n"
+                        "**The power limit is resolved, and the answer is still no detectable "
+                        "effect.** That is now a result rather than a limitation. At mean "
+                        "exposure the imported-input cost channel is bounded within "
+                        "**[−0.14%, +0.81%]** of producer prices and output protection within "
+                        "**[−0.10%, +0.74%]** — against a summary-level interval spanning "
+                        "roughly −1% to +9%. The downstream Leontief channel is the tightest "
+                        "and now sits slightly negative, bounded within ±0.03 in coefficient "
+                        "terms.\n\n"
+                        "**One thing this does not do, stated because it would be easy to "
+                        "dress up.** The intervals narrowed about eightfold, but the point "
+                        "estimates shrank by about the same factor, so the t-statistics barely "
+                        "moved: 1.52 to 1.37 on input cost, 1.83 to 1.51 on protection. The "
+                        "finer axis bought precision in **economic** terms — what magnitudes "
+                        "the data can exclude — not in statistical detectability. Had the "
+                        "coefficient held at its summary-level value while the interval "
+                        "tightened, this would read as a detected effect; it does not."
+                    ),
+                    [("detail-level estimates", pl.DataFrame(rows))],
+                    discusses_evidential_status=True,
+                )
+            )
+
         match = _read("ppi_industry_match")
         if match is not None:
             secs.append(

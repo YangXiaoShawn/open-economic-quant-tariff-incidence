@@ -13,10 +13,11 @@ in opposite directions: output protection should raise an industry's own price,
 imported-input cost should raise it too but for a different reason, and an
 industry exposed to both is the interesting case rather than a wash.
 
-Inference caveat, stated up front. There are 22 industries with a matched PPI
-series, so 22 clusters. Cluster-robust standard errors over-reject badly at that
-count, so every coefficient is also reported with a wild cluster bootstrap
-p-value, and where the two disagree the bootstrap is the one to read.
+Inference caveat, stated up front. At the BEA summary level there are 22
+industries with a matched PPI series, so 22 clusters, and cluster-robust standard
+errors over-reject badly at that count. ``--level detail`` raises it to 256. Every
+coefficient carries a wild cluster bootstrap p-value regardless, and where the two
+disagree the bootstrap is the one to read.
 """
 
 from __future__ import annotations

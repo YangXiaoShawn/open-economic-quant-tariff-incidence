@@ -1502,3 +1502,48 @@ and the check now constrain on `rung`, and a test pins it.
 That is the first time a check written for a past defect caught a live one. It is
 also the argument for the check's shape: it does not verify a number, it verifies
 that exactly one row answers the question the report asks.
+
+### D-053 — The propagation power limit is resolved, and the answer is still no effect
+
+D-041 recorded the domestic-propagation test as a power result rather than a
+null, and said the detail-level run "may well still be 'no detectable effect' —
+which would then be a result rather than a power limit." It is, and it is.
+
+**256 clusters, against 22.** Every industry with a producer-price series enters,
+including those with no tariff exposure: in a continuous-treatment design those
+are legitimate controls, not a sample restriction.
+
+| channel | summary β (t) | detail β (t) | detail 95% CI | bootstrap p |
+|---|---|---|---|---|
+| imported-input cost | +1.2295 (1.52) | **+0.1441** (1.37) | [−0.063, +0.351] | 0.167 |
+| output protection | +0.3736 (1.83) | **+0.0416** (1.51) | [−0.013, +0.096] | 0.136 |
+| downstream (Leontief) | +0.1642 (1.59) | **−0.0067** (−0.62) | [−0.028, +0.015] | 0.543 |
+
+**What the data can now exclude.** At mean exposure the imported-input cost
+channel is bounded within **[−0.14%, +0.81%]** of producer prices and output
+protection within **[−0.10%, +0.74%]**. The summary-level interval on input cost
+spanned roughly −1% to +9%. That is the difference between an interval that says
+nothing and one that rules out anything larger than about one percent — which is
+what makes this a bounded null rather than an absence of power, by the same
+standard the pre-trend taxonomy applies to `PRECISE_NULL_EFFECT_BOUNDED`.
+
+**What it does not do, recorded because dressing it up would be easy.** The
+intervals narrowed roughly eightfold and the point estimates shrank by about the
+same factor, so the **t-statistics barely moved**: 1.52 → 1.37 on input cost,
+1.83 → 1.51 on protection. The finer axis bought precision in *economic* terms —
+which magnitudes are excluded — not in statistical detectability. Had the
+coefficient held near its summary-level value while the interval tightened, this
+would read as a detected effect. It does not, and the report says so in those
+words.
+
+**The downstream channel is the cleanest null of the three**: tightly bounded,
+now slightly negative, bootstrap p = 0.54. Whatever the Leontief chain
+transmits over this window, it is not visible in producer prices at this
+resolution.
+
+**On interpretation.** Producer prices are one margin. An industry facing higher
+input costs can absorb them in margins, substitute suppliers, or pass them
+downstream, and only the last shows here. A bounded null on prices is not a
+statement that tariffs had no domestic effect; it is a statement about this
+outcome, at this resolution, over this window. No welfare claim follows and none
+is made.

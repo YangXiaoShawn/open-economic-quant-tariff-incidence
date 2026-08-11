@@ -4,7 +4,7 @@
 >
 > All figures below derive from official statistical or legal sources.
 >
-> run_id `20260811T174537Z-b1495fb3` · git `a5dd988-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T17:45:37.755915+00:00
+> run_id `20260811T183437Z-b1495fb3` · git `919d826-dirty` · config `sample_slice.yaml` (sha256 `b1495fb3b363`) · data period 2017-01 to 2020-02 · generated 2026-08-11T18:34:37.268063+00:00
 
 
 Mapping product-level tariff exposure into U.S. industries using pre-treatment BEA input-output weights. Pre-treatment weights are used so that the exposure measure cannot respond to the shock it is being used to explain.
@@ -103,7 +103,7 @@ BEA publishes detail-level input-output tables for benchmark years only -- 2007,
 
 The coarser axis was not merely less precise. It reported as one number positions that differ substantially within a single summary industry:
 
-inside summary industry `331`, which the detail level splits into 10 industries, copper rolling, drawing, extruding and alloying carries output protection 0.250 against input cost 0.059, while nonferrous metal (except copper and aluminum) rolling, drawing, extruding and alloying carries 0.000 against 0.005 — reported as one number by a 71-industry axis.
+inside summary industry `326`, which the detail level splits into 10 industries, plastics packaging materials and unlaminated film and sheet manufacturing carries output protection 0.250 against input cost 0.085, while urethane and other foam product (except polystyrene) manufacturing carries 0.000 against 0.050 — reported as one number by a 71-industry axis.
 
 **granularity**
 
@@ -144,9 +144,9 @@ A larger protection number than cost number therefore says nothing about which c
 
 Exposure is an accounting construct built from input-output weights. Whether it predicts anything is a separate question, tested here against BLS producer prices in the **NAICS industry** classification — the same classification the exposure measure is built in, so no second undocumented crosswalk is involved.
 
-**All three channels carry the expected positive sign and none is statistically distinguishable from zero.** This is a power result, not evidence of no effect: the confidence interval on imported-input cost exposure spans roughly −1% to +9% of producer prices at mean exposure, which is uninformative rather than a bound near zero.
+**All three channels carry the expected positive sign and none is statistically distinguishable from zero.** At this level that is a power result rather than evidence of no effect: the confidence interval on imported-input cost exposure spans roughly −1% to +9% of producer prices at mean exposure, which is uninformative rather than a bound near zero. The detail-level run below is the answer to it.
 
-Why power is low is not a mystery. There are 22 industries with a matched series, so 22 clusters; cluster-robust standard errors over-reject at that count, so every coefficient also carries a wild cluster bootstrap p-value with the null imposed. And PPI industry indices cover an entire NAICS group while exposure is built from 10-digit trade lines, which attenuates any true relationship toward zero.
+Why power is low here is not a mystery. There are 22 industries with a matched series, so 22 clusters; cluster-robust standard errors over-reject at that count, so every coefficient also carries a wild cluster bootstrap p-value with the null imposed. And PPI industry indices cover an entire NAICS group while exposure is built from 10-digit trade lines, which attenuates any true relationship toward zero.
 
 Entering both channels together halves the input-cost coefficient, because the two exposures are correlated across industries: an industry that buys tariffed inputs tends also to sell tariffed output. Reporting either alone would attribute the other's variation to it.
 
@@ -159,6 +159,23 @@ Entering both channels together halves the input-cost coefficient, because the t
 | downstream_total_requirements_exposure | 0.1642 | -0.0504 | 0.3788 | 0.1264 | 0.1122 | 1056 | 22 |
 | joint::input_cost_x_post | 0.3473 | -0.4319 | 1.1266 | 0.3645 | 0.5371 | 1056 | 22 |
 | joint::protection_x_post | 0.3221 | -0.0546 | 0.6989 | 0.0899 | 0.1743 | 1056 | 22 |
+
+
+## The same test at ten times the industry resolution
+
+The summary level gives 22 clusters. BEA's detail tables give **256**, because every industry with a producer-price series enters — those with no tariff exposure are legitimate controls in a continuous-treatment design, not a sample restriction.
+
+**The power limit is resolved, and the answer is still no detectable effect.** That is now a result rather than a limitation. At mean exposure the imported-input cost channel is bounded within **[−0.14%, +0.81%]** of producer prices and output protection within **[−0.10%, +0.74%]** — against a summary-level interval spanning roughly −1% to +9%. The downstream Leontief channel is the tightest and now sits slightly negative, bounded within ±0.03 in coefficient terms.
+
+**One thing this does not do, stated because it would be easy to dress up.** The intervals narrowed about eightfold, but the point estimates shrank by about the same factor, so the t-statistics barely moved: 1.52 to 1.37 on input cost, 1.83 to 1.51 on protection. The finer axis bought precision in **economic** terms — what magnitudes the data can exclude — not in statistical detectability. Had the coefficient held at its summary-level value while the interval tightened, this would read as a detected effect; it does not.
+
+**detail-level estimates**
+
+| channel | estimate | ci_low | ci_high | bootstrap_p | t_stat | at_mean_exposure_pct | at_mean_ci_pct |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| imported_input_cost_exposure | 0.1441 | -0.0625 | 0.3506 | 0.1670 | 1.3700 | 0.3310 | [-0.14%, +0.81%] |
+| output_protection_exposure | 0.0416 | -0.0127 | 0.0958 | 0.1360 | 1.5100 | 0.3220 | [-0.10%, +0.74%] |
+| downstream_total_requirements_exposure | -0.0067 | -0.0279 | 0.0145 | 0.5430 | -0.6200 |  |  |
 
 
 ## Which industries have a producer-price series at all
@@ -214,12 +231,12 @@ These exposure numbers are a qualitative ordering of industries. They are not el
 
 ## Reproducibility
 
-- run id: `20260811T174537Z-b1495fb3`
-- git commit: `a5dd988-dirty`
+- run id: `20260811T183437Z-b1495fb3`
+- git commit: `919d826-dirty`
 - configuration: `sample_slice.yaml` (sha256 `b1495fb3b363c158ae3b162babd17a515adfc9a8c26038b6c09edb9ec55652a3`)
 - data provenance: `OFFICIAL`
 - data period: 2017-01 to 2020-02
-- generated: 2026-08-11T17:45:37.755915+00:00
+- generated: 2026-08-11T18:34:37.268063+00:00
 - python 3.12.13 on macOS-26.6.1-arm64-arm-64bit
 
 _This document is generated by `scripts/generate_reports.py`. Do not edit it by hand; edit the generator or the underlying result tables._
