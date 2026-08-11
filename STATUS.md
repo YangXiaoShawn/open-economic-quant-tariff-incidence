@@ -552,11 +552,10 @@ tables were missing. Fixed, and reports regenerated with content.
 2. **Re-read the summary-level result against it.** If the detail estimate
    sharpens the intervals, D-041's "power result, not a null" verdict needs
    restating in whichever direction the evidence goes.
-3. Structural Armington/CES module (M10, D-017), still deliberately deferred:
-   calibrating it would produce counterfactuals with no informational content
-   beyond the reduced-form slice.
-4. Portfolio polish: dashboard pages for the detail exposure, and a pass over
-   the reports now that the industry axis is ten times finer.
+3. Structural Armington/CES module (M10, D-017), not built. What stands in the
+   way: no domestic-alternative expenditure series, so the domestic nest of an
+   Armington system is unidentified, and the substitution elasticities would be
+   borrowed rather than estimated here.
 
 ## Known gaps carried forward
 
