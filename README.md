@@ -7,6 +7,18 @@ concentration, and downstream domestic industries.
 **Setting:** the 2018–2019 U.S. Section 301 actions against China. New tariff
 episodes are added through configuration, not code.
 
+## Public release
+
+- [Source repository](https://github.com/YangXiaoShawn/open-economic-quant-tariff-incidence)
+- [Permanent project page](https://yangxiaoshawn.github.io/projects/tariff-incidence/)
+- [Versioned research package](https://huggingface.co/datasets/ShawnChamberlain/open-economic-quant-research-data/tree/main/TariffIncidence)
+- [Interactive research explorer](https://huggingface.co/spaces/ShawnChamberlain/open-economic-quant-research-observatory)
+
+The public GitHub repository contains code, tests, configuration, documentation,
+small official excerpts used as fixtures, manifests, and generated narrative
+reports. Large raw and analytical data remain excluded by `.gitignore`; the
+repository records how to reconstruct them from the documented official sources.
+
 > ### Read this before reading any number
 >
 > The pipeline runs on **official U.S. Census data** (provenance `OFFICIAL`).

@@ -1,6 +1,6 @@
 # STATUS
 
-**Last updated:** 2026-08-11 · session 14
+**Last updated:** 2026-08-17 · session 15
 
 ## One-line state
 
@@ -14,6 +14,20 @@ Landed cost **CLEAN**; customs unit value a **bounded null** (0.072); quantity
 
 The sections below are in reverse chronological order; earlier sections record
 what was true at the time and are superseded by later ones.
+
+## Session 15: public release integration
+
+The project now has canonical publication metadata in `project.yaml` and stable
+links connecting the standalone GitHub repository, permanent Observatory page,
+versioned Hugging Face Dataset package, and interactive Space. The empty
+`untitled.md` placeholder was removed. Large raw, staged, normalized, and
+analytical data remain outside GitHub under the existing `.gitignore`; the
+public repository carries the code, tests, configuration, provenance manifests,
+small official fixture excerpt, and generated narrative reports needed to audit
+and reconstruct the analysis.
+
+Release verification on 2026-08-17 passed the complete test suite, Ruff, and
+MyPy with no failures or reported issues.
 
 ## Session 13: the power limit had a published answer
 
